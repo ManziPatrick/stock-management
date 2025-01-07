@@ -7,15 +7,15 @@ import SearchInput from '../../components/SearchInput';
 import { useGetAllSaleQuery } from '../../redux/features/management/saleApi';
 
 // Define proper types
-interface ISaleData {
-  _id: string;
-  productName: string;
-  productPrice: number;
-  SellingPrice: number;
-  buyerName: string;
-  quantity: number;
-  date: string;
-}
+// interface ISaleData {
+//   _id: string;
+//   productName: string;
+//   productPrice: number;
+//   SellingPrice: number;
+//   buyerName: string;
+//   quantity: number;
+//   date: string;
+// }
 
 interface ITableSaleData {
   key: string;

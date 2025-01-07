@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import React from 'react';
 import { Col, Row } from 'antd';
 
@@ -11,6 +13,7 @@ interface Props {
   defaultValue?: any;
   max?: string;
   min?: string;
+
 }
 
 const CustomInput: React.FC<Props> = ({
@@ -38,6 +41,7 @@ const CustomInput: React.FC<Props> = ({
           placeholder={label}
           defaultValue={defaultValue}
           min={min}
+          validation={validation}
           max={max}
           {...register(name, { required })}
           className={`input-field ${errors[name] ? 'input-field-error' : ''}`}

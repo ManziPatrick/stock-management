@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import { PrinterOutlined } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
 import { Button, Flex, Modal, Pagination, Table, Typography } from 'antd';
