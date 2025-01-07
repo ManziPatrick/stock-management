@@ -41,7 +41,6 @@ const CustomInput: React.FC<Props> = ({
           placeholder={label}
           defaultValue={defaultValue}
           min={min}
-          validation={validation}
           max={max}
           {...register(name, { required })}
           className={`input-field ${errors[name] ? 'input-field-error' : ''}`}
