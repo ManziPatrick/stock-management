@@ -65,7 +65,7 @@ const Dashboard: React.FC = () => {
       totalQuantity: record.totalQuantity || 0,
       totalSellingPrice: record.totalSellingPrice || 0,
       totalExpenses: record.totalExpenses || 0,
-      totalProfit: record.totalProfit || 0  
+      totalProfit: (record.totalSellingPrice - record.totalExpenses) || 0  
     }),
     { totalQuantity: 0, totalSellingPrice: 0, totalExpenses: 0, totalProfit: 0 }
   );
