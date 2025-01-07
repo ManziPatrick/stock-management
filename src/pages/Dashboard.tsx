@@ -115,13 +115,13 @@ const Dashboard: React.FC = () => {
 
       <div className="mt-8 border bg-white shadow-sm border-slate-200 w-full p-4">
         <h1 className="text-center text-xl font-semibold mb-4">Daily Sale and Revenue</h1>
-        // @ts-ignore
+        
         <DailyChart data={rawData} />
       </div>
      
       <div className="mt-8 border bg-white shadow-sm border-slate-200 w-full p-4">
         <h1 className="text-center text-xl font-semibold mb-4">Monthly Revenue</h1>
-        // @ts-ignore
+     
         <MonthlyChart data={rawData} />
      
     </div>
