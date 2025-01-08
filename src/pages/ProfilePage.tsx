@@ -1,14 +1,18 @@
 import { EditFilled, EditOutlined } from '@ant-design/icons';
 import { Button, Col, Flex, Row } from 'antd';
 import userProPic from '../assets/User.png';
+
 import Loader from '../components/Loader';
 import { useGetSelfProfileQuery } from '../redux/features/authApi';
 import { profileKeys } from '../constant/profile';
-import { Link } from 'react-router-dom';
+import { Link,useLocation } from 'react-router-dom';
 
 const ProfilePage = () => {
   const { data, isLoading } = useGetSelfProfileQuery(undefined);
-
+  const location = useLocation();
+  const newPath = location.pathname.replace('profile', 'change-password');
+  
+  const newPaths = location.pathname.replace('profile', 'edit-profile');
   if (isLoading) return <Loader />;
 
   return (
@@ -35,13 +39,13 @@ const ProfilePage = () => {
 
         <Flex justify='center' style={{ margin: '1rem' }}>
           <Flex gap={16} wrap='wrap' justify='center'>
-            <Link to='/edit-profile'>
+            <Link to={newPaths}>
               <Button type='primary'>
                 <EditOutlined />
                 Edit Profile 
               </Button>
             </Link>
-            <Link to='/change-password'>
+            <Link to={newPath}>
               <Button type='primary'>
                 <EditFilled />
                 Change Password

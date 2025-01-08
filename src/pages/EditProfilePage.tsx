@@ -7,13 +7,15 @@ import { profileInputFields } from '../constant/profile';
 import { useGetSelfProfileQuery, useUpdateProfileMutation } from '../redux/features/authApi';
 import Loader from '../components/Loader';
 import { toast } from 'sonner';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { config } from '../utils/config';
 
 const EditProfilePage = () => {
   const { data, isLoading } = useGetSelfProfileQuery(undefined);
   const [updateProfile] = useUpdateProfileMutation();
   const navigate = useNavigate();
+   const location = useLocation();
+    const newPath = location.pathname.replace('edit-profile', 'profile');
 
   if (isLoading) {
     return <Loader />;
@@ -105,7 +107,7 @@ const EditProfilePage = () => {
       </Col>
       <Col xs={{ span: 24 }} lg={{ span: 16 }}>
         <Flex justify='end' style={{ margin: '1rem 0' }}>
-          <Button type='default' onClick={() => navigate('/profile')}>
+          <Button type='default' onClick={() => navigate(newPath)}>
             <ArrowLeftOutlined /> Go Back
           </Button>
         </Flex>

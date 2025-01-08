@@ -47,6 +47,7 @@ interface ISaleData {
   buyerName: string;
   date: string;
   totalPrice: number;
+  totalvalue: number;
 }
 
 interface IProfitLoss {
@@ -85,6 +86,7 @@ const ProductManagePageuser = () => {
       : 'N/A',
     measurement: product.measurement,
     description: product.description,
+    totalValue: product.price * product.stock,
   }));
   
   
@@ -105,18 +107,23 @@ const ProductManagePageuser = () => {
       key: 'price',
       dataIndex: 'price',
       align: 'center',
-      render: (price: number) => `$${price.toFixed(2)}`,
+      render: (price: number) => `${price.toFixed(2)}`,
     },
     {
       title: 'Stock',
       key: 'stock',
       dataIndex: 'stock',
       align: 'center',
+    }, {
+      title: 'Stock',
+      key: 'stock',
+      dataIndex: 'stock',
+      align: 'center',
     },
     {
-      title: 'Measurement',
-      key: 'measurementInfo',
-      dataIndex: 'measurementInfo',
+      title: 'total Value',
+      key: 'totalValue',
+      dataIndex: 'totalValue',
       align: 'center',
     },
     {
@@ -350,13 +357,13 @@ const SellProductModal = ({ product }: { product: ITableData }) => {
             
             <div style={{ margin: '0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
               <h4 style={{ margin: '0 0 0.5rem 0' }}>Calculation Summary:</h4>
-              <p>Original Price: ${product.price}/unit</p>
-              <p>Selling Price: ${watchPricePerUnit || product.price}/unit</p>
+              <p>Original Price: {product.price} frw/unit</p>
+              <p>Selling Price: {watchPricePerUnit || product.price} frw/unit</p>
               <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                {profitLoss.isProfit ? 'Profit' : 'Loss'}: ${profitLoss.perUnit}/unit
+                {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw/unit
               </p>
               <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: ${profitLoss.total}
+                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
               </p>
               <p style={{ fontWeight: 'bold' }}>
                 Available Stock: {product.stock} units

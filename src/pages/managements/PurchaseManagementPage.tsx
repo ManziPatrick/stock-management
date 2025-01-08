@@ -12,6 +12,8 @@ import { IPurchase } from '../../types/purchase.types';
 import formatDate from '../../utils/formatDate';
 import toastMessage from '../../lib/toastMessage';
 import SearchInput from '../../components/SearchInput';
+import Typography from 'antd/es/typography/Typography';
+
 
 const PurchaseManagementPage = () => {
   const [query, setQuery]= useState({
@@ -21,7 +23,8 @@ const PurchaseManagementPage = () => {
   });
 
   const { data, isFetching } = useGetAllPurchasesQuery(query);
-
+  const totalPurchasedAmount = data?.meta?.totalPurchasedAmount || 0;
+ 
   const onChange: PaginationProps['onChange'] = (page) => {
     setQuery((prev) => ({ ...prev, page: page }));
   };
@@ -99,6 +102,8 @@ const PurchaseManagementPage = () => {
         dataSource={tableData}
         pagination={false}
       />
+        
+
       <Flex justify='center' style={{ marginTop: '1rem' }}>
         <Pagination
           current={query.page}
@@ -106,6 +111,11 @@ const PurchaseManagementPage = () => {
           defaultPageSize={query.limit}
           total={data?.meta?.total}
         />
+      </Flex>
+      <Flex justify="end" className="mt-4 pr-4">
+      <Typography >
+          Total Margin Profit: <span className="text-green-600">{totalPurchasedAmount}</span>
+        </Typography>
       </Flex>
     </>
   );

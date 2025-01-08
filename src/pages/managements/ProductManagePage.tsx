@@ -21,6 +21,7 @@ import { useGetAllCategoriesQuery } from '../../redux/features/management/catego
 import { useGetAllSellerQuery } from '../../redux/features/management/sellerApi';
 import { useGetAllBrandsQuery } from '../../redux/features/management/brandApi';
 import { useCreateSaleMutation } from '../../redux/features/management/saleApi';
+import Typography from 'antd/es/typography/Typography';
 
 interface SaleDataType {
   _id: string;
@@ -54,7 +55,8 @@ const ProductManagePage = () => {
   const onChange: PaginationProps['onChange'] = (page) => {
     setCurrent(page);
   };
-
+  const totaltotalValue = products?.meta?.summary?.totalValue || 0;
+ 
   const tableData = products?.data?.map((product: IProduct) => ({
     key: product._id,
     name: product.name,
@@ -68,6 +70,7 @@ const ProductManagePage = () => {
     size: product.measurement?.value || product.size || '',
     unit: product.measurement?.unit || '',
     description: product.description,
+    totalValue: product.price * product.stock,
   }));
 
   const columns: TableColumnsType<any> = [
@@ -95,6 +98,12 @@ const ProductManagePage = () => {
       align: 'center',
     },
     {
+      title: 'total Value',
+      key: 'totalValue',
+      dataIndex: 'totalValue',
+      align: 'center',
+    },
+    {
       title: 'unit',
       key: 'unit',
       dataIndex: 'unit',
@@ -118,7 +127,7 @@ const ProductManagePage = () => {
         return (
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
             <SellProductModal product={item} />
-            <AddStockModal product={item} />
+            {/* <AddStockModal product={item} /> */}
             <UpdateProductModal product={item} />
             <DeleteProductModal id={item.key} />
           </div>
@@ -127,6 +136,7 @@ const ProductManagePage = () => {
       width: '1%',
     },
   ];
+  
 
   return (
     <>
@@ -145,6 +155,11 @@ const ProductManagePage = () => {
           defaultPageSize={query.limit}
           total={products?.meta?.total}
         />
+      </Flex>
+      <Flex justify="end" className="mt-4 pr-4">
+        <Typography.Title level={4}>
+          Total Margin Profit: <span className="text-green-600">{totaltotalValue}</span>
+        </Typography.Title>
       </Flex>
     </>
   );
@@ -351,13 +366,13 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
             
             <div style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
               <h4>Calculation Summary:</h4>
-              <p>Original Price: ${product.price}/unit</p>
-              <p>Selling Price: ${watchPricePerUnit || product.price}/unit</p>
+              <p>Original Price: {product.price}frw /unit</p>
+              <p>Selling Price: {watchPricePerUnit || product.price}frw /unit</p>
               <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                {profitLoss.isProfit ? 'Profit' : 'Loss'}: ${profitLoss.perUnit}/unit
+                {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw /unit
               </p>
               <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: ${profitLoss.total}
+                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
               </p>
             </div>
 
@@ -462,9 +477,9 @@ const AddStockModal = ({ product }: { product: IProduct }) => {
         <form onSubmit={handleSubmit(onSubmit)} style={{ margin: '2rem' }}>
           <div style={{ marginBottom: '1rem' }}>
             <p>Current Stock: {product.stock}</p>
-            <p>Price per unit: ${product.price}</p>
+            <p>Price per unit: {product.price.toFixed(0)} frw </p>
             {watchStock && (
-              <p>Total Purchase Value: ${(Number(watchStock) * product.price).toFixed(2)}</p>
+              <p>Total Purchase Value: {(Number(watchStock) * product.price).toFixed(0)} frw</p>
             )}
           </div>
 
@@ -534,6 +549,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const onSubmit = async (data: FieldValues) => {
+    
     const payload = { ...data };
     payload.price = Number(data.price);
     

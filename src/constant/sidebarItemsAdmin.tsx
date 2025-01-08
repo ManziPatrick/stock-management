@@ -63,4 +63,5 @@ export const sidebarItems = [
     label: <NavLink to='/admin/profile'>PROFILE</NavLink>,
     icon: React.createElement(UserOutlined),
   },
+  
 ];

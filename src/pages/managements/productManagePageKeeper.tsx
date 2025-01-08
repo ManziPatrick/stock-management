@@ -80,6 +80,7 @@ const ProductManagePageKeeper = () => {
       : 'N/A',
     measurement: product.measurement,
     description: product.description,
+    totalValue: product.price * product.stock,
   }));
   
   
@@ -106,6 +107,12 @@ const ProductManagePageKeeper = () => {
       title: 'Stock',
       key: 'stock',
       dataIndex: 'stock',
+      align: 'center',
+    },
+    {
+      title: 'total Value',
+      key: 'totalValue',
+      dataIndex: 'totalValue',
       align: 'center',
     },
     {

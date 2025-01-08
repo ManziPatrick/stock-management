@@ -79,6 +79,8 @@ const SaleManagementPage = () => {
     setQuery((prev) => ({ ...prev, page }));
   };
 
+  const totalMarginProfit = data?.data?.summary?.totalMarginProfit || 0;
+
   const tableData: ITableSaleData[] = data?.data?.data?.map((sale: any) => ({
     key: sale._id,
     productName: sale.productName,
@@ -91,7 +93,7 @@ const SaleManagementPage = () => {
     date: formatDate(sale.date), // Format date before displaying in table
   })) || [];
 
-  const totalProfit = tableData.reduce((sum, sale) => sum + sale.profit, 0);
+  const totalProfit = totalMarginProfit || 0;
 
   const columns: TableColumnsType<ITableSaleData> = [
     {

@@ -2,7 +2,7 @@ import { Button, Flex, Input } from 'antd';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useChangePasswordMutation } from '../redux/features/authApi';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 
 const ChangePasswordPage = () => {
@@ -11,7 +11,8 @@ const ChangePasswordPage = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const navigate = useNavigate();
-
+  const location = useLocation();
+  const newPath = location.pathname.replace('change-password', 'profile');
   const handleSubmit = async () => {
     if (!oldPassword || !newPassword || !confirmPassword) {
       toast.error('All fields are required');
@@ -43,7 +44,7 @@ const ChangePasswordPage = () => {
         setOldPassword('');
         setNewPassword('');
         setConfirmPassword('');
-        navigate('/profile');
+        navigate(newPath);
       }
     } catch (error: any) {
       toast.error(error.data.message, { id: error.data.statusCode });
@@ -84,7 +85,7 @@ const ChangePasswordPage = () => {
         <Button type='primary' onClick={handleSubmit}>
           Change Password
         </Button>
-        <Button type='default' onClick={() => navigate('/profile')}>
+        <Button type='default' onClick={() => navigate(newPath)}>
           <ArrowLeftOutlined /> Go Back
         </Button>
       </Flex>
