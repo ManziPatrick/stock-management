@@ -114,7 +114,7 @@ const PurchaseManagementPage = () => {
       </Flex>
       <Flex justify="end" className="mt-4 pr-4">
       <Typography >
-          Total Purchase value: <span className="text-green-600">{totalPurchasedAmount}</span>
+          Total Purchase value: <span className="text-green-600">{totalPurchasedAmount} frw</span>
         </Typography>
       </Flex>
     </>
