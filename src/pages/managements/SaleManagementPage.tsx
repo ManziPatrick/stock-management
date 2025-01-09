@@ -45,7 +45,7 @@ const SaleManagementPage = () => {
 
   // Format currency helper
   const formatCurrency = (value: number): string => {
-    return `${value?.toFixed(2) || '0.00'} frw`;
+    return `${value?.toFixed(0) || '0.00'} frw`;
   };
 
   const formatDate = (date: string): string => {
@@ -80,7 +80,7 @@ const SaleManagementPage = () => {
   };
 
   const totalMarginProfit = data?.data?.summary?.totalMarginProfit || 0;
-
+const totalSellingPrice = data?.data?.summary?.totalSellingPrice || 0;
   const tableData: ITableSaleData[] = data?.data?.data?.map((sale: any) => ({
     key: sale._id,
     productName: sale.productName,
@@ -193,12 +193,16 @@ const SaleManagementPage = () => {
           total={data?.data?.totalCount}
         />
       </Flex>
-      
-      <Flex justify="end" className="mt-4 pr-4">
-        <Typography.Title level={4}>
-          Total Margin Profit: <span className="text-green-600">{formatCurrency(totalProfit)}</span>
-        </Typography.Title>
-      </Flex>
+     <div className=' grid grid-cols-2 gap-4 mt-4 justify-center place-content-center   items-center'>
+      <div className='flex justify-end items-right gap-2'>
+        <span>Total sales:</span>
+       <span className="text-green-600">{formatCurrency(totalSellingPrice)}</span>
+      </div>
+      <div className='flex justify-center items-center gap-2'>
+        <span>Total Margin Profit:  </span>  <span className="text-green-600">{formatCurrency(totalProfit)}</span>
+        </div>
+          
+          </div>
 
       <Modal 
         open={isReceiptModalOpen}
