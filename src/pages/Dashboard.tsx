@@ -1,11 +1,14 @@
 // @ts-nocheck 
 
-import React from 'react';
+import React, { useState } from 'react';
 import Loader from '../components/Loader';
 import DailyChart from '../components/Charts/DailyChart';
 import MonthlyChart from '../components/Charts/MonthlyChart';
 import { useYearlySaleQuery } from '../redux/features/management/saleApi';
-
+import {
+  useDeletePurchaseMutation,
+  useGetAllPurchasesQuery,
+} from '../redux/features/management/purchaseApi';  // Import the useGetAllPurchasesQuery hook
 interface YearlyDataRecord {
   totalQuantity: number;
   totalSellingPrice: number;
@@ -33,8 +36,16 @@ interface MetricCardProps {
 }
 
 const Dashboard: React.FC = () => {
+    const [query, setQuery]= useState({
+      page: 1,
+      limit: 10,
+      search: '',
+    });
   const { data: yearlyData, isLoading } = useYearlySaleQuery<YearlyResponse>(undefined);
-
+ const { data, isFetching } = useGetAllPurchasesQuery(query);
+  const totalPurchasedAmount = data?.meta?.totalPurchasedAmount || 0;
+  
+   console.log("Total Purchased Amount:", totalPurchasedAmount);
   if (isLoading) {
     return <Loader />;
   }
@@ -48,12 +59,12 @@ const Dashboard: React.FC = () => {
 
   // Process aggregated metrics
   const aggregateMetrics = {
-    totalSalesRevenue: rawData[0]?.totalPurchasedAmount - totalRevenue || 0, // Get from backend directly
+    totalSalesRevenue: rawData[0]?.totalPurchasedAmount || 0, // Get from backend directly
     totalMarginProfit: rawData[0]?.totalSellingPrice - rawData[0]?.totalProductPrice || 0,
     totalExpenses: rawData[0]?.totalExpenses || 0,
-    totalPurchase: rawData[0]?.totalPurchasedAmount || 0,
+    // totalPurchase: rawData[0]?.totalPurchasedAmount + totalRevenue || 0,
     totalNetProfit: rawData[0]?.totalProfit || 0,
-    totalStock:  totalRevenue|| 0,
+    totalStock:  totalRevenue || 0,
   };
 
   const MetricCard: React.FC<MetricCardProps> = ({ title, value, color = 'black' }) => (
@@ -77,7 +88,7 @@ const Dashboard: React.FC = () => {
         <MetricCard title="Total Expenses" value={aggregateMetrics.totalExpenses} color="red" />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-3 w-full gap-4 mt-4">
-        <MetricCard title="Total Purchase" value={aggregateMetrics.totalPurchase} color="purple" />
+        <MetricCard title="Total Purchase" value={totalPurchasedAmount} color="purple" />
         <MetricCard
           title="Total Net Profit"
           value={aggregateMetrics.totalNetProfit}
