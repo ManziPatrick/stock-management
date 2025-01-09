@@ -17,12 +17,7 @@ const LoginPage = () => {
     handleSubmit,
     register,
     formState: { errors },
-  } = useForm({
-    defaultValues: {
-      email: 'visitor@gmail.com',
-      password: 'pass123',
-    },
-  });
+  } = useForm();
 
   const onSubmit = async (data: FieldValues) => {
     const toastId = toast.loading('Logging...');
@@ -70,7 +65,7 @@ const LoginPage = () => {
             type="text"
             {...register('email', { required: true })}
             placeholder="Your Email*"
-            className={`input-field ${errors['email'] ? 'input-field-error' : ''}`}
+            className={`input-field `}
           />
           <input
             type="password"
