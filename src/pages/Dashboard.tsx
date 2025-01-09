@@ -47,6 +47,7 @@ const Dashboard: React.FC = () => {
 
  const { data:TotalMagrinProfit, isFetching } = useGetAllSaleQuery(query);
 const totalMarginProfit = TotalMagrinProfit?.data?.summary.totalMarginProfit || [];
+const totalSellingPrice = TotalMagrinProfit?.data?.summary.totalSellingPrice || 0;
 console.log("Total Margin Profit:", totalMarginProfit);
   const { data: yearlyData, isLoading } = useYearlySaleQuery<YearlyResponse>(undefined);
   
@@ -66,7 +67,7 @@ console.log("Total Margin Profit:", totalMarginProfit);
 
   // Process aggregated metrics
   const aggregateMetrics = {
-    totalSalesRevenue: rawData[0]?.totalPurchasedAmount || 0, // Get from backend directly
+    totalSalesRevenue: totalSellingPrice || 0, // Get from backend directly
 
     totalExpenses: rawData[0]?.totalExpenses || 0,
     netprofit:totalMarginProfit - rawData[0]?.totalExpenses,

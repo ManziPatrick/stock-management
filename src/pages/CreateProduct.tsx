@@ -197,20 +197,22 @@ const CreateProduct = () => {
               {/* Single Quantity Input with Unit Selection */}
               <Row>
                 <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                  
+                <label htmlFor="quantity" className="label">
+                    Quantity
+                  </label>
                 </Col>
                 <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <div style={{ flex: 1 }}>
+                 
+                    
                       <CustomInput
                         errors={errors}
-                        label='Quantity'
+                        label=''
                         type="number"
                         name="quantity"
                         register={register}
                         required={true}
                       />
-                    </div>
+                   
                     {selectedUnit && (
                       <div style={{ flex: 1 }}>
                         <select
@@ -222,7 +224,7 @@ const CreateProduct = () => {
                         </select>
                       </div>
                     )}
-                  </div>
+                 
                 </Col>
               </Row>
 
