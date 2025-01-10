@@ -74,7 +74,7 @@ const DailyChart = () => {
       </Card>
       <Card bordered={false} className="shadow-sm">
         <Statistic
-          title="Daily Sales"
+          title="Daily Purchased Amount"
           value={response?.data?.summary?.dailyPurchased|| 0}
           suffix="frw"
         />

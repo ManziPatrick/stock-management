@@ -82,7 +82,7 @@ const MonthlyChart: React.FC = () => {
         { title: 'Monthly Revenue', value: response?.data?.summary?.monthlyRevenue || 0, unit: 'frw' },
         { title: 'Monthly Net Profit', value: response?.data?.summary?.monthlyNetProfit - monthlyExpenses || 0, unit: 'frw' },
         { title: 'Monthly Expenses', value: monthlyExpenses || 0, unit: 'frw' },
-        { title: 'Monthly Sales', value: response?.data?.summary?.totalPurchasedAmount || 0, unit: 'frw' },
+        { title: 'Monthly Purchased Amount', value: response?.data?.summary?.totalPurchasedAmount || 0, unit: 'frw' },
       ].map((item, idx) => (
         <Card key={idx} bordered={false} className="shadow-sm">
           <Statistic
