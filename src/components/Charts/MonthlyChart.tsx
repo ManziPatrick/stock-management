@@ -32,7 +32,6 @@ const MonthlyChart: React.FC = () => {
   const { data: response, isLoading, error } = useMonthlySaleQuery();
   const { data: expenses } = useGetAllExpensesQuery();
 
-  // Calculate monthly expenses
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
@@ -46,7 +45,6 @@ const MonthlyChart: React.FC = () => {
     }
     return total;
   }, 0);
-  console.log('Monthly Expenses:', monthlyExpenses);
 
   if (isLoading) {
     return (
@@ -74,20 +72,25 @@ const MonthlyChart: React.FC = () => {
       productCost: item.totalProductPrice || 0,
       expenses: monthlyExpenses || 0,
       quantity: item.totalQuantity || 0,
-      grossProfit: item.grossProfit|| 0,
+      grossProfit: item.grossProfit || 0,
       stockValue: item.stockValue || 0,
     })) || [];
 
   const MonthlySummary = () => (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
       {[
-        { title: 'Monthly Revenue', value: response?.data?.summary?.monthlyRevenue || 0 },
-        { title: 'Monthly Net Profit', value: response?.data?.summary?.monthlyNetProfit - monthlyExpenses || 0 },
-        { title: 'Monthly Expenses', value: monthlyExpenses || 0 },
-        { title: 'Monthly Sales', value: response?.data?.summary?.monthlyQuantitySold || 0, suffix: 'units' },
+        { title: 'Monthly Revenue', value: response?.data?.summary?.monthlyRevenue || 0, unit: 'frw' },
+        { title: 'Monthly Net Profit', value: response?.data?.summary?.monthlyNetProfit - monthlyExpenses || 0, unit: 'frw' },
+        { title: 'Monthly Expenses', value: monthlyExpenses || 0, unit: 'frw' },
+        { title: 'Monthly Sales', value: response?.data?.summary?.totalPurchasedAmount || 0, unit: 'frw' },
       ].map((item, idx) => (
         <Card key={idx} bordered={false} className="shadow-sm">
-          <Statistic title={item.title} value={item.value} precision={2} prefix="frw" suffix={item.suffix} />
+          <Statistic
+            title={item.title}
+            value={item.value}
+           
+            suffix={item.unit === 'frw' ? 'frw' : undefined}
+          />
         </Card>
       ))}
     </div>
@@ -101,13 +104,15 @@ const MonthlyChart: React.FC = () => {
             <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-              <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
+              <YAxis tickFormatter={(value) => `${value.toLocaleString()}`} />
               <Tooltip
-                formatter={(value: number) => `${value.toLocaleString()} frw`}
+                formatter={(value: number, name: string) =>
+                  name === 'quantity' ? `${value.toLocaleString()} units` : `${value.toLocaleString()} frw`
+                }
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
               />
               <Legend />
-              {['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses'].map((key, index) => (
+              {['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses', 'quantity'].map((key, index) => (
                 <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} name={key} />
               ))}
             </BarChart>
@@ -119,13 +124,15 @@ const MonthlyChart: React.FC = () => {
             <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-              <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
+              <YAxis tickFormatter={(value) => `${value.toLocaleString()}`} />
               <Tooltip
-                formatter={(value: number) => `${value.toLocaleString()} frw`}
+                formatter={(value: number, name: string) =>
+                  name === 'quantity' ? `${value.toLocaleString()} units` : `${value.toLocaleString()} frw`
+                }
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
               />
               <Legend />
-              {['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses'].map((key, index) => (
+              {['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses', 'quantity'].map((key, index) => (
                 <Line key={key} type="monotone" dataKey={key} stroke={COLORS[index % COLORS.length]} name={key} />
               ))}
             </LineChart>
@@ -137,9 +144,11 @@ const MonthlyChart: React.FC = () => {
             <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
               <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-              <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
+              <YAxis tickFormatter={(value) => `${value.toLocaleString()}`} />
               <Tooltip
-                formatter={(value: number) => `${value.toLocaleString()} frw`}
+                formatter={(value: number, name: string) =>
+                  name === 'quantity' ? `${value.toLocaleString()} units` : `${value.toLocaleString()} frw`
+                }
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
               />
               <Legend />
@@ -153,7 +162,7 @@ const MonthlyChart: React.FC = () => {
         const pieData = data.reduce(
           (acc, curr) => [
             ...acc,
-            ...['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses'].map((key) => ({
+            ...['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses', 'quantity'].map((key) => ({
               name: key,
               value: curr[key],
             })),
@@ -178,7 +187,9 @@ const MonthlyChart: React.FC = () => {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value: number) => `${value.toLocaleString()} frw`} />
+              <Tooltip formatter={(value: number, name: string) => 
+                  name === 'quantity' ? `${value.toLocaleString()} units` : `${value.toLocaleString()} frw`} 
+              />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -198,11 +209,10 @@ const MonthlyChart: React.FC = () => {
           style={{ width: 200 }}
           onChange={(value) => setChartType(value as 'bar' | 'line' | 'composed' | 'pie')}
         >
-          {['Bar Chart', 'Line Chart', 'Composed Chart', 'Pie Chart'].map((label, idx) => (
-            <Option key={label.toLowerCase()} value={label.toLowerCase()}>
-              {label}
-            </Option>
-          ))}
+          <Option value="bar">Bar Chart</Option>
+          <Option value="line">Line Chart</Option>
+          <Option value="composed">Composed Chart</Option>
+          <Option value="pie">Pie Chart</Option>
         </Select>
       </Flex>
       {renderChart()}

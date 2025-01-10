@@ -41,7 +41,7 @@ const DailyChart = () => {
   const data = response?.data?.dailyData?.map((item) => ({
     name: `${item._id.day.toString().padStart(2, '0')}/${item._id.month.toString().padStart(2, '0')}/${item._id.year}`,
     revenue: item.totalSellingPrice || 0,
-    quantity: item.totalQuantity || 0,
+    quantity: item.dailyPurchased || 0,
     profit: dailyNetProfit - totalAmountToday  || 0,
     expense: totalAmountToday || 0,
     potentialRevenue: response?.data?.totalRevenue?.totalOverallRevenue || 0
@@ -55,31 +55,28 @@ const DailyChart = () => {
         <Statistic
           title="Daily Revenue"
           value={response?.data?.summary?.dailyRevenue || 0}
-          precision={2}
-          prefix="frw"
+          suffix="frw"
         />
       </Card>
       <Card bordered={false} className="shadow-sm">
         <Statistic
           title="Daily Net Profit"
           value={response?.data?.summary?.dailyNetProfit - totalAmountToday || 0}
-          precision={2}
-          prefix="frw"
+         suffix="frw"
         />
       </Card>
       <Card bordered={false} className="shadow-sm">
         <Statistic
           title="Daily Expenses"
           value={totalAmountToday || 0}
-          precision={2}
-          prefix="frw"
+           suffix="frw"
         />
       </Card>
       <Card bordered={false} className="shadow-sm">
         <Statistic
           title="Daily Sales"
-          value={response?.data?.summary?.dailyQuantitySold || 0}
-          suffix="units"
+          value={response?.data?.summary?.dailyPurchased|| 0}
+          suffix="frw"
         />
       </Card>
     </div>
