@@ -120,6 +120,9 @@ const EditProfilePage = () => {
 export default EditProfilePage;
 
 const EditProfileForm = ({ data }: { data: any }) => {
+  const location = useLocation();
+  const newPath = location.pathname.replace('edit-profile', 'profile');
+
   const navigate = useNavigate();
   const [updateProfile] = useUpdateProfileMutation();
   const {
@@ -146,7 +149,7 @@ const EditProfileForm = ({ data }: { data: any }) => {
 
       if (res.success) {
         toast.success('Profile updated successfully', { id: toastId });
-        navigate('/profile');
+        navigate(newPath);
       }
     } catch (error) {
       toast.error('Failed to update profile', { id: toastId });

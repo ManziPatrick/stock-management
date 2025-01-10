@@ -2,7 +2,7 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Table, Tag } from 'antd';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag } from 'antd';
 import { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
 
@@ -164,7 +164,6 @@ const ProductManagePage = () => {
     </>
   );
 };
-
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -547,22 +546,22 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
 
   const selectedUnit = watch('unitType');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const onSubmit = async (data: FieldValues) => {
+    setIsSubmitting(true);
     
     const payload = { ...data };
     payload.price = Number(data.price);
     
-    // Handle measurement data
     if (data.unitType) {
       payload.measurement = {
         type: data.unitType,
         unit: data.unit,
         value: Number(data.quantity)
       };
-      payload.stock = Number(data.quantity); // Update stock to match new quantity
+      payload.stock = Number(data.quantity);
 
-      // Remove the individual fields
       delete payload.unitType;
       delete payload.unit;
       delete payload.quantity;
@@ -576,8 +575,9 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
         handleCancel();
       }
     } catch (error: any) {
-      handleCancel();
       toastMessage({ icon: 'error', text: error.data.message });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -662,7 +662,14 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
       >
         <EditFilled />
       </Button>
-      <Modal title='Update Product Info' open={isModalOpen} onCancel={handleCancel} footer={null}>
+      <Modal 
+        title='Update Product Info' 
+        open={isModalOpen} 
+        onCancel={handleCancel} 
+        footer={null}
+        closable={!isSubmitting}
+        maskClosable={!isSubmitting}
+      >
         <form onSubmit={handleSubmit(onSubmit)}>
           <CustomInput
             name='name'
@@ -670,6 +677,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             label='Name'
             register={register}
             required={true}
+            disabled={isSubmitting}
           />
           <CustomInput
             errors={errors}
@@ -678,9 +686,9 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             name='price'
             register={register}
             required={true}
+            disabled={isSubmitting}
           />
           
-          {/* Unit Type Selection */}
           <Row>
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
               <label htmlFor="unitType" className="label">
@@ -691,6 +699,8 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
               <select
                 {...register('unitType')}
                 className="input-field"
+                required={true}
+                disabled={isSubmitting}
               >
                 <option value="">Select Measurement Type</option>
                 <option value="weight">Weight</option>
@@ -702,7 +712,6 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
           </Row>
 
-          {/* Quantity and Unit Selection */}
           <Row>
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
               <label htmlFor="quantity" className="label">
@@ -715,10 +724,11 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
                   <CustomInput
                     errors={errors}
                     type="number"
-                    label='number'
+                    label=''
                     name="quantity"
                     register={register}
                     required={true}
+                    disabled={isSubmitting}
                   />
                 </div>
                 {selectedUnit && (
@@ -726,6 +736,8 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
                     <select
                       {...register('unit')}
                       className="input-field"
+                      required={true}
+                      disabled={isSubmitting}
                     >
                       <option value="">Select Unit</option>
                       {renderUnitOptions()}
@@ -744,7 +756,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
               <select
-                disabled={isSellerLoading}
+                disabled={isSellerLoading || isSubmitting}
                 {...register('seller', { required: true })}
                 className={`input-field ${errors['seller'] ? 'input-field-error' : ''}`}
               >
@@ -768,6 +780,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
               <select
                 {...register('category', { required: true })}
                 className={`input-field ${errors['category'] ? 'input-field-error' : ''}`}
+                disabled={isSubmitting}
               >
                 <option value=''>Select Category*</option>
                 {categories?.data.map((item: ICategory) => (
@@ -789,6 +802,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
               <select
                 {...register('brand')}
                 className={`input-field ${errors['brand'] ? 'input-field-error' : ''}`}
+                disabled={isSubmitting}
               >
                 <option value=''>Select brand</option>
                 {brands?.data.map((item: ICategory) => (
@@ -800,22 +814,42 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
           </Row>
 
-          <CustomInput label='Description' name='description' register={register} />
+          <CustomInput 
+            label='Description' 
+            name='description' 
+            register={register}
+            disabled={isSubmitting} 
+          />
 
-          <Flex justify='center'>
+          <Flex justify='center' style={{ marginTop: '20px' }}>
             <Button
-              htmlType='submit'
-              type='primary'
-              style={{ textTransform: 'uppercase', fontWeight: 'bold' }}
+              htmlType="submit"
+              type="primary"
+              disabled={isSubmitting}
+              style={{
+                textTransform: 'uppercase',
+                fontWeight: 'bold',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: '120px',
+              }}
             >
-              Update
+              {isSubmitting ? (
+                <>
+                  <Spin size="small" style={{ marginRight: '8px' }} />
+                  Updating...
+                </>
+              ) : (
+                'Update'
+              )}
             </Button>
           </Flex>
         </form>
       </Modal>
     </>
   );
-};
+};   
 
 
 /**

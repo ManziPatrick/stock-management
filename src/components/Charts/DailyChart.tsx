@@ -1,65 +1,89 @@
-// @ts-nocheck
+// @ts-nocheck 
 import React, { useState } from 'react';
-import { Flex, Select, Card } from 'antd';
+import { Flex, Select, Card, Statistic } from 'antd';
 import {
   Area, AreaChart, Bar, BarChart, Line, LineChart, Pie, PieChart,
   ComposedChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
   Legend, Cell
 } from 'recharts';
 import { useDailySaleQuery } from '../../redux/features/management/saleApi';
+ import {useGetAllExpensesQuery} from '../../redux/features/management/expenseApi';
 import Loader from '../Loader';
 
 const { Option } = Select;
 
-interface DailyRecord {
-  _id: {
-    day: number;
-    month: number;
-    year: number;
-  };
-  totalQuantity: number;
-  totalSellingPrice: number;
-  totalExpenses: number;
-  totalProfit: number;
-}
-
-interface TotalRevenue {
-  totalOverallRevenue: number;
-  sizeWiseRevenue: Array<{
-    _id: string;
-    totalRevenue: number;
-    totalStock: number;
-    averagePrice: number;
-  }>;
-}
-
-interface DailyResponse {
-  dailyData: DailyRecord[];
-  totalRevenue: TotalRevenue;
-}
-
-interface ChartDataPoint {
-  name: string;
-  revenue: number;
-  quantity: number;
-  profit: number;
-  expense: number;
-  potentialRevenue: number;
-}
-
-const DailyChart: React.FC = () => {
-  const [chartType, setChartType] = useState<'area' | 'bar' | 'line' | 'composed' | 'pie'>('area');
-  const { data: response } = useDailySaleQuery<{ data: DailyResponse }>();
-
-
-  const data: ChartDataPoint[] = response?.data?.dailyData?.map((item) => ({
+const DailyChart = () => {
+  const [chartType, setChartType] = useState('area');
+  const { data: response } = useDailySaleQuery();
+  
+  const { data: expenses } = useGetAllExpensesQuery();
+  console.log(expenses);
+  
+  const date = expenses?.data?.expenses?.map((item) => ({
+    date: item.date,
+    amount: item.amount, 
+  }));
+  
+  const today = new Date();
+  console.log("today", today);
+  
+  const todayExpenses = date?.filter((item) => {
+    const expenseDate = new Date(item.date);
+    return expenseDate.toDateString() === today.toDateString();
+  });
+  
+  console.log("Today's Expenses:", todayExpenses);
+  
+  const totalAmountToday = todayExpenses?.reduce((total, item) => total + item.amount, 0);
+  
+  console.log("Total Amount for Today's Expenses:", totalAmountToday);
+  const dailyNetProfit = response?.data?.summary?.dailyNetProfit;
+  const data = response?.data?.dailyData?.map((item) => ({
     name: `${item._id.day.toString().padStart(2, '0')}/${item._id.month.toString().padStart(2, '0')}/${item._id.year}`,
     revenue: item.totalSellingPrice || 0,
     quantity: item.totalQuantity || 0,
-    profit: item.totalProfit || 0,
-    expense: item.totalExpenses || 0,
+    profit: dailyNetProfit - totalAmountToday  || 0,
+    expense: totalAmountToday || 0,
     potentialRevenue: response?.data?.totalRevenue?.totalOverallRevenue || 0
   })) || [];
+
+  console.log("Data:", data);
+  // Daily Summary Section
+  const DailySummary = () => (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <Card bordered={false} className="shadow-sm">
+        <Statistic
+          title="Daily Revenue"
+          value={response?.data?.summary?.dailyRevenue || 0}
+          precision={2}
+          prefix="frw"
+        />
+      </Card>
+      <Card bordered={false} className="shadow-sm">
+        <Statistic
+          title="Daily Net Profit"
+          value={response?.data?.summary?.dailyNetProfit - totalAmountToday || 0}
+          precision={2}
+          prefix="frw"
+        />
+      </Card>
+      <Card bordered={false} className="shadow-sm">
+        <Statistic
+          title="Daily Expenses"
+          value={totalAmountToday || 0}
+          precision={2}
+          prefix="frw"
+        />
+      </Card>
+      <Card bordered={false} className="shadow-sm">
+        <Statistic
+          title="Daily Sales"
+          value={response?.data?.summary?.dailyQuantitySold || 0}
+          suffix="units"
+        />
+      </Card>
+    </div>
+  );
 
   const renderAreaChart = () => (
     <AreaChart data={data} margin={{ top: 10, right: 30, left: 4, bottom: 0 }}>
@@ -122,7 +146,7 @@ const DailyChart: React.FC = () => {
     const pieData = [
       { name: 'Revenue', value: data.reduce((sum, item) => sum + item.revenue, 0) },
       { name: 'Profit', value: data.reduce((sum, item) => sum + item.profit, 0) },
-      { name: 'Expense', value: data.reduce((sum, item) => sum + item.expense, 0) },
+      { name: 'Expense', value: data.reduce((sum, item) => sum + totalAmountToday, 0) },
       { name: 'Quantity', value: data.reduce((sum, item) => sum + item.quantity, 0) },
     ];
 
@@ -150,11 +174,13 @@ const DailyChart: React.FC = () => {
 
   return (
     <Card className="w-full p-4">
+      <DailySummary />
+      
       <Flex justify="end" className="mb-4">
         <Select
           defaultValue="area"
           style={{ width: 200 }}
-          onChange={(value) => setChartType(value as 'bar' | 'area' | 'line' | 'composed' | 'pie')}
+          onChange={(value) => setChartType(value)}
         >
           <Option value="bar">Bar Chart</Option>
           <Option value="area">Area Chart</Option>

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import React, { useState } from 'react';
 import {
   Bar,
@@ -13,59 +14,39 @@ import {
   PieChart,
   Pie,
   Cell,
-  ComposedChart
+  ComposedChart,
 } from 'recharts';
 import { useMonthlySaleQuery } from '../../redux/features/management/saleApi';
 import { months } from '../../utils/generateDate';
-import { Flex, Select, Card, Typography } from 'antd';
+import { Flex, Select, Card, Typography, Statistic } from 'antd';
 import Loader from '../Loader';
+import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
 
 const { Title } = Typography;
 const { Option } = Select;
-
-interface MonthlyRecord {
-  _id: {
-    month: number;
-    year: number;
-  };
-  totalQuantity: number;
-  totalSellingPrice: number;
-  totalProductPrice: number;
-  totalExpenses: number;
-  totalProfit: number;
-}
-
-interface TotalRevenue {
-  totalOverallRevenue: number;
-  sizeWiseRevenue: Array<{
-    _id: string;
-    totalRevenue: number;
-    totalStock: number;
-    averagePrice: number;
-  }>;
-}
-
-interface MonthlyResponse {
-  monthlyData: MonthlyRecord[];
-  totalRevenue: TotalRevenue;
-}
-
-interface ChartDataPoint {
-  name: string;
-  revenue: number;
-  netProfit: number;
-  productCost: number;
-  expenses: number;
-  quantity: number;
-  potentialRevenue: number;
-}
 
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
 
 const MonthlyChart: React.FC = () => {
   const [chartType, setChartType] = useState<'bar' | 'line' | 'composed' | 'pie'>('bar');
-  // @ts-ignore
-  const { data: response, isLoading } = useMonthlySaleQuery<{ data: MonthlyResponse }>(undefined);
+  const { data: response, isLoading, error } = useMonthlySaleQuery();
+  const { data: expenses } = useGetAllExpensesQuery();
+
+  // Calculate monthly expenses
+  const currentMonth = new Date().getMonth() + 1;
+  const currentYear = new Date().getFullYear();
+
+  const monthlyExpenses = expenses?.data?.expenses?.reduce((total, item) => {
+    const expenseDate = new Date(item.date);
+    if (
+      expenseDate.getMonth() + 1 === currentMonth &&
+      expenseDate.getFullYear() === currentYear
+    ) {
+      return total + item.amount;
+    }
+    return total;
+  }, 0);
+  console.log('Monthly Expenses:', monthlyExpenses);
 
   if (isLoading) {
     return (
@@ -74,143 +55,157 @@ const MonthlyChart: React.FC = () => {
       </Flex>
     );
   }
-// @ts-ignore
-  const data: ChartDataPoint[] = response?.data?.monthlyData?.map((item) => ({
-    name: `${months[item._id.month - 1]} ${item._id.year}`,
-    revenue: item.totalSellingPrice || 0,
-    netProfit: item.totalProfit || 0,
-    productCost: item.totalProductPrice || 0,
-    expenses: item.totalExpenses || 0,
-    quantity: item.totalQuantity || 0,
-    // @ts-ignore
-    potentialRevenue: response?.data?.totalRevenue?.totalOverallRevenue || 0
-  })) || [];
 
-  const renderBarChart = () => (
-    <ResponsiveContainer width="100%" height={400}>
-      <BarChart
-        data={data}
-        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-        <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
-        <Tooltip 
-          formatter={(value: number) => `${value.toLocaleString()} frw`}
-          contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
-        />
-        <Legend />
-        <Bar dataKey="revenue" fill="#0088FE" name="Revenue" />
-        <Bar dataKey="netProfit" fill="#00C49F" name="Net Profit" />
-        <Bar dataKey="productCost" fill="#FFBB28" name="Product Cost" />
-        <Bar dataKey="expenses" fill="#FF8042" name="Expenses" />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-
-  const renderLineChart = () => (
-    <ResponsiveContainer width="100%" height={400}>
-      <LineChart
-        data={data}
-        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-        <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
-        <Tooltip 
-          formatter={(value: number) => `${value.toLocaleString()} frw`}
-          contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
-        />
-        <Legend />
-        <Line type="monotone" dataKey="revenue" stroke="#0088FE" name="Revenue" />
-        <Line type="monotone" dataKey="netProfit" stroke="#00C49F" name="Net Profit" />
-        <Line type="monotone" dataKey="productCost" stroke="#FFBB28" name="Product Cost" />
-        <Line type="monotone" dataKey="expenses" stroke="#FF8042" name="Expenses" />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-
-  const renderComposedChart = () => (
-    <ResponsiveContainer width="100%" height={400}>
-      <ComposedChart
-        data={data}
-        margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-      >
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
-        <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
-        <Tooltip 
-          formatter={(value: number) => `${value.toLocaleString()} frw`}
-          contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
-        />
-        <Legend />
-        <Bar dataKey="revenue" fill="#0088FE" name="Revenue" />
-        <Line type="monotone" dataKey="netProfit" stroke="#00C49F" name="Net Profit" />
-        <Bar dataKey="productCost" fill="#FFBB28" name="Product Cost" />
-        <Line type="monotone" dataKey="quantity" stroke="#8884d8" name="Quantity" />
-      </ComposedChart>
-    </ResponsiveContainer>
-  );
-
-  const renderPieChart = () => {
-    const totalData = data.reduce((acc, curr) => ({
-      revenue: acc.revenue + curr.revenue,
-      netProfit: acc.netProfit + curr.netProfit,
-      productCost: acc.productCost + curr.productCost,
-      expenses: acc.expenses + curr.expenses,
-    }), { revenue: 0, netProfit: 0, productCost: 0, expenses: 0 });
-
-    const pieData = [
-      { name: 'Revenue', value: totalData.revenue },
-      { name: 'Net Profit', value: totalData.netProfit },
-      { name: 'Product Cost', value: totalData.productCost },
-      { name: 'Expenses', value: totalData.expenses },
-    ];
-
+  if (error) {
     return (
-      <ResponsiveContainer width="100%" height={400}>
-        <PieChart>
-          <Pie
-            data={pieData}
-            cx="50%"
-            cy="50%"
-            labelLine={true}
-            label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-            outerRadius={150}
-            fill="#8884d8"
-            dataKey="value"
-          >
-            {pieData.map((entry, index) => (
-              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-            ))}
-          </Pie>
-          <Tooltip formatter={(value: number) => `${value.toLocaleString()} frw`} />
-          <Legend />
-        </PieChart>
-      </ResponsiveContainer>
+      <Flex justify="center" align="center" style={{ height: '300px' }}>
+        <Title level={5} type="danger">
+          Unable to fetch data. Please try again later.
+        </Title>
+      </Flex>
     );
+  }
+
+  const data =
+    response?.data?.monthlyData?.map((item) => ({
+      name: `${months[item._id.month - 1]} ${item._id.year}`,
+      revenue: item.monthlyRevenue || 0,
+      netProfit: monthlyExpenses || 0,
+      productCost: item.totalProductPrice || 0,
+      expenses: monthlyExpenses || 0,
+      quantity: item.totalQuantity || 0,
+      grossProfit: item.grossProfit|| 0,
+      stockValue: item.stockValue || 0,
+    })) || [];
+
+  const MonthlySummary = () => (
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {[
+        { title: 'Monthly Revenue', value: response?.data?.summary?.monthlyRevenue || 0 },
+        { title: 'Monthly Net Profit', value: response?.data?.summary?.monthlyNetProfit - monthlyExpenses || 0 },
+        { title: 'Monthly Expenses', value: monthlyExpenses || 0 },
+        { title: 'Monthly Sales', value: response?.data?.summary?.monthlyQuantitySold || 0, suffix: 'units' },
+      ].map((item, idx) => (
+        <Card key={idx} bordered={false} className="shadow-sm">
+          <Statistic title={item.title} value={item.value} precision={2} prefix="frw" suffix={item.suffix} />
+        </Card>
+      ))}
+    </div>
+  );
+
+  const renderChart = () => {
+    switch (chartType) {
+      case 'bar':
+        return (
+          <ResponsiveContainer width="100%" height={400}>
+            <BarChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
+              <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
+              <Tooltip
+                formatter={(value: number) => `${value.toLocaleString()} frw`}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
+              />
+              <Legend />
+              {['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses'].map((key, index) => (
+                <Bar key={key} dataKey={key} fill={COLORS[index % COLORS.length]} name={key} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        );
+      case 'line':
+        return (
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
+              <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
+              <Tooltip
+                formatter={(value: number) => `${value.toLocaleString()} frw`}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
+              />
+              <Legend />
+              {['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses'].map((key, index) => (
+                <Line key={key} type="monotone" dataKey={key} stroke={COLORS[index % COLORS.length]} name={key} />
+              ))}
+            </LineChart>
+          </ResponsiveContainer>
+        );
+      case 'composed':
+        return (
+          <ResponsiveContainer width="100%" height={400}>
+            <ComposedChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" tick={{ fontSize: 12 }} angle={-45} textAnchor="end" height={60} />
+              <YAxis tickFormatter={(value) => `${value.toLocaleString()} frw`} />
+              <Tooltip
+                formatter={(value: number) => `${value.toLocaleString()} frw`}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #ccc' }}
+              />
+              <Legend />
+              <Bar dataKey="revenue" fill="#0088FE" name="Revenue" />
+              <Line type="monotone" dataKey="grossProfit" stroke="#82ca9d" name="Gross Profit" />
+              <Bar dataKey="stockValue" fill="#8884d8" name="Stock Value" />
+            </ComposedChart>
+          </ResponsiveContainer>
+        );
+      case 'pie':
+        const pieData = data.reduce(
+          (acc, curr) => [
+            ...acc,
+            ...['revenue', 'grossProfit', 'netProfit', 'productCost', 'expenses'].map((key) => ({
+              name: key,
+              value: curr[key],
+            })),
+          ],
+          []
+        );
+
+        return (
+          <ResponsiveContainer width="100%" height={400}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                labelLine
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={150}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {pieData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value: number) => `${value.toLocaleString()} frw`} />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        );
+      default:
+        return null;
+    }
   };
 
   return (
     <Card>
-      <Flex justify="space-between" align="center" className="mb-4">
-        <Title level={4}>Monthly Financial Analysis</Title>
-        <Select 
-          defaultValue="bar" 
-          style={{ width: 200 }} 
+      <Title level={4}>Monthly Financial Analysis</Title>
+      <MonthlySummary />
+      <Flex justify="end" align="center" className="mb-4">
+        <Select
+          defaultValue="bar"
+          style={{ width: 200 }}
           onChange={(value) => setChartType(value as 'bar' | 'line' | 'composed' | 'pie')}
         >
-          <Option value="bar">Bar Chart</Option>
-          <Option value="line">Line Chart</Option>
-          <Option value="composed">Composed Chart</Option>
-          <Option value="pie">Pie Chart</Option>
+          {['Bar Chart', 'Line Chart', 'Composed Chart', 'Pie Chart'].map((label, idx) => (
+            <Option key={label.toLowerCase()} value={label.toLowerCase()}>
+              {label}
+            </Option>
+          ))}
         </Select>
       </Flex>
-
-      {chartType === 'bar' && renderBarChart()}
-      {chartType === 'line' && renderLineChart()}
-      {chartType === 'composed' && renderComposedChart()}
-      {chartType === 'pie' && renderPieChart()}
+      {renderChart()}
     </Card>
   );
 };

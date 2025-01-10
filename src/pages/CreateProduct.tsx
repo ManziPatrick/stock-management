@@ -1,4 +1,4 @@
-import { Button, Col, Flex, Row } from 'antd';
+import { Button, Col, Flex, Row, Spin } from 'antd';
 import { FieldValues, useForm } from 'react-hook-form';
 import CustomInput from '../components/CustomInput';
 import toastMessage from '../lib/toastMessage';
@@ -10,12 +10,14 @@ import { ICategory } from '../types/product.types';
 import CreateSeller from '../components/product/CreateSeller';
 import CreateCategory from '../components/product/CreateCategory';
 import CreateBrand from '../components/product/CreateBrand';
+import { useState } from 'react';
 
 const CreateProduct = () => {
   const [createNewProduct] = useCreateNewProductMutation();
   const { data: categories } = useGetAllCategoriesQuery(undefined);
   const { data: sellers } = useGetAllSellerQuery(undefined);
   const { data: brands } = useGetAllBrandsQuery(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const {
     handleSubmit,
@@ -28,11 +30,12 @@ const CreateProduct = () => {
   const selectedUnit = watch('unitType');
 
   const onSubmit = async (data: FieldValues) => {
+    setIsSubmitting(true);
     const payload = { ...data };
     payload.price = Number(data.price);
     payload.quantity = Number(data.quantity);
     payload.stock = Number(data.quantity);
-    // Handle measurement data
+    
     if (data.unitType) {
       payload.measurement = {
         type: data.unitType,
@@ -54,6 +57,8 @@ const CreateProduct = () => {
     } catch (error: any) {
       console.error(error);
       toastMessage({ icon: 'error', text: error.data?.message || 'Failed to create product' });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -94,25 +99,25 @@ const CreateProduct = () => {
       case 'size':
         return (
           <>
-<option value="EXTRA_SMALL">Extra Small (XS)</option>  
-<option value="SMALL">Small (S)</option>    
-<option value="MEDIUM">Medium (M)</option>  
-<option value="LARGE">Large (L)</option>  
-<option value="EXTRA_LARGE">Extra Large (XL)</option>  
-<option value="XXL">XXL</option>  
-<option value="XXXL">XXXL</option>  
-<option value="EU_36">EU 36</option>  
-<option value="EU_37">EU 37</option>  
-<option value="EU_38">EU 38</option>  
-<option value="EU_39">EU 39</option>  
-<option value="EU_40">EU 40</option>  
-<option value="EU_41">EU 41</option>  
-<option value="EU_42">EU 42</option>  
-<option value="EU_43">EU 43</option>  
-<option value="EU_44">EU 44</option>  
-<option value="EU_45">EU 45</option>  
-<option value="EU_46">EU 46</option>  
-<option value="EU_47">EU 47</option>
+            <option value="EXTRA_SMALL">Extra Small (XS)</option>
+            <option value="SMALL">Small (S)</option>
+            <option value="MEDIUM">Medium (M)</option>
+            <option value="LARGE">Large (L)</option>
+            <option value="EXTRA_LARGE">Extra Large (XL)</option>
+            <option value="XXL">XXL</option>
+            <option value="XXXL">XXXL</option>
+            <option value="EU_36">EU 36</option>
+            <option value="EU_37">EU 37</option>
+            <option value="EU_38">EU 38</option>
+            <option value="EU_39">EU 39</option>
+            <option value="EU_40">EU 40</option>
+            <option value="EU_41">EU 41</option>
+            <option value="EU_42">EU 42</option>
+            <option value="EU_43">EU 43</option>
+            <option value="EU_44">EU 44</option>
+            <option value="EU_45">EU 45</option>
+            <option value="EU_46">EU 46</option>
+            <option value="EU_47">EU 47</option>
           </>
         );
       default:
@@ -162,6 +167,7 @@ const CreateProduct = () => {
                 label="Name"
                 register={register}
                 required={true}
+                
               />
               <CustomInput
                 errors={errors}
@@ -170,9 +176,9 @@ const CreateProduct = () => {
                 name="price"
                 register={register}
                 required={true}
+              
               />
 
-              {/* Unit Type Selection */}
               <Row>
                 <Col xs={{ span: 23 }} lg={{ span: 6 }}>
                   <label htmlFor="unitType" className="label">
@@ -183,6 +189,7 @@ const CreateProduct = () => {
                   <select
                     {...register('unitType')}
                     className="input-field"
+                    disabled={isSubmitting}
                   >
                     <option value="">Select Measurement Type</option>
                     <option value="weight">Weight</option>
@@ -193,42 +200,43 @@ const CreateProduct = () => {
                   </select>
                 </Col>
               </Row>
-
-              {/* Single Quantity Input with Unit Selection */}
               <Row>
-                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                <label htmlFor="quantity" className="label">
-                    Quantity
-                  </label>
-                </Col>
-                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                 
-                    
-                      <CustomInput
-                        errors={errors}
-                        label=''
-                        type="number"
-                        name="quantity"
-                        register={register}
-                        required={true}
-                      />
-                   
-                    {selectedUnit && (
-                      <div style={{ flex: 1 }}>
-                        <select
-                          {...register('unit')}
-                          className="input-field"
-                        >
-                          <option value="">Select Unit</option>
-                          {renderUnitOptions()}
-                        </select>
-                      </div>
-                    )}
-                 
-                </Col>
-              </Row>
+  <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+    <label htmlFor="quantity" className="label">
+      Quantity
+    </label>
+  </Col>
+  <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+    <Row gutter={[16, 16]}>
+      <Col xs={24} sm={selectedUnit ? 12 : 24}>
+        <CustomInput
+          errors={errors}
+          label=""
+          type="number"
+          name="quantity"
+          register={register}
+          required={true}
+          
+        />
+      </Col>
+      
+      {selectedUnit && (
+        <Col xs={24} sm={12}>
+          <select
+            {...register('unit')}
+            className="input-field"
+            disabled={isSubmitting}
+            style={{ width: '100%', height: '100%' }}
+          >
+            <option value="">Select Unit</option>
+            {renderUnitOptions()}
+          </select>
+        </Col>
+      )}
+    </Row>
+  </Col>
+</Row>
 
-              {/* Supplier Selection */}
               <Row>
                 <Col xs={{ span: 23 }} lg={{ span: 6 }}>
                   <label htmlFor="seller" className="label">
@@ -239,6 +247,7 @@ const CreateProduct = () => {
                   <select
                     {...register('seller', { required: true })}
                     className={`input-field ${errors['seller'] ? 'input-field-error' : ''}`}
+                    disabled={isSubmitting}
                   >
                     <option value="">Select supplier*</option>
                     {sellers?.data.map((item: ICategory) => (
@@ -250,7 +259,6 @@ const CreateProduct = () => {
                 </Col>
               </Row>
 
-              {/* Category Selection */}
               <Row>
                 <Col xs={{ span: 23 }} lg={{ span: 6 }}>
                   <label htmlFor="category" className="label">
@@ -261,6 +269,7 @@ const CreateProduct = () => {
                   <select
                     {...register('category', { required: true })}
                     className={`input-field ${errors['category'] ? 'input-field-error' : ''}`}
+                    disabled={isSubmitting}
                   >
                     <option value="">Select Category*</option>
                     {categories?.data.map((item: ICategory) => (
@@ -272,7 +281,6 @@ const CreateProduct = () => {
                 </Col>
               </Row>
 
-              {/* Brand Selection */}
               <Row>
                 <Col xs={{ span: 23 }} lg={{ span: 6 }}>
                   <label htmlFor="brand" className="label">
@@ -283,6 +291,7 @@ const CreateProduct = () => {
                   <select
                     {...register('brand')}
                     className={`input-field ${errors['brand'] ? 'input-field-error' : ''}`}
+                    disabled={isSubmitting}
                   >
                     <option value="">Select brand</option>
                     {brands?.data.map((item: ICategory) => (
@@ -298,15 +307,31 @@ const CreateProduct = () => {
                 label="Description"
                 name="description"
                 register={register}
+                
               />
 
-              <Flex justify="center">
+              <Flex justify="center" style={{ marginTop: '20px' }}>
                 <Button
                   htmlType="submit"
                   type="primary"
-                  style={{ textTransform: 'uppercase', fontWeight: 'bold' }}
+                  disabled={isSubmitting}
+                  style={{ 
+                    textTransform: 'uppercase', 
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '150px'
+                  }}
                 >
-                  Add Product
+                  {isSubmitting ? (
+                    <>
+                      <Spin size="small" style={{ marginRight: '8px' }} />
+                      Creating...
+                    </>
+                  ) : (
+                    'Add Product'
+                  )}
                 </Button>
               </Flex>
             </form>
