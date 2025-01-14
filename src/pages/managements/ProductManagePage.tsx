@@ -2,10 +2,10 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag } from 'antd';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox } from 'antd';
 import { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
-
+import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
 import {
   useAddStockMutation,
   useDeleteProductMutation,
@@ -169,6 +169,8 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const [showReceipt, setShowReceipt] = useState(false);
   const [saleData, setSaleData] = useState<SaleDataType | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isDebit, setIsDebit] = useState(false);
+  const [debitData, setDebitData] = useState<any>(null);
 
   const [profitLoss, setProfitLoss] = useState({
     perUnit: 0,
@@ -187,15 +189,24 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       quantity: 1,
       pricePerUnit: product.price,
       buyerName: '',
-      date: new Date().toISOString().split('T')[0]
+      date: new Date().toISOString().split('T')[0],
+      isDebit: false,
+      amountPaid: 0,
+      dueDate: '',
+      description: ''
     }
   });
 
   const [saleProduct] = useCreateSaleMutation();
+  const [createDebit] = useCreateDebitMutation();
   const today = new Date().toISOString().split('T')[0];
 
   const watchQuantity = watch("quantity");
   const watchPricePerUnit = watch("pricePerUnit");
+  const watchAmountPaid = watch("amountPaid");
+
+  const totalAmount = watchQuantity * watchPricePerUnit;
+  const remainingAmount = isDebit ? totalAmount - (watchAmountPaid || 0) : 0;
 
   useEffect(() => {
     if (watchQuantity && watchPricePerUnit) {
@@ -217,8 +228,9 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const onSubmit = async (data: FieldValues) => {
     try {
       setLoading(true);
-// @ts-ignore
-      const payload: SaleDataType = {
+
+      // Prepare sale payload without _id field
+      const salePayload = {
         product: product.key,
         productName: product.name,
         SellingPrice: Number(data.pricePerUnit),
@@ -231,21 +243,49 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           perUnit: profitLoss.perUnit,
           total: profitLoss.total,
           isProfit: profitLoss.isProfit
-        }
+        },
+        totalPrice: totalAmount
       };
 
-      const response = await saleProduct(payload).unwrap();
+      // Create sale first
+      const saleResponse = await saleProduct(salePayload).unwrap();
 
-      // Check for success in the response
-      if (response.success) {
-        toastMessage({ icon: 'success', text: 'Sale completed successfully' });
-        setSaleData(payload);
+      if (saleResponse.success) {
+       
+        if (isDebit) {
+          const debitPayload = {
+            productName: product.name,
+            totalAmount: totalAmount,
+            paidAmount: Number(data.amountPaid) || 0,
+            remainingAmount: remainingAmount,
+            dueDate: data.dueDate,
+            buyerName: data.buyerName,
+            saleId: saleResponse.data.sale._id,
+            status: 'PENDING',
+            description: data.description || `Debit for ${product.name} - Quantity: ${data.quantity}`
+          };
+
+          const debitResponse = await createDebit(debitPayload).unwrap();
+          if (debitResponse.success) {
+            setDebitData(debitResponse.data);
+          } else {
+            throw new Error('Failed to create debit record');
+          }
+        }
+        setSaleData({
+          ...salePayload,
+          _id: saleResponse.data._id 
+        });
+
         setShowReceipt(true);
-      } else {
-        throw new Error('Failed to create sale');
+        toastMessage({ 
+          icon: 'success', 
+          text: `Sale ${isDebit ? 'and debit record ' : ''}created successfully`
+        });
       }
+      
     } catch (error: any) {
-      console.error('Sale error:', error);
+      console.error('Sale/Debit error:', error);
       toastMessage({ 
         icon: 'error', 
         text: error.data?.message || error.message || 'An error occurred while processing the sale'
@@ -259,11 +299,17 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
     setIsModalOpen(true);
     setShowReceipt(false);
     setSaleData(null);
+    setDebitData(null);
+    setIsDebit(false);
     reset({
       quantity: 1,
       pricePerUnit: product.price,
       buyerName: '',
-      date: today
+      date: today,
+      isDebit: false,
+      amountPaid: 0,
+      dueDate: '',
+      description: ''
     });
   };
 
@@ -271,6 +317,8 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
     setIsModalOpen(false);
     setShowReceipt(false);
     setSaleData(null);
+    setDebitData(null);
+    setIsDebit(false);
     setProfitLoss({ perUnit: 0, total: 0, isProfit: true });
     reset();
   };
@@ -299,7 +347,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       >
         {showReceipt && saleData ? (
           <div>
-            <SaleReceipt saleData={saleData} />
+            <SaleReceipt saleData={saleData} debitData={debitData} />
             <Flex justify='center' style={{ marginTop: '1rem' }}>
               <Button onClick={handleCancel} type='primary'>
                 Close
@@ -308,93 +356,153 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-            
-            <CustomInput
-              name='buyerName'
-              label='Buyer Name'
-              errors={errors}
-              required={true}
-              register={register}
-              type='text'
-              rules={{
-                required: 'Buyer name is required',
-                minLength: { value: 2, message: 'Buyer name must be at least 2 characters' }
-              }}
-            />
-            <CustomInput
-              name='date'
-              label='Selling date'
-              errors={errors}
-              required={true}
-              register={register}
-              max={today}
-              min={today}
-              defaultValue={today}
-              type='date'
-              rules={{ required: 'Date is required' }}
-            />
-            
-            <CustomInput
-              name='pricePerUnit'
-              label='Selling Price Per Unit'
-              errors={errors}
-              required={true}
-              register={register}
-              type='number'
-              defaultValue={product.price}
-              rules={{
-                required: 'Price is required',
-                min: { value: 0.01, message: 'Price must be greater than 0' }
-              }}
-            />
-            <CustomInput
-              name='quantity'
-              label={`Quantity (Available: ${product.stock})`}
-              errors={errors}
-              required={true}
-              register={register}
-              type='number'
-              rules={{
-                required: 'Quantity is required',
-                validate: {
-                  positive: (value) => value > 0 || 'Quantity must be greater than 0',
-                  inStock: (value) => value <= product.stock || 'Not enough stock available',
-                }
-              }}
-            />
-            
-            <div style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-              <h4>Calculation Summary:</h4>
-              <p>Original Price: {product.price}frw /unit</p>
-              <p>Selling Price: {watchPricePerUnit || product.price}frw /unit</p>
-              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw /unit
-              </p>
-              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
-              </p>
-            </div>
+          <CustomInput
+            name='buyerName'
+            label='Buyer Name'
+            errors={errors}
+            required={true}
+            register={register}
+            type='text'
+            rules={{
+              required: 'Buyer name is required',
+              minLength: { value: 2, message: 'Buyer name must be at least 2 characters' }
+            }}
+          />
 
-            <Flex justify='center' style={{ marginTop: '1rem' }} gap="small">
-              <Button onClick={handleCancel} type='default'>
-                Cancel
-              </Button>
-              <Button 
-                htmlType='submit' 
-                type='primary'
-                loading={loading}
-                disabled={loading || !validateQuantity(watchQuantity)}
-              >
-                {loading ? 'Processing...' : 'Sell Product'}
-              </Button>
-            </Flex>
-          </form>
+          <CustomInput
+            name='date'
+            label='Selling date'
+            errors={errors}
+            required={true}
+            register={register}
+            max={today}
+            min={today}
+            defaultValue={today}
+            type='date'
+            rules={{ required: 'Date is required' }}
+          />
+          
+          <CustomInput
+            name='pricePerUnit'
+            label='Selling Price Per Unit'
+            errors={errors}
+            required={true}
+            register={register}
+            type='number'
+            defaultValue={product.price}
+            rules={{
+              required: 'Price is required',
+              min: { value: 0.01, message: 'Price must be greater than 0' }
+            }}
+          />
+
+          <CustomInput
+            name='quantity'
+            label={`Quantity (Available: ${product.stock})`}
+            errors={errors}
+            required={true}
+            register={register}
+            type='number'
+            rules={{
+              required: 'Quantity is required',
+              validate: {
+                positive: (value) => value > 0 || 'Quantity must be greater than 0',
+                inStock: (value) => value <= product.stock || 'Not enough stock available',
+              }
+            }}
+          />
+
+          <div className="mt-4 mb-2">
+            <Checkbox 
+              checked={isDebit}
+              onChange={(e) => setIsDebit(e.target.checked)}
+            >
+              Create as Debit Sale
+            </Checkbox>
+          </div>
+
+          {isDebit && (
+            <div className="border p-4 rounded-md bg-gray-50 mb-4">
+              <Typography.Text strong>Total Amount: {totalAmount} frw</Typography.Text>
+              
+              <CustomInput
+                name='amountPaid'
+                label='Amount Paid'
+                errors={errors}
+                required={true}
+                register={register}
+                type='number'
+                rules={{
+                  required: 'Initial payment amount is required',
+                  min: { value: 0, message: 'Amount must be 0 or greater' },
+                  max: { value: totalAmount, message: 'Amount cannot exceed total price' }
+                }}
+              />
+
+              <CustomInput
+                name='dueDate'
+                label='Payment Due Date'
+                errors={errors}
+                required={true}
+                register={register}
+                type='date'
+                min={today}
+                rules={{
+                  required: 'Due date is required',
+                  validate: (value) => 
+                    new Date(value) > new Date(today) || 
+                    'Due date must be in the future'
+                }}
+              />
+
+              <CustomInput
+                name='description'
+                label='Description (Optional)'
+                errors={errors}
+                required={false}
+                register={register}
+                type='textarea'
+              />
+
+              <div className="mt-2">
+                <Typography.Text type={remainingAmount > 0 ? "warning" : "success"}>
+                  Remaining Amount: {remainingAmount} frw
+                </Typography.Text>
+              </div>
+            </div>
+          )}
+          
+          <div style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+            <h4>Calculation Summary:</h4>
+            <p>Original Price: {product.price}frw /unit</p>
+            <p>Selling Price: {watchPricePerUnit || product.price}frw /unit</p>
+            <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
+              {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw /unit
+            </p>
+            <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
+              Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
+            </p>
+          </div>
+
+          <Flex justify='center' style={{ marginTop: '1rem' }} gap="small">
+            <Button onClick={handleCancel} type='default'>
+              Cancel
+            </Button>
+            <Button 
+              htmlType='submit' 
+              type='primary'
+              loading={loading}
+              disabled={loading || !validateQuantity(watchQuantity)}
+            >
+              {loading ? 'Processing...' : 'Sell Product'}
+            </Button>
+          </Flex>
+        </form>
         )}
       </Modal>
     </>
   );
 };
-
 /**
  * Add Stock Modal
  */

@@ -34,7 +34,7 @@ const DailyChart = () => {
   
   console.log("Today's Expenses:", todayExpenses);
   
-  const totalAmountToday = todayExpenses?.reduce((total, item) => total + item.amount, 0);
+  const totalAmountToday = response?.data?.summary?.dailyExpenses
   
   console.log("Total Amount for Today's Expenses:", totalAmountToday);
   const dailyNetProfit = response?.data?.summary?.dailyNetProfit;
@@ -42,7 +42,7 @@ const DailyChart = () => {
     name: `${item._id.day.toString().padStart(2, '0')}/${item._id.month.toString().padStart(2, '0')}/${item._id.year}`,
     revenue: item.totalSellingPrice || 0,
     quantity: item.dailyPurchased || 0,
-    profit: dailyNetProfit - totalAmountToday  || 0,
+    profit: dailyNetProfit  || 0,
     expense: totalAmountToday || 0,
     potentialRevenue: response?.data?.totalRevenue?.totalOverallRevenue || 0
   })) || [];
@@ -61,7 +61,7 @@ const DailyChart = () => {
       <Card bordered={false} className="shadow-sm">
         <Statistic
           title="Daily Net Profit"
-          value={response?.data?.summary?.dailyNetProfit - totalAmountToday || 0}
+          value={response?.data?.summary?.dailyNetProfit || 0}
          suffix="frw"
         />
       </Card>

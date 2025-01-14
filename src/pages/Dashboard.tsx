@@ -112,7 +112,6 @@ console.log("Total Margin Profit:", totalMarginProfit);
         <DailyChart data={rawData} />
       </div>
 
-      {/* Monthly Revenue Chart */}
       <div className="mt-8 border bg-white shadow-sm border-slate-200 w-full p-4">
         <h1 className="text-center text-xl font-semibold mb-4">Monthly Revenue</h1>
         <MonthlyChart data={rawData} />

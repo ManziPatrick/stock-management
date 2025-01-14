@@ -35,16 +35,7 @@ const MonthlyChart: React.FC = () => {
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
-  const monthlyExpenses = expenses?.data?.expenses?.reduce((total, item) => {
-    const expenseDate = new Date(item.date);
-    if (
-      expenseDate.getMonth() + 1 === currentMonth &&
-      expenseDate.getFullYear() === currentYear
-    ) {
-      return total + item.amount;
-    }
-    return total;
-  }, 0);
+  const monthlyExpenses = response?.data?.summary?.monthlyExpenses || 0;
 
   if (isLoading) {
     return (

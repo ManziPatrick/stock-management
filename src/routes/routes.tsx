@@ -22,6 +22,7 @@ import GetExpensesManagePage from '../pages/managements/getexpenseManagePage';
 import ExpensesManagePage from '../pages/managements/expensesManagePage';
 import ProductManagePageKeeper from '../pages/managements/productManagePageKeeper';
 import SaleManagementPageKepper from '../pages/managements/SaleManagementPageKeeper';
+import GetDebitManagementPage from '../pages/managements/debitsManagementPage';
 export const router = createBrowserRouter([
   {
     path: '/seller',
@@ -118,6 +119,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectRoute>
             <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'debits',  
+        element: (
+          <ProtectRoute>
+            <GetDebitManagementPage />
           </ProtectRoute>
         ),
       },
