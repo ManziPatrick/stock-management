@@ -79,14 +79,14 @@ const AdminSidebar = () => {
         )}
       </Sider>
       <Layout>
-        <Content style={{padding: '2rem', background: '#BBE1FA'}}>
+        <Content className='site-layout-background bg-white'>
           <div
             style={{
               padding: '1rem',
               maxHeight: 'calc(100vh - 4rem)',
-              minHeight: 'calc(100vh - 4rem)',
+              minHeight: 'calc(100vh - 12rem)',
               background: '#fff',
-              borderRadius: '1rem',
+              
               overflow: 'auto',
             }}
           >

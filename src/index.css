@@ -48,13 +48,13 @@ li.ant-menu-item {
 
 /* Handle */
 ::-webkit-scrollbar-thumb {
-  background: #FF6565;
+  background: #180969;
   border-radius: 10px;
 }
 
 /* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: #FF6565;
+  background: #180969;
 }
 
 

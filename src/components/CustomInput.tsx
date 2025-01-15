@@ -13,7 +13,7 @@ interface Props {
   defaultValue?: any;
   max?: string;
   min?: string;
-
+  rules?: object; // Added rules to handle custom validations
 }
 
 const CustomInput: React.FC<Props> = ({
@@ -26,6 +26,7 @@ const CustomInput: React.FC<Props> = ({
   defaultValue,
   min,
   max,
+  rules = {}, // Default to an empty object
 }) => {
   return (
     <Row>
@@ -42,7 +43,7 @@ const CustomInput: React.FC<Props> = ({
           defaultValue={defaultValue}
           min={min}
           max={max}
-          {...register(name, { required })}
+          {...register(name, { required, ...rules })} // Spread the rules into the register function
           className={`input-field ${errors[name] ? 'input-field-error' : ''}`}
         />
         {errors[name] && (

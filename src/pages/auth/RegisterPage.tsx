@@ -28,7 +28,7 @@ const SuccessModal = ({ isOpen, onClose, userData }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center   overflow-hidden justify-center z-50">
       <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
         <div className="flex flex-col items-center justify-center space-y-4">
           <CheckCircle className="h-12 w-12 text-green-500" />
@@ -124,7 +124,7 @@ const RegisterPage = () => {
 
   return (
     <>
-      <div className="register-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <div className="register-container " style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
         <div
           style={{
             width: '400px',

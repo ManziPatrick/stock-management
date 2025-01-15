@@ -79,7 +79,7 @@ const Sidebar = () => {
         )}
       </Sider>
       <Layout>
-        <Content style={{padding: '2rem', background: '#BBE1FA'}}>
+        <Content className='site-layout-background'>
           <div
             style={{
               padding: '1rem',

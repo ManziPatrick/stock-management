@@ -7,11 +7,13 @@ import { useLoginMutation } from '../../redux/features/authApi';
 import { useAppDispatch } from '../../redux/hooks';
 import { loginUser } from '../../redux/services/authSlice';
 import decodeToken from '../../utils/decodeToken';
+import stock from '../../assets/loginstock.webp';
 
 const LoginPage = () => {
   const [userLogin] = useLoginMutation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  
 
   const {
     handleSubmit,
@@ -47,45 +49,48 @@ const LoginPage = () => {
   };
 
   return (
-    <Flex justify="center" align="center" style={{ height: '100vh' }}>
-      <Flex
-        vertical
-        style={{
-          width: '400px',
-          padding: '3rem',
-          border: '1px solid #164863',
-          borderRadius: '.6rem',
-        }}
-      >
-        <h1 style={{ marginBottom: '.7rem', textAlign: 'center', textTransform: 'uppercase' }}>
-          Login
+    <div className=" w-3/4 flex justify-center items-center m-auto" style={{ height: '100vh' }}>
+      <div className='bg-blue-950 flex justify-center flex-col md:flex-row items-center align-middle shadow-lg rounded-md  w-full ' >
+      <div className='w-full  flex flex-col  justify-center items-center ' style={{ padding: '1rem' ,height:'440px'}} >
+        <div className='w-full md:w-3/4'>
+        <h1 className=' font-bold md:font-extrabold text-teal-50 text-center p-2 md:p5  text-sm md:text-xl' style={{ marginBottom: '.7rem',  textTransform: 'uppercase' }}>
+          Login to your account
         </h1>
-        <form onSubmit={handleSubmit(onSubmit)}>
+        <p className='text-white p-5 font-extralight text-sm text-center'> login in your account and if you do not have the account contact your admin </p>
+        <form onSubmit={handleSubmit(onSubmit)} className='flex flex-col items-center   gap-4'>
           <input
             type="text"
             {...register('email', { required: true })}
             placeholder="Your Email*"
-            className={`input-field `}
+            
+            className={`input-field  border-y-0 bg-transparent  border-1 border-x-2 w-3/4 `}
           />
           <input
             type="password"
             placeholder="Your Password*"
-            className={`input-field ${errors['password'] ? 'input-field-error' : ''}`}
+            className={`input-field w-3/4  border-y-0 bg-transparent ${errors['password'] ?  'input-field-error' : ''}`}
             {...register('password', { required: true })}
           />
-          <Flex justify="center">
+          <div className='w-full flex justify-center items-center'>
             <Button
               htmlType="submit"
               type="primary"
               style={{ textTransform: 'uppercase', fontWeight: 'bold' }}
+              className='bg-gradient-to-br  from-violet-800 to-blue-900 px-5 py-2 rounded-md  w-1/2'
             >
               Login
             </Button>
-          </Flex>
+          </div>
         </form>
-       
-      </Flex>
-    </Flex>
+        </div>
+      </div>
+      <div className='w-full md:block hidden '>
+         <img src={stock} className=''/>
+      </div>
+     
+      </div>
+      
+    </div>
   );
 };
 

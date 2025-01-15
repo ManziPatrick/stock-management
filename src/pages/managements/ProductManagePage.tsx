@@ -234,7 +234,6 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
     try {
       setLoading(true);
 
-      // Prepare sale payload without _id field
       const salePayload = {
         product: product.key,
         productName: product.name,
@@ -252,11 +251,9 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         totalPrice: totalAmount
       };
 
-      // Create sale first
       const saleResponse = await saleProduct(salePayload).unwrap();
 
       if (saleResponse.success) {
-       
         if (isDebit) {
           const debitPayload = {
             productName: product.name,
@@ -271,22 +268,26 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           };
 
           const debitResponse = await createDebit(debitPayload).unwrap();
-          if (debitResponse.success) {
+          if (debitResponse.status === 'success') {
             setDebitData(debitResponse.data);
-          } else {
-            throw new Error('Failed to create debit record');
+            toastMessage({ 
+              icon: 'success', 
+              text: 'Sale and debit record created successfully'
+            });
           }
+        } else {
+          toastMessage({ 
+            icon: 'success', 
+            text: 'Sale created successfully'
+          });
         }
+        
         setSaleData({
           ...salePayload,
-          _id: saleResponse.data._id 
+          _id: saleResponse.data.sale._id 
         });
 
         setShowReceipt(true);
-        toastMessage({ 
-          icon: 'success', 
-          text: `Sale ${isDebit ? 'and debit record ' : ''}created successfully`
-        });
       }
       
     } catch (error: any) {
@@ -361,153 +362,171 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-          <CustomInput
-            name='buyerName'
-            label='Buyer Name'
-            errors={errors}
-            required={true}
-            register={register}
-            type='text'
-            rules={{
-              required: 'Buyer name is required',
-              minLength: { value: 2, message: 'Buyer name must be at least 2 characters' }
-            }}
-          />
+            <CustomInput
+              name='buyerName'
+              label='Buyer Name'
+              errors={errors}
+              required={true}
+              register={register}
+              type='text'
+              rules={{
+                required: 'Buyer name is required',
+                minLength: { value: 2, message: 'Buyer name must be at least 2 characters' }
+              }}
+            />
 
-          <CustomInput
-            name='date'
-            label='Selling date'
-            errors={errors}
-            required={true}
-            register={register}
-            max={today}
-            min={today}
-            defaultValue={today}
-            type='date'
-            rules={{ required: 'Date is required' }}
-          />
-          
-          <CustomInput
-            name='pricePerUnit'
-            label='Selling Price Per Unit'
-            errors={errors}
-            required={true}
-            register={register}
-            type='number'
-            defaultValue={product.price}
-            rules={{
-              required: 'Price is required',
-              min: { value: 0.01, message: 'Price must be greater than 0' }
-            }}
-          />
+            <CustomInput
+              name='date'
+              label='Selling date'
+              errors={errors}
+              required={true}
+              register={register}
+              max={today}
+              min={today}
+              defaultValue={today}
+              type='date'
+              rules={{ required: 'Date is required' }}
+            />
+            
+            <CustomInput
+              name='pricePerUnit'
+              label='Selling Price Per Unit'
+              errors={errors}
+              required={true}
+              register={register}
+              type='number'
+              defaultValue={product.price}
+              rules={{
+                required: 'Price is required',
+                min: { value: 0.01, message: 'Price must be greater than 0' }
+              }}
+            />
 
-          <CustomInput
-            name='quantity'
-            label={`Quantity (Available: ${product.stock})`}
-            errors={errors}
-            required={true}
-            register={register}
-            type='number'
-            rules={{
-              required: 'Quantity is required',
-              validate: {
-                positive: (value) => value > 0 || 'Quantity must be greater than 0',
-                inStock: (value) => value <= product.stock || 'Not enough stock available',
-              }
-            }}
-          />
+            <CustomInput
+              name='quantity'
+              label={`Quantity (Available: ${product.stock})`}
+              errors={errors}
+              required={true}
+              register={register}
+              type='number'
+              rules={{
+                required: 'Quantity is required',
+                validate: {
+                  positive: (value) => value > 0 || 'Quantity must be greater than 0',
+                  inStock: (value) => value <= product.stock || 'Not enough stock available',
+                }
+              }}
+            />
 
-          <div className="mt-4 mb-2">
-            <Checkbox 
-              checked={isDebit}
-              onChange={(e) => setIsDebit(e.target.checked)}
-            >
-              Create as Debit Sale
-            </Checkbox>
-          </div>
-
-          {isDebit && (
-            <div className="border p-4 rounded-md bg-gray-50 mb-4">
-              <Typography.Text strong>Total Amount: {totalAmount} frw</Typography.Text>
-              
-              <CustomInput
-                name='amountPaid'
-                label='Amount Paid'
-                errors={errors}
-                required={true}
-                register={register}
-                type='number'
-                rules={{
-                  required: 'Initial payment amount is required',
-                  min: { value: 0, message: 'Amount must be 0 or greater' },
-                  max: { value: totalAmount, message: 'Amount cannot exceed total price' }
-                }}
-              />
-
-              <CustomInput
-                name='dueDate'
-                label='Payment Due Date'
-                errors={errors}
-                required={true}
-                register={register}
-                type='date'
-                min={today}
-                rules={{
-                  required: 'Due date is required',
-                  validate: (value) => 
-                    new Date(value) > new Date(today) || 
-                    'Due date must be in the future'
-                }}
-              />
-
-              <CustomInput
-                name='description'
-                label='Description (Optional)'
-                errors={errors}
-                required={false}
-                register={register}
-                type='textarea'
-              />
-
-              <div className="mt-2">
-                <Typography.Text type={remainingAmount > 0 ? "warning" : "success"}>
-                  Remaining Amount: {remainingAmount} frw
-                </Typography.Text>
-              </div>
+            <div className="mt-4 mb-2">
+              <Checkbox 
+                checked={isDebit}
+                onChange={(e) => setIsDebit(e.target.checked)}
+              >
+                Create as Debit Sale
+              </Checkbox>
             </div>
-          )}
-          
-          <div style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-            <h4>Calculation Summary:</h4>
-            <p>Original Price: {product.price}frw /unit</p>
-            <p>Selling Price: {watchPricePerUnit || product.price}frw /unit</p>
-            <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-              {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw /unit
-            </p>
-            <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-              Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
-            </p>
-          </div>
 
-          <Flex justify='center' style={{ marginTop: '1rem' }} gap="small">
-            <Button onClick={handleCancel} type='default'>
-              Cancel
-            </Button>
-            <Button 
-              htmlType='submit' 
-              type='primary'
-              loading={loading}
-              disabled={loading || !validateQuantity(watchQuantity)}
-            >
-              {loading ? 'Processing...' : 'Sell Product'}
-            </Button>
-          </Flex>
-        </form>
+            {isDebit && (
+              <div className="border p-4 rounded-md bg-gray-50 mb-4">
+                <Typography.Text strong>Total Amount: {totalAmount} frw</Typography.Text>
+                
+                <CustomInput
+                  name='amountPaid'
+                  label='Amount Paid'
+                  errors={errors}
+                  required={true}
+                  register={register}
+                  type='number'
+                  rules={{
+                    required: 'Initial payment amount is required',
+                    min: { value: 0, message: 'Amount must be 0 or greater' },
+                    validate: {
+                      lessThanTotal: (value) => 
+                        value < totalAmount || 
+                        'For debit sales, initial payment must be less than total amount',
+                      positiveRemaining: (value) => {
+                        const remaining = totalAmount - value;
+                        return remaining > 0 || 
+                          'Remaining amount must be greater than 0 for debit sales';
+                      }
+                    }
+                  }}
+                />
+
+                <CustomInput
+                  name='dueDate'
+                  label='Payment Due Date'
+                  errors={errors}
+                  required={true}
+                  register={register}
+                  type='date'
+                  min={today}
+                  rules={{
+                    required: 'Due date is required',
+                    validate: (value) => 
+                      new Date(value) > new Date(today) || 
+                      'Due date must be in the future'
+                  }}
+                />
+
+                <CustomInput
+                  name='description'
+                  label='Description (Optional)'
+                  errors={errors}
+                  required={false}
+                  register={register}
+                  type='textarea'
+                />
+
+                <div className="mt-2">
+                  <Typography.Text type={remainingAmount > 0 ? "warning" : "error"}>
+                    Remaining Amount: {remainingAmount} frw
+                  </Typography.Text>
+                </div>
+
+                {remainingAmount <= 0 && (
+                  <div className="mt-2">
+                    <Typography.Text type="error">
+                      For debit sales, there must be a remaining amount to pay
+                    </Typography.Text>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            <div style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
+              <h4>Calculation Summary:</h4>
+              <p>Original Price: {product.price}frw /unit</p>
+              <p>Selling Price: {watchPricePerUnit || product.price}frw /unit</p>
+              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
+                {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw /unit
+              </p>
+              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
+                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
+              </p>
+            </div>
+
+            <Flex justify='center' style={{ marginTop: '1rem' }} gap="small">
+              <Button onClick={handleCancel} type='default'>
+                Cancel
+              </Button>
+              <Button 
+                htmlType='submit' 
+                type='primary'
+                loading={loading}
+                disabled={loading || !validateQuantity(watchQuantity) || (isDebit && remainingAmount <= 0)}
+              >
+                {loading ? 'Processing...' : 'Sell Product'}
+              </Button>
+            </Flex>
+          </form>
         )}
       </Modal>
     </>
   );
 };
+
 /**
  * Add Stock Modal
  */

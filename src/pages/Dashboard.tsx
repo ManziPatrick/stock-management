@@ -77,9 +77,9 @@ console.log("Total Margin Profit:", totalMarginProfit);
   
 
   const MetricCard: React.FC<MetricCardProps> = ({ title, value, color = 'black' }) => (
-    <div className="min-w-60 max-w-96 p-2">
-      <div className="flex flex-col rounded-lg justify-center items-center bg-white shadow-sm max-w-96 p-8 my-6 border border-slate-200 relative">
-        <h3 className="text-base font-medium mb-2">{title}</h3>
+    <div className="min-w-60 max-w-96 p-2 ">
+      <div className="flex flex-col rounded-lg bg-gradient-to-tr from-white via-slate-200 justify-center items-center bg-white shadow-sm max-w-96 p-8 my-6 border border-slate-200 relative">
+        <h3 className="text-base  font-bold mb-2 ">{title}</h3>
         <h1 className="text-lg font-extrabold" style={{ color }}>
           {value.toLocaleString()} 
         </h1>
@@ -91,7 +91,7 @@ console.log("Total Margin Profit:", totalMarginProfit);
   return (
     <div className="container flex flex-col justify-center items-center w-full px-4">
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 w-full gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3  w-full gap-4">
         <MetricCard title="Total Sales Revenue" value={aggregateMetrics.totalSalesRevenue} color="blue" />
         <MetricCard title="Total Margin Profit" value={totalMarginProfit} color="green" />
         <MetricCard title="Total Expenses" value={aggregateMetrics.totalExpenses} color="red" />
@@ -107,7 +107,7 @@ console.log("Total Margin Profit:", totalMarginProfit);
       </div>
 
       {/* Daily Sales Chart */}
-      <div className="mt-8 border bg-white shadow-sm border-slate-200 w-full p-4">
+      <div className="mt-8 border bg-white shadow-sm border-slate-200 w-full p-0 md:p-0">
         <h1 className="text-center text-xl font-semibold mb-4">Daily Sale and Revenue</h1>
         <DailyChart data={rawData} />
       </div>

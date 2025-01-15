@@ -25,18 +25,18 @@ const DailyChart = () => {
   }));
   
   const today = new Date();
-  console.log("today", today);
+  // console.log("today", today);
   
   const todayExpenses = date?.filter((item) => {
     const expenseDate = new Date(item.date);
     return expenseDate.toDateString() === today.toDateString();
   });
   
-  console.log("Today's Expenses:", todayExpenses);
+  // console.log("Today's Expenses:", todayExpenses);
   
   const totalAmountToday = response?.data?.summary?.dailyExpenses
   
-  console.log("Total Amount for Today's Expenses:", totalAmountToday);
+  // console.log("Total Amount for Today's Expenses:", totalAmountToday);
   const dailyNetProfit = response?.data?.summary?.dailyNetProfit;
   const data = response?.data?.dailyData?.map((item) => ({
     name: `${item._id.day.toString().padStart(2, '0')}/${item._id.month.toString().padStart(2, '0')}/${item._id.year}`,
@@ -58,7 +58,7 @@ const DailyChart = () => {
           suffix="frw"
         />
       </Card>
-      <Card bordered={false} className="shadow-sm">
+      <Card bordered={false} className="shadow-md ">
         <Statistic
           title="Daily Net Profit"
           value={response?.data?.summary?.dailyNetProfit || 0}
