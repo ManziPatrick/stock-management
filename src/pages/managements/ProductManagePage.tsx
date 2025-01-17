@@ -2,7 +2,7 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox } from 'antd';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox, Image } from 'antd';
 import { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
 import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
@@ -76,9 +76,27 @@ const ProductManagePage = () => {
     unit: product.measurement?.unit || '',
     description: product.description,
     totalValue: product.price * product.stock,
+    images: product.images || [],
   }));
 
   const columns: TableColumnsType<any> = [
+    {
+      title: 'Image',
+      key: 'image',
+      dataIndex: 'images',
+      align: 'center',
+      width: '80px',
+      render: (images: string[]) => (
+        <Image
+          src={images[0] || '/placeholder-image.png'}
+          alt="Product"
+          style={{ width: 50, height: 50, objectFit: 'cover' }}
+          fallback="/placeholder-image.png"
+          preview={images.length > 0}
+        />
+      ),
+    },
+    
     {
       title: 'Product Name',
       key: 'name',
@@ -362,6 +380,15 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
+            <div className="mb-4">
+              <Image
+                src={product.images?.[0] || '/placeholder-image.png'}
+                alt={product.name}
+                style={{ width: '100%', height: 200, objectFit: 'contain' }}
+                fallback="/placeholder-image.png"
+              />
+            </div>
+            
             <CustomInput
               name='buyerName'
               label='Buyer Name'

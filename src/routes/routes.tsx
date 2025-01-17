@@ -93,6 +93,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'debits',  
+        element: (
+          <ProtectRoute>
+            <GetDebitManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      {
         path: 'change-password',
         element: (
           <ProtectRoute>

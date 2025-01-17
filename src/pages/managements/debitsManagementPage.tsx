@@ -206,7 +206,7 @@ const DebitManagementPage: React.FC = () => {
             className="w-64"
           />
         </div>
-        <Button
+        {/* <Button
           type="primary"
           onClick={() => {
             setEditingDebit(null);
@@ -216,7 +216,7 @@ const DebitManagementPage: React.FC = () => {
           className="bg-blue-600 hover:bg-blue-700"
         >
           Add Debit
-        </Button>
+        </Button> */}
       </div>
 
       <Table

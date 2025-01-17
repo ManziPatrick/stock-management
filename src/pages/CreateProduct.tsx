@@ -1,5 +1,9 @@
-import { Button, Col, Flex, Row, Spin } from 'antd';
+import { Button, Col, Flex, Row, Spin, Upload, Modal } from 'antd';
 import { FieldValues, useForm } from 'react-hook-form';
+import { PlusOutlined } from '@ant-design/icons';
+import { useState } from 'react';
+import type { RcFile, UploadProps } from 'antd/es/upload';
+import type { UploadFile } from 'antd/es/upload/interface';
 import CustomInput from '../components/CustomInput';
 import toastMessage from '../lib/toastMessage';
 import { useGetAllBrandsQuery } from '../redux/features/management/brandApi';
@@ -10,7 +14,14 @@ import { ICategory } from '../types/product.types';
 import CreateSeller from '../components/product/CreateSeller';
 import CreateCategory from '../components/product/CreateCategory';
 import CreateBrand from '../components/product/CreateBrand';
-import { useState } from 'react';
+
+const getBase64 = (file: RcFile): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = (error) => reject(error);
+  });
 
 const CreateProduct = () => {
   const [createNewProduct] = useCreateNewProductMutation();
@@ -18,6 +29,10 @@ const CreateProduct = () => {
   const { data: sellers } = useGetAllSellerQuery(undefined);
   const { data: brands } = useGetAllBrandsQuery(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [fileList, setFileList] = useState<UploadFile[]>([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewImage, setPreviewImage] = useState('');
+  const [previewTitle, setPreviewTitle] = useState('');
 
   const {
     handleSubmit,
@@ -29,30 +44,73 @@ const CreateProduct = () => {
 
   const selectedUnit = watch('unitType');
 
+  const handleCancel = () => setPreviewOpen(false);
+
+  const handlePreview = async (file: UploadFile) => {
+    if (!file.url && !file.preview) {
+      file.preview = await getBase64(file.originFileObj as RcFile);
+    }
+
+    setPreviewImage(file.url || (file.preview as string));
+    setPreviewOpen(true);
+    setPreviewTitle(file.name || file.url!.substring(file.url!.lastIndexOf('/') + 1));
+  };
+
+  const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
+    setFileList(newFileList);
+  };
+
+  const uploadButton = (
+    <div>
+      <PlusOutlined />
+      <div style={{ marginTop: 8 }}>Upload</div>
+    </div>
+  );
+
   const onSubmit = async (data: FieldValues) => {
+    if (fileList.length === 0) {
+      toastMessage({ icon: 'error', text: 'Please upload at least one image' });
+      return;
+    }
+
+    if (fileList.length > 5) {
+      toastMessage({ icon: 'error', text: 'Maximum 5 images allowed' });
+      return;
+    }
+
     setIsSubmitting(true);
-    const payload = { ...data };
-    payload.price = Number(data.price);
-    payload.quantity = Number(data.quantity);
-    payload.stock = Number(data.quantity);
-    
+    const formData = new FormData();
+
+    // Append all form fields
+    Object.keys(data).forEach(key => {
+      if (data[key] !== undefined && data[key] !== '') {
+        formData.append(key, data[key]);
+      }
+    });
+
+    // Handle measurement data
     if (data.unitType) {
-      payload.measurement = {
+      const measurement = {
         type: data.unitType,
         unit: data.unit,
         value: Number(data.quantity)
       };
-
-      delete payload.unitType;
-      delete payload.unit;
-      delete payload.quantity;
+      formData.append('measurement', JSON.stringify(measurement));
     }
 
+    // Append images
+    fileList.forEach((file) => {
+      if (file.originFileObj) {
+        formData.append('images', file.originFileObj);
+      }
+    });
+
     try {
-      const res = await createNewProduct(payload).unwrap();
+      const res = await createNewProduct(formData).unwrap();
       if (res.statusCode === 201) {
         toastMessage({ icon: 'success', text: res.message });
         reset();
+        setFileList([]);
       }
     } catch (error: any) {
       console.error(error);
@@ -134,13 +192,7 @@ const CreateProduct = () => {
           overflow: 'auto',
         }}
       >
-        <Col
-          xs={{ span: 24 }}
-          lg={{ span: 14 }}
-          style={{
-            display: 'flex',
-          }}
-        >
+        <Col xs={{ span: 24 }} lg={{ span: 14 }}>
           <Flex
             vertical
             style={{
@@ -167,8 +219,8 @@ const CreateProduct = () => {
                 label="Name"
                 register={register}
                 required={true}
-                
               />
+              
               <CustomInput
                 errors={errors}
                 label="Price"
@@ -176,7 +228,6 @@ const CreateProduct = () => {
                 name="price"
                 register={register}
                 required={true}
-              
               />
 
               <Row>
@@ -200,42 +251,42 @@ const CreateProduct = () => {
                   </select>
                 </Col>
               </Row>
+
               <Row>
-  <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-    <label htmlFor="quantity" className="label">
-      Quantity
-    </label>
-  </Col>
-  <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-    <Row gutter={[16, 16]}>
-      <Col xs={24} sm={selectedUnit ? 12 : 24}>
-        <CustomInput
-          errors={errors}
-          label=""
-          type="number"
-          name="quantity"
-          register={register}
-          required={true}
-          
-        />
-      </Col>
-      
-      {selectedUnit && (
-        <Col xs={24} sm={12}>
-          <select
-            {...register('unit')}
-            className="input-field"
-            disabled={isSubmitting}
-            style={{ width: '100%', height: '100%' }}
-          >
-            <option value="">Select Unit</option>
-            {renderUnitOptions()}
-          </select>
-        </Col>
-      )}
-    </Row>
-  </Col>
-</Row>
+                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+                  <label htmlFor="quantity" className="label">
+                    Quantity
+                  </label>
+                </Col>
+                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+                  <Row gutter={[16, 16]}>
+                    <Col xs={24} sm={selectedUnit ? 12 : 24}>
+                      <CustomInput
+                        errors={errors}
+                        label=""
+                        type="number"
+                        name="quantity"
+                        register={register}
+                        required={true}
+                      />
+                    </Col>
+                    
+                    {selectedUnit && (
+                      <Col xs={24} sm={12}>
+                        <select
+                          {...register('unit')}
+                          className="input-field"
+                          disabled={isSubmitting}
+                          style={{ width: '100%', height: '100%' }}
+                        >
+                          <option value="">Select Unit</option>
+                          {renderUnitOptions()}
+                        </select>
+                      </Col>
+                    )}
+                  </Row>
+                </Col>
+              </Row>
 
               <Row>
                 <Col xs={{ span: 23 }} lg={{ span: 6 }}>
@@ -307,8 +358,28 @@ const CreateProduct = () => {
                 label="Description"
                 name="description"
                 register={register}
-                
               />
+
+              <Row style={{ marginBottom: '20px' }}>
+                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+                  <label className="label">Product Images</label>
+                </Col>
+                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+                  <Upload
+                    listType="picture-card"
+                    fileList={fileList}
+                    onPreview={handlePreview}
+                    onChange={handleChange}
+                    beforeUpload={() => false}
+                    accept="image/*"
+                  >
+                    {fileList.length >= 5 ? null : uploadButton}
+                  </Upload>
+                  <div style={{ color: '#666', fontSize: '12px' }}>
+                    Upload 1-5 images. Supported formats: JPG, PNG
+                  </div>
+                </Col>
+              </Row>
 
               <Flex justify="center" style={{ marginTop: '20px' }}>
                 <Button
@@ -355,6 +426,10 @@ const CreateProduct = () => {
           </Flex>
         </Col>
       </Row>
+
+      <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
+        <img alt="example" style={{ width: '100%' }} src={previewImage} />
+      </Modal>
     </>
   );
 };

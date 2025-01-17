@@ -36,11 +36,11 @@ export const sidebarItems = [
     label: <NavLink to='/seller/sales'>MANAGE SALES</NavLink>,
     icon: React.createElement(AreaChartOutlined),
   },
-  // {
-  //   key: 'Manage Seller',
-  //   label: <NavLink to='/sellers'>MANAGE SELLERS</NavLink>,
-  //   icon: React.createElement(ApartmentOutlined),
-  // },
+  {
+    key: 'Manage Debits',
+    label: <NavLink to='/seller/debits'>MANAGE Debits</NavLink>,
+    icon: React.createElement(ApartmentOutlined),
+  },
   // {
   //   key: 'Manage Purchase',
   //   label: <NavLink to='/purchases'>MANAGE PURCHASES</NavLink>,
