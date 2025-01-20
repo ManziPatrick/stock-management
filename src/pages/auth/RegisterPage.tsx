@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button } from 'antd';
+import { Button, Select } from 'antd';
 import { FieldValues, useForm } from 'react-hook-form';
 import { Link, useNavigate } from 'react-router-dom';
 import { useRegisterMutation } from '../../redux/features/authApi';
@@ -157,16 +157,16 @@ const RegisterPage = () => {
               className={`input-field ${errors.email ? 'input-field-error' : ''}`}
             />
 
-            <select 
+            <Select 
               {...register('role', { required: 'Role is required' })}
-              className={`input-field ${errors.role ? 'input-field-error' : ''}`}
-              defaultValue=""
+              className={`input-field  h-full${errors.role ? 'input-field-error' : ''}`}
+              
             >
-              <option value="" disabled>Select Role*</option>
+              <option value="" selected disabled>Select Role*</option>
               <option value="USER">User</option>
               <option value="ADMIN">Admin</option>
               <option value="KEEPER">Keeper</option>
-            </select>
+            </Select>
 
             {(role === 'ADMIN' || role === 'KEEPER') && (
               <>

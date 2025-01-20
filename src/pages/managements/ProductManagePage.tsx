@@ -79,7 +79,7 @@ const ProductManagePage = () => {
     images: product.images || [],
   }));
 
-  const columns: TableColumnsType<any> = [
+  const columns: TableColumnsType<IProduct> = [
     {
       title: 'Image',
       key: 'image',
@@ -170,6 +170,9 @@ const ProductManagePage = () => {
         columns={columns}
         dataSource={tableData}
         pagination={false}
+        rowKey="_id"
+        className="border rounded-lg"
+        scroll={{ x: true }}
       />
       <Flex justify='center' style={{ marginTop: '1rem' }}>
         <Pagination
@@ -850,16 +853,17 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
           
           <Row>
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor="unitType" className="label">
+              <label htmlFor="unitType" className="text-sm">
                 Measurement Type
               </label>
             </Col>
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
               <select
                 {...register('unitType')}
-                className="input-field"
+                className=" p-2.5 bg-transparent"
                 required={true}
                 disabled={isSubmitting}
+                
               >
                 <option value="">Select Measurement Type</option>
                 <option value="weight">Weight</option>
@@ -894,7 +898,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
                   <div style={{ flex: 1 }}>
                     <select
                       {...register('unit')}
-                      className="input-field"
+                      className="p-2.5 bg-transparent"
                       required={true}
                       disabled={isSubmitting}
                     >

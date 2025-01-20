@@ -2,6 +2,7 @@ import {
   AimOutlined,
   AntDesignOutlined,
   ApartmentOutlined,
+  DashboardOutlined,
   AreaChartOutlined,
   MoneyCollectFilled,
   ProfileFilled,
@@ -14,7 +15,7 @@ export const sidebarItems = [
   {
     key: 'Dashboard',
     label: <NavLink to='/admin'>DASHBOARD</NavLink>,
-    icon: React.createElement(ProfileFilled),
+    icon: React.createElement(DashboardOutlined),
   },
   {
     key: 'New User',
@@ -22,6 +23,7 @@ export const sidebarItems = [
     icon: React.createElement(ProfileFilled),
   },
   {
+    
     key: 'Add Product',
     label: <NavLink to='/admin/create-product'>ADD PRODUCT</NavLink>,
     icon: React.createElement(AntDesignOutlined),

@@ -1,20 +1,39 @@
-import { Button, Col, Flex, Row, Spin, Upload, Modal } from 'antd';
-import { FieldValues, useForm } from 'react-hook-form';
-import { PlusOutlined } from '@ant-design/icons';
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { 
+  Form,
+  Input, 
+  Button, 
+  Upload,
+  Select,
+  Row, 
+  Col,
+  Card,
+  Modal,
+  Spin,
+  Typography,
+  InputNumber,
+  Space,
+  Divider,
+  message 
+} from 'antd';
+import { PlusOutlined, LoadingOutlined } from '@ant-design/icons';
+import { useForm } from 'react-hook-form';
 import type { RcFile, UploadProps } from 'antd/es/upload';
 import type { UploadFile } from 'antd/es/upload/interface';
-import CustomInput from '../components/CustomInput';
-import toastMessage from '../lib/toastMessage';
+import { useCreateNewProductMutation } from '../redux/features/management/productApi';
 import { useGetAllBrandsQuery } from '../redux/features/management/brandApi';
 import { useGetAllCategoriesQuery } from '../redux/features/management/categoryApi';
-import { useCreateNewProductMutation } from '../redux/features/management/productApi';
 import { useGetAllSellerQuery } from '../redux/features/management/sellerApi';
 import { ICategory } from '../types/product.types';
 import CreateSeller from '../components/product/CreateSeller';
 import CreateCategory from '../components/product/CreateCategory';
 import CreateBrand from '../components/product/CreateBrand';
 
+const { Title, Text } = Typography;
+const { TextArea } = Input;
+const { Option } = Select;
+
+// Helper function to convert file to base64
 const getBase64 = (file: RcFile): Promise<string> =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -23,77 +42,75 @@ const getBase64 = (file: RcFile): Promise<string> =>
     reader.onerror = (error) => reject(error);
   });
 
-const CreateProduct = () => {
+const CreateProduct: React.FC = () => {
+  // Redux queries and mutations
   const [createNewProduct] = useCreateNewProductMutation();
   const { data: categories } = useGetAllCategoriesQuery(undefined);
   const { data: sellers } = useGetAllSellerQuery(undefined);
   const { data: brands } = useGetAllBrandsQuery(undefined);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form and state management
+  const [form] = Form.useForm();
   const [fileList, setFileList] = useState<UploadFile[]>([]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
 
-  const {
-    handleSubmit,
-    register,
-    formState: { errors },
-    reset,
-    watch,
-  } = useForm();
-
-  const selectedUnit = watch('unitType');
-
-  const handleCancel = () => setPreviewOpen(false);
-
+  // Image preview handlers
   const handlePreview = async (file: UploadFile) => {
     if (!file.url && !file.preview) {
       file.preview = await getBase64(file.originFileObj as RcFile);
     }
-
     setPreviewImage(file.url || (file.preview as string));
     setPreviewOpen(true);
     setPreviewTitle(file.name || file.url!.substring(file.url!.lastIndexOf('/') + 1));
   };
+  const formatPrice = (value: number | string | undefined): string => {
+    if (value === undefined || value === '') return '';
+    return `frw ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
 
+  const parsePrice = (value: string | undefined): number => {
+    if (!value) return 0;
+    // Remove 'frw', spaces, and commas, then convert to number
+    const numStr = value.replace(/frw\s?|(,*)/g, '');
+    return numStr ? Number(numStr) : 0;
+  };
+  
   const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
     setFileList(newFileList);
   };
 
-  const uploadButton = (
-    <div>
-      <PlusOutlined />
-      <div style={{ marginTop: 8 }}>Upload</div>
-    </div>
-  );
-
-  const onSubmit = async (data: FieldValues) => {
+  // Form submission handler
+  const onFinish = async (values: any) => {
     if (fileList.length === 0) {
-      toastMessage({ icon: 'error', text: 'Please upload at least one image' });
+      message.error('Please upload at least one image');
       return;
     }
 
     if (fileList.length > 5) {
-      toastMessage({ icon: 'error', text: 'Maximum 5 images allowed' });
+      message.error('Maximum 5 images allowed');
       return;
     }
 
     setIsSubmitting(true);
     const formData = new FormData();
 
-    // Append all form fields
-    Object.keys(data).forEach(key => {
-      if (data[key] !== undefined && data[key] !== '') {
-        formData.append(key, data[key]);
+    // Append form fields
+    Object.keys(values).forEach(key => {
+      if (values[key] !== undefined && values[key] !== '') {
+        formData.append(key, values[key]);
       }
     });
 
     // Handle measurement data
-    if (data.unitType) {
+    if (values.unitType) {
       const measurement = {
-        type: data.unitType,
-        unit: data.unit,
-        value: Number(data.quantity)
+        type: values.unitType,
+        unit: values.unit,
+        value: Number(values.quantity)
       };
       formData.append('measurement', JSON.stringify(measurement));
     }
@@ -108,329 +125,345 @@ const CreateProduct = () => {
     try {
       const res = await createNewProduct(formData).unwrap();
       if (res.statusCode === 201) {
-        toastMessage({ icon: 'success', text: res.message });
-        reset();
+        message.success(res.message);
+        form.resetFields();
         setFileList([]);
       }
     } catch (error: any) {
       console.error(error);
-      toastMessage({ icon: 'error', text: error.data?.message || 'Failed to create product' });
+      message.error(error.data?.message || 'Failed to create product');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Unit options based on measurement type
   const renderUnitOptions = () => {
-    switch (selectedUnit) {
-      case 'weight':
-        return (
-          <>
-            <option value="g">Grams (g)</option>
-            <option value="kg">Kilograms (kg)</option>
-            <option value="lb">Pounds (lb)</option>
-          </>
-        );
-      case 'length':
-        return (
-          <>
-            <option value="cm">Centimeters (cm)</option>
-            <option value="m">Meters (m)</option>
-            <option value="inch">Inches (in)</option>
-          </>
-        );
-      case 'volume':
-        return (
-          <>
-            <option value="ml">Milliliters (ml)</option>
-            <option value="l">Liters (l)</option>
-            <option value="oz">Fluid Ounces (oz)</option>
-          </>
-        );
-      case 'pieces':
-        return (
-          <>
-            <option value="pc">Piece</option>
-            <option value="dozen">Dozen</option>
-            <option value="set">Set</option>
-          </>
-        );
-      case 'size':
-        return (
-          <>
-            <option value="EXTRA_SMALL">Extra Small (XS)</option>
-            <option value="SMALL">Small (S)</option>
-            <option value="MEDIUM">Medium (M)</option>
-            <option value="LARGE">Large (L)</option>
-            <option value="EXTRA_LARGE">Extra Large (XL)</option>
-            <option value="XXL">XXL</option>
-            <option value="XXXL">XXXL</option>
-            <option value="EU_36">EU 36</option>
-            <option value="EU_37">EU 37</option>
-            <option value="EU_38">EU 38</option>
-            <option value="EU_39">EU 39</option>
-            <option value="EU_40">EU 40</option>
-            <option value="EU_41">EU 41</option>
-            <option value="EU_42">EU 42</option>
-            <option value="EU_43">EU 43</option>
-            <option value="EU_44">EU 44</option>
-            <option value="EU_45">EU 45</option>
-            <option value="EU_46">EU 46</option>
-            <option value="EU_47">EU 47</option>
-          </>
-        );
-      default:
-        return null;
-    }
+    const unitTypes = {
+      weight: [
+        { value: 'g', label: 'Grams (g)' },
+        { value: 'kg', label: 'Kilograms (kg)' },
+        { value: 'lb', label: 'Pounds (lb)' }
+      ],
+      length: [
+        { value: 'cm', label: 'Centimeters (cm)' },
+        { value: 'm', label: 'Meters (m)' },
+        { value: 'inch', label: 'Inches (in)' }
+      ],
+      volume: [
+        { value: 'ml', label: 'Milliliters (ml)' },
+        { value: 'l', label: 'Liters (l)' },
+        { value: 'oz', label: 'Fluid Ounces (oz)' }
+      ],
+      pieces: [
+        { value: 'pc', label: 'Piece' },
+        { value: 'dozen', label: 'Dozen' },
+        { value: 'set', label: 'Set' }
+      ],
+      size: [
+        { value: 'EXTRA_SMALL', label: 'Extra Small (XS)' },
+        { value: 'SMALL', label: 'Small (S)' },
+        { value: 'MEDIUM', label: 'Medium (M)' },
+        { value: 'LARGE', label: 'Large (L)' },
+        { value: 'EXTRA_LARGE', label: 'Extra Large (XL)' },
+        { value: 'XXL', label: 'XXL' },
+        { value: 'XXXL', label: 'XXXL' },
+        { value: 'EU_36', label: 'EU 36' },
+        { value: 'EU_37', label: 'EU 37' },
+        { value: 'EU_38', label: 'EU 38' },
+        { value: 'EU_39', label: 'EU 39' },
+        { value: 'EU_40', label: 'EU 40' },
+        { value: 'EU_41', label: 'EU 41' },
+        { value: 'EU_42', label: 'EU 42' },
+        { value: 'EU_43', label: 'EU 43' },
+        { value: 'EU_44', label: 'EU 44' },
+        { value: 'EU_45', label: 'EU 45' },
+        { value: 'EU_46', label: 'EU 46' },
+        { value: 'EU_47', label: 'EU 47' },
+        
+      ]
+    };
+
+    return unitTypes[selectedUnit as keyof typeof unitTypes]?.map(unit => (
+      <Option key={unit.value} value={unit.value}>
+        {unit.label}
+      </Option>
+    ));
   };
 
+  // Upload button component
+  const uploadButton = (
+    <div>
+      <PlusOutlined />
+      <div style={{ marginTop: 8 }}>Upload</div>
+    </div>
+  );
+
   return (
-    <>
-      <Row
-        gutter={30}
-        style={{
-          height: 'calc(100vh - 6rem)',
-          overflow: 'auto',
-        }}
-      >
-        <Col xs={{ span: 24 }} lg={{ span: 14 }}>
-          <Flex
-            vertical
-            style={{
-              width: '100%',
-              padding: '1rem 2rem',
-              border: '1px solid #164863',
-              borderRadius: '.6rem',
-            }}
+    <div className="p-6">
+      <Row gutter={[24, 24]}>
+        {/* Main Form Section */}
+        <Col xs={24} lg={16}>
+          <Card 
+            bordered={false} 
+            className="shadow-md rounded-lg"
           >
-            <h1
-              style={{
-                marginBottom: '.8rem',
-                fontWeight: '900',
-                textAlign: 'center',
-                textTransform: 'uppercase',
-              }}
-            >
+            <Title level={2} className="text-center mb-6">
               Add New Product
-            </h1>
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <CustomInput
-                name="name"
-                errors={errors}
-                label="Name"
-                register={register}
-                required={true}
-              />
-              
-              <CustomInput
-                errors={errors}
-                label="Price"
-                type="number"
-                name="price"
-                register={register}
-                required={true}
-              />
-
-              <Row>
-                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                  <label htmlFor="unitType" className="label">
-                    Measurement Type
-                  </label>
-                </Col>
-                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                  <select
-                    {...register('unitType')}
-                    className="input-field"
-                    disabled={isSubmitting}
+            </Title>
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onFinish}
+              requiredMark={false}
+              className="space-y-4"
+            >
+              <Row gutter={[16, 16]}>
+                {/* Product Name */}
+                <Col xs={24}>
+                  <Form.Item
+                    label="Product Name"
+                    name="name"
+                    rules={[{ required: true, message: 'Please enter product name' }]}
                   >
-                    <option value="">Select Measurement Type</option>
-                    <option value="weight">Weight</option>
-                    <option value="length">Length</option>
-                    <option value="volume">Volume</option>
-                    <option value="pieces">Pieces</option>
-                    <option value="size">Size</option>
-                  </select>
+                    <Input 
+                      size="large" 
+                      placeholder="Enter product name"
+                      className="rounded-md" 
+                    />
+                  </Form.Item>
                 </Col>
-              </Row>
 
-              <Row>
-                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                  <label htmlFor="quantity" className="label">
-                    Quantity
-                  </label>
+                {/* Price */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Price"
+                    name="price"
+                    rules={[{ required: true, message: 'Please enter price' }]}
+                  >
+                   <InputNumber
+                      size="large"
+                      className="w-full rounded-md"
+                      min={0}
+                      placeholder="Enter price"
+                      formatter={formatPrice}
+                      parser={parsePrice}
+                      onFocus={(e) => e.target.select()}
+                    />
+                  </Form.Item>
                 </Col>
-                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                  <Row gutter={[16, 16]}>
-                    <Col xs={24} sm={selectedUnit ? 12 : 24}>
-                      <CustomInput
-                        errors={errors}
-                        label=""
-                        type="number"
+
+                {/* Measurement Type */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Measurement Type"
+                    name="unitType"
+                  >
+                    <Select
+                      size="large"
+                      placeholder="Select measurement type"
+                      onChange={setSelectedUnit}
+                      className="rounded-md"
+                    >
+                      <Option value="weight">Weight</Option>
+                      <Option value="length">Length</Option>
+                      <Option value="volume">Volume</Option>
+                      <Option value="pieces">Pieces</Option>
+                      <Option value="size">Size</Option>
+                    </Select>
+                  </Form.Item>
+                </Col>
+
+                {/* Quantity and Unit */}
+                {selectedUnit && (
+                  <>
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        label="Quantity"
                         name="quantity"
-                        register={register}
-                        required={true}
-                      />
+                        rules={[{ required: true, message: 'Please enter quantity' }]}
+                      >
+                        <InputNumber 
+                          size="large" 
+                          className="w-full rounded-md" 
+                          min={0} 
+                        />
+                      </Form.Item>
                     </Col>
-                    
-                    {selectedUnit && (
-                      <Col xs={24} sm={12}>
-                        <select
-                          {...register('unit')}
-                          className="input-field"
-                          disabled={isSubmitting}
-                          style={{ width: '100%', height: '100%' }}
+
+                    <Col xs={24} md={12}>
+                      <Form.Item
+                        label="Unit"
+                        name="unit"
+                        rules={[{ required: true, message: 'Please select unit' }]}
+                      >
+                        <Select 
+                          size="large" 
+                          placeholder="Select unit"
+                          className="rounded-md"
                         >
-                          <option value="">Select Unit</option>
                           {renderUnitOptions()}
-                        </select>
-                      </Col>
-                    )}
-                  </Row>
-                </Col>
-              </Row>
+                        </Select>
+                      </Form.Item>
+                    </Col>
+                  </>
+                )}
 
-              <Row>
-                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                  <label htmlFor="seller" className="label">
-                    Supplier
-                  </label>
-                </Col>
-                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                  <select
-                    {...register('seller', { required: true })}
-                    className={`input-field ${errors['seller'] ? 'input-field-error' : ''}`}
-                    disabled={isSubmitting}
+                {/* Supplier */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Supplier"
+                    name="seller"
+                    rules={[{ required: true, message: 'Please select supplier' }]}
                   >
-                    <option value="">Select supplier*</option>
-                    {sellers?.data.map((item: ICategory) => (
-                      <option key={item._id} value={item._id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
+                    <Select
+                      size="large"
+                      placeholder="Select supplier"
+                      className="rounded-md"
+                    >
+                      {sellers?.data.map((item: ICategory) => (
+                        <Option key={item._id} value={item._id}>
+                          {item.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </Col>
-              </Row>
 
-              <Row>
-                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                  <label htmlFor="category" className="label">
-                    Category
-                  </label>
-                </Col>
-                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                  <select
-                    {...register('category', { required: true })}
-                    className={`input-field ${errors['category'] ? 'input-field-error' : ''}`}
-                    disabled={isSubmitting}
+                {/* Category */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Category"
+                    name="category"
+                    rules={[{ required: true, message: 'Please select category' }]}
                   >
-                    <option value="">Select Category*</option>
-                    {categories?.data.map((item: ICategory) => (
-                      <option key={item._id} value={item._id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
+                    <Select
+                      size="large"
+                      placeholder="Select category"
+                      className="rounded-md"
+                    >
+                      {categories?.data.map((item: ICategory) => (
+                        <Option key={item._id} value={item._id}>
+                          {item.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </Col>
-              </Row>
 
-              <Row>
-                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                  <label htmlFor="brand" className="label">
-                    Brand
-                  </label>
-                </Col>
-                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                  <select
-                    {...register('brand')}
-                    className={`input-field ${errors['brand'] ? 'input-field-error' : ''}`}
-                    disabled={isSubmitting}
+                {/* Brand */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Brand"
+                    name="brand"
                   >
-                    <option value="">Select brand</option>
-                    {brands?.data.map((item: ICategory) => (
-                      <option key={item._id} value={item._id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
+                    <Select
+                      size="large"
+                      placeholder="Select brand"
+                      className="rounded-md"
+                    >
+                      {brands?.data.map((item: ICategory) => (
+                        <Option key={item._id} value={item._id}>
+                          {item.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </Col>
-              </Row>
 
-              <CustomInput
-                label="Description"
-                name="description"
-                register={register}
-              />
-
-              <Row style={{ marginBottom: '20px' }}>
-                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-                  <label className="label">Product Images</label>
-                </Col>
-                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-                  <Upload
-                    listType="picture-card"
-                    fileList={fileList}
-                    onPreview={handlePreview}
-                    onChange={handleChange}
-                    beforeUpload={() => false}
-                    accept="image/*"
+                {/* Description */}
+                <Col xs={24}>
+                  <Form.Item
+                    label="Description"
+                    name="description"
                   >
-                    {fileList.length >= 5 ? null : uploadButton}
-                  </Upload>
-                  <div style={{ color: '#666', fontSize: '12px' }}>
-                    Upload 1-5 images. Supported formats: JPG, PNG
-                  </div>
+                    <TextArea
+                      rows={4}
+                      placeholder="Enter product description"
+                      className="rounded-md"
+                    />
+                  </Form.Item>
+                </Col>
+
+                {/* Product Images */}
+                <Col xs={24}>
+                  <Form.Item
+                    label="Product Images"
+                    name="images"
+                  >
+                    <Upload
+                      listType="picture-card"
+                      fileList={fileList}
+                      onPreview={handlePreview}
+                      onChange={handleChange}
+                      beforeUpload={() => false}
+                      accept="image/*"
+                      className="rounded-md"
+                    >
+                      {fileList.length >= 5 ? null : uploadButton}
+                    </Upload>
+                    <Text type="secondary">Upload 1-5 images. Supported formats: JPG, PNG</Text>
+                  </Form.Item>
+                </Col>
+
+                {/* Submit Button */}
+                <Col xs={24}>
+                  <Form.Item>
+                    <Button
+                      type="primary"
+                      htmlType="submit"
+                      size="large"
+                      block
+                      loading={isSubmitting}
+                      className="h-12 font-semibold rounded-md"
+                    >
+                      {isSubmitting ? 'Creating...' : 'Add Product'}
+                    </Button>
+                  </Form.Item>
                 </Col>
               </Row>
-
-              <Flex justify="center" style={{ marginTop: '20px' }}>
-                <Button
-                  htmlType="submit"
-                  type="primary"
-                  disabled={isSubmitting}
-                  style={{ 
-                    textTransform: 'uppercase', 
-                    fontWeight: 'bold',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    minWidth: '150px'
-                  }}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Spin size="small" style={{ marginRight: '8px' }} />
-                      Creating...
-                    </>
-                  ) : (
-                    'Add Product'
-                  )}
-                </Button>
-              </Flex>
-            </form>
-          </Flex>
+            </Form>
+          </Card>
         </Col>
-        <Col xs={{ span: 24 }} lg={{ span: 10 }}>
-          <Flex
-            vertical
-            style={{
-              width: '100%',
-              height: '100%',
-              padding: '1rem 2rem',
-              border: '1px solid #164863',
-              borderRadius: '.6rem',
-              justifyContent: 'space-around',
-            }}
+
+        {/* Sidebar Actions */}
+        <Col xs={24} lg={8}>
+          <Card 
+            bordered={false} 
+            className="shadow-md rounded-lg"
           >
-            <CreateSeller />
-            <CreateCategory />
-            <CreateBrand />
-          </Flex>
+            <Title level={3} className="mb-6">
+              Quick Actions
+            </Title>
+            <Space 
+              direction="vertical" 
+              className="w-full" 
+              size="large"
+            >
+              <CreateSeller />
+              <Divider />
+              <CreateCategory />
+              <Divider />
+              <CreateBrand />
+            </Space>
+          </Card>
         </Col>
       </Row>
 
-      <Modal open={previewOpen} title={previewTitle} footer={null} onCancel={handleCancel}>
-        <img alt="example" style={{ width: '100%' }} src={previewImage} />
+      {/* Image Preview Modal */}
+      <Modal
+        open={previewOpen}
+        title={previewTitle}
+        footer={null}
+        onCancel={() => setPreviewOpen(false)}
+      >
+        <img 
+          alt="preview" 
+          className="w-full" 
+          src={previewImage} 
+        />
       </Modal>
-    </>
+    </div>
   );
 };
 
