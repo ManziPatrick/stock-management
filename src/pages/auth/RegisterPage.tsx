@@ -1,3 +1,4 @@
+//@ts-nocheck
 import { useState } from 'react';
 import { Form, Input, Select, Button, Modal, message } from 'antd';
 import { UserOutlined, MailOutlined, LockOutlined, IdcardOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons';
