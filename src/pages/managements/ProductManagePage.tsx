@@ -2,7 +2,7 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox, Image } from 'antd';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox, Image, Input } from 'antd';
 import { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
 import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
@@ -484,7 +484,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                   }}
                 />
 
-                <CustomInput
+                <Input
                   name='dueDate'
                   label='Payment Due Date'
                   errors={errors}

@@ -1,4 +1,4 @@
-import { Button, Flex } from 'antd';
+import { Button, Flex, Input } from 'antd';
 import { useState } from 'react';
 import { useCreateCategoryMutation } from '../../redux/features/management/categoryApi';
 import toastMessage from '../../lib/toastMessage';
@@ -39,7 +39,7 @@ const CreateCategory = () => {
       >
         Create New Category
       </h3>
-      <input
+      <Input
         type='text'
         value={category}
         onChange={(e) => setCategory(e.target.value)}

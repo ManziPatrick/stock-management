@@ -1,4 +1,4 @@
-import { Col, Row } from 'antd';
+import { Col, Input, Row } from 'antd';
 
 interface Props {
   name: string;
@@ -17,7 +17,7 @@ const ModalInput = ({ name, label, handleChange, defaultValue = '', type = 'text
         </label>
       </Col>
       <Col span={18}>
-        <input
+        <Input
           id={name}
           type={type}
           name={name}

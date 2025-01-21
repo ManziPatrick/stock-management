@@ -1,12 +1,9 @@
 import { useState } from 'react';
-import { Button, Select } from 'antd';
-import { FieldValues, useForm } from 'react-hook-form';
-import { Link, useNavigate } from 'react-router-dom';
+import { Form, Input, Select, Button, Modal, message } from 'antd';
+import { UserOutlined, MailOutlined, LockOutlined, IdcardOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { useNavigate } from 'react-router-dom';
 import { useRegisterMutation } from '../../redux/features/authApi';
 import { useAppDispatch } from '../../redux/hooks';
-import { loginUser } from '../../redux/services/authSlice';
-import { toast } from 'sonner';
-import { CheckCircle } from "lucide-react";
 
 // Interface for the API response
 interface RegistrationResponse {
@@ -24,212 +21,239 @@ interface RegistrationResponse {
 }
 
 // Success Modal Component
-const SuccessModal = ({ isOpen, onClose, userData }) => {
-  if (!isOpen) return null;
-
+const SuccessModal = ({ visible, onClose, userData }) => {
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center   overflow-hidden justify-center z-50">
-      <div className="bg-white rounded-lg p-8 max-w-md w-full mx-4">
-        <div className="flex flex-col items-center justify-center space-y-4">
-          <CheckCircle className="h-12 w-12 text-green-500" />
-          <h2 className="text-xl font-semibold text-center">
-            Registration Successful!
-          </h2>
-        </div>
-        
-        <div className="flex flex-col items-center space-y-4 py-4">
-          <p className="text-center text-gray-600">
-            Welcome <span className="font-semibold">{userData.name}</span>!
+    <Modal
+      visible={visible}
+      onCancel={onClose}
+      footer={[
+        <Button 
+          key="continue" 
+          type="primary" 
+          onClick={onClose}
+          className="w-32 h-10 bg-blue-600 hover:bg-blue-700 border-none"
+        >
+          Continue
+        </Button>,
+      ]}
+      className="top-[20%]"
+      width={480}
+    >
+      <div className="flex flex-col items-center py-6">
+        <CheckCircleOutlined className="text-5xl text-green-500 mb-4" />
+        <h2 className="text-2xl font-semibold mb-4">Registration Successful!</h2>
+        <div className="space-y-2 text-center">
+          <p className="text-gray-700">
+            Welcome <span className="font-semibold">{userData?.name}</span>!
           </p>
-          <p className="text-center text-gray-600">
-            Your account has been successfully created as a{' '}
-            <span className="font-semibold">{userData.role}</span>.
+          <p className="text-gray-700">
+            Your account has been created as a{' '}
+            <span className="font-semibold">{userData?.role}</span>.
           </p>
-          <p className="text-sm text-gray-500">Account Status: {userData.status}</p>
-          <p className="text-center text-sm text-gray-500">
+          <p className="text-sm text-gray-500">Account Status: {userData?.status}</p>
+          <p className="text-sm text-gray-500 mt-4">
             You will be redirected to the dashboard in a few seconds.
           </p>
         </div>
-        
-        <div className="flex justify-center mt-6">
-          <Button 
-            onClick={onClose}
-            type="primary"
-            className="px-8"
-          >
-            Continue
-          </Button>
-        </div>
       </div>
-    </div>
+    </Modal>
   );
 };
 
 const RegisterPage = () => {
-  const dispatch = useAppDispatch();
+  const [form] = Form.useForm();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [userRegistration] = useRegisterMutation();
+  
+  const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [registeredUser, setRegisteredUser] = useState(null);
+  const [role, setRole] = useState('');
 
-  const {
-    handleSubmit,
-    register,
-    formState: { errors },
-    watch,
-  } = useForm();
+  const onFinish = async (values) => {
+    setLoading(true);
+    const toastId = message.loading('Registering new account...', 0);
 
-  const role = watch('role');
-
-  const onSubmit = async (data: FieldValues) => {
-    const toastId = toast.loading('Registering new account!');
     try {
-      if (data.password !== data.confirmPassword) {
-        toast.error('Password and confirm password must be same!', { id: toastId });
-        return;
-      }
-
-      const { confirmPassword, ...registrationData } = data;
-      
+      const { confirmPassword, ...registrationData } = values;
       const response = await userRegistration(registrationData).unwrap() as RegistrationResponse;
 
       if (response.statusCode === 201 && response.success) {
-        toast.success(response.message, { id: toastId });
+        message.success({
+          content: response.message,
+          key: toastId,
+          duration: 2,
+        });
         
-        // Store the registered user data
         setRegisteredUser(response.data);
         setShowSuccessModal(true);
 
-        // Redirect after a delay
         setTimeout(() => {
           setShowSuccessModal(false);
           navigate('/admin/');
         }, 3000);
       }
     } catch (error: any) {
-      toast.error(error.data?.message || 'Registration failed', { id: toastId });
-    }
-  };
-
-  const getRoleDisplay = (role: string) => {
-    switch (role) {
-      case 'ADMIN':
-        return 'Admin';
-      case 'KEEPER':
-        return 'Keeper';
-      default:
-        return 'User';
+      message.error({
+        content: error.data?.message || 'Registration failed',
+        key: toastId,
+        duration: 2,
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <>
-      <div className="register-container " style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <div
-          style={{
-            width: '400px',
-            padding: '3rem',
-            border: '1px solid #164863',
-            borderRadius: '.6rem',
-          }}
-        >
-          <h1 style={{ marginBottom: '.7rem', textAlign: 'center', textTransform: 'uppercase' }}>
-            Register {getRoleDisplay(role)}
-          </h1>
-          <form onSubmit={handleSubmit(onSubmit)}>
-            <input
-              type="text"
-              {...register('name', { required: 'Name is required' })}
-              placeholder="Your Name*"
-              className={`input-field ${errors.name ? 'input-field-error' : ''}`}
-            />
+    <div className="min-h-screen bg-gray-50/30 py-8 px-4">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+          {/* Header */}
+          <div className="px-8 py-6 border-b border-gray-200">
+            <h2 className="text-2xl font-bold text-center text-gray-800">Create New Account</h2>
+            <p className="text-center text-gray-500 text-sm mt-1">Register a new user in the system</p>
+          </div>
 
-            <input
-              type="email"
-              {...register('email', { 
-                required: 'Email is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address',
-                },
-              })}
-              placeholder="Your Email*"
-              className={`input-field ${errors.email ? 'input-field-error' : ''}`}
-            />
-
-            <Select 
-              {...register('role', { required: 'Role is required' })}
-              className={`input-field  h-full${errors.role ? 'input-field-error' : ''}`}
-              
+          {/* Form */}
+          <div className="p-8">
+            <Form
+              form={form}
+              layout="vertical"
+              onFinish={onFinish}
+              className="space-y-6"
             >
-              <option value="" selected disabled>Select Role*</option>
-              <option value="USER">User</option>
-              <option value="ADMIN">Admin</option>
-              <option value="KEEPER">Keeper</option>
-            </Select>
+              {/* Name and Email */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Form.Item
+                  name="name"
+                  rules={[{ required: true, message: 'Please input your name!' }]}
+                >
+                  <Input 
+                    prefix={<UserOutlined className="text-gray-400" />}
+                    placeholder="Full Name"
+                    className="h-11 rounded-lg"
+                  />
+                </Form.Item>
 
-            {(role === 'ADMIN' || role === 'KEEPER') && (
-              <>
-                <input
-                  type="text"
-                  {...register('title')}
-                  placeholder="Title (optional)"
-                  className="input-field"
-                />
-                <textarea
-                  {...register('description')}
-                  placeholder="Description (optional)"
-                  className="input-field"
-                  style={{ minHeight: '100px' }}
-                />
-              </>
-            )}
+                <Form.Item
+                  name="email"
+                  rules={[
+                    { required: true, message: 'Please input your email!' },
+                    { type: 'email', message: 'Please enter a valid email!' }
+                  ]}
+                >
+                  <Input 
+                    prefix={<MailOutlined className="text-gray-400" />}
+                    placeholder="Email Address"
+                    className="h-11 rounded-lg"
+                  />
+                </Form.Item>
+              </div>
 
-            <input
-              type="password"
-              {...register('password', { 
-                required: 'Password is required',
-                minLength: {
-                  value: 6,
-                  message: 'Password must be at least 6 characters',
-                },
-              })}
-              placeholder="Your Password*"
-              className={`input-field ${errors.password ? 'input-field-error' : ''}`}
-            />
-
-            <input
-              type="password"
-              {...register('confirmPassword', {
-                required: 'Please confirm your password',
-                validate: (value) => value === watch('password') || 'Passwords do not match',
-              })}
-              placeholder="Confirm Password*"
-              className={`input-field ${errors.confirmPassword ? 'input-field-error' : ''}`}
-            />
-
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <Button
-                htmlType="submit"
-                type="primary"
-                style={{ textTransform: 'uppercase', fontWeight: 'bold' }}
+              {/* Role Selection */}
+              <Form.Item
+                name="role"
+                rules={[{ required: true, message: 'Please select a role!' }]}
               >
-                Register {getRoleDisplay(role)}
-              </Button>
-            </div>
-          </form>
+                <Select
+                  placeholder="Select Role"
+                  className="h-11 rounded-lg"
+                  onChange={(value) => setRole(value)}
+                  options={[
+                    { value: 'USER', label: 'User' },
+                    { value: 'ADMIN', label: 'Admin' },
+                    { value: 'KEEPER', label: 'Keeper' }
+                  ]}
+                />
+              </Form.Item>
+
+              {/* Conditional Fields */}
+              {(role === 'ADMIN' || role === 'KEEPER') && (
+                <div className="space-y-6">
+                  <Form.Item name="title">
+                    <Input 
+                      prefix={<IdcardOutlined className="text-gray-400" />}
+                      placeholder="Title (Optional)"
+                      className="h-11 rounded-lg"
+                    />
+                  </Form.Item>
+
+                  <Form.Item name="description">
+                    <Input.TextArea 
+                      placeholder="Description (Optional)"
+                      className="rounded-lg py-2 px-3 min-h-[120px]"
+                      rows={4}
+                    />
+                  </Form.Item>
+                </div>
+              )}
+
+              {/* Password Fields */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Form.Item
+                  name="password"
+                  rules={[
+                    { required: true, message: 'Please input your password!' },
+                    { min: 6, message: 'Password must be at least 6 characters!' }
+                  ]}
+                >
+                  <Input.Password 
+                    prefix={<LockOutlined className="text-gray-400" />}
+                    placeholder="Password"
+                    className="h-11 rounded-lg"
+                  />
+                </Form.Item>
+
+                <Form.Item
+                  name="confirmPassword"
+                  dependencies={['password']}
+                  rules={[
+                    { required: true, message: 'Please confirm your password!' },
+                    ({ getFieldValue }) => ({
+                      validator(_, value) {
+                        if (!value || getFieldValue('password') === value) {
+                          return Promise.resolve();
+                        }
+                        return Promise.reject(new Error('Passwords do not match!'));
+                      },
+                    }),
+                  ]}
+                >
+                  <Input.Password 
+                    prefix={<LockOutlined className="text-gray-400" />}
+                    placeholder="Confirm Password"
+                    className="h-11 rounded-lg"
+                  />
+                </Form.Item>
+              </div>
+
+              {/* Submit Button */}
+              <Form.Item>
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loading}
+                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold border-none"
+                >
+                  Register Account
+                </Button>
+              </Form.Item>
+            </Form>
+          </div>
         </div>
       </div>
 
+      {/* Success Modal */}
       <SuccessModal
-        isOpen={showSuccessModal}
+        visible={showSuccessModal}
         onClose={() => {
           setShowSuccessModal(false);
-          navigate('/');
+          navigate('/admin/');
         }}
         userData={registeredUser}
       />
-    </>
+    </div>
   );
 };
 

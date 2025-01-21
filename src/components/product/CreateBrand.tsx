@@ -1,4 +1,4 @@
-import { Button, Flex } from 'antd';
+import { Button, Flex, Form, Input } from 'antd';
 import { useState } from 'react';
 import { useCreateBrandMutation } from '../../redux/features/management/brandApi';
 import toastMessage from '../../lib/toastMessage';
@@ -37,7 +37,7 @@ const CreateBrand = () => {
       >
         Create New Brand
       </h3>
-      <input
+      <Input
         type='text'
         value={brand}
         onChange={(e) => setBrand(e.target.value)}
