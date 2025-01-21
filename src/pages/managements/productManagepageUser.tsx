@@ -484,7 +484,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                   }}
                 />
 
-                <Input
+                <CustomInput
                   name='dueDate'
                   label='Payment Due Date'
                   errors={errors}
