@@ -2,43 +2,29 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Checkbox, Col, Flex, Modal, Pagination, Row, Table, Tag, Typography } from 'antd';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox, Image, Input } from 'antd';
 import { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
 import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
 import {
-
+  useAddStockMutation,
+  useDeleteProductMutation,
   useGetAllProductsQuery,
- 
+  useUpdateProductMutation,
 } from '../../redux/features/management/productApi';
 import SaleReceipt from '../../components/product/receipt';
 import { ICategory, IProduct } from '../../types/product.types';
 import ProductManagementFilter from '../../components/query-filters/ProductManagementFilter';
 import CustomInput from '../../components/CustomInput';
 import toastMessage from '../../lib/toastMessage';
+import { useGetAllCategoriesQuery } from '../../redux/features/management/categoryApi';
+import { useGetAllSellerQuery } from '../../redux/features/management/sellerApi';
+import { useGetAllBrandsQuery } from '../../redux/features/management/brandApi';
 import { useCreateSaleMutation } from '../../redux/features/management/saleApi';
+import Typography from 'antd/es/typography/Typography';
 
-interface IQuery {
-  name: string;
-  category: string;
-  brand: string;
-  limit: number;
-}
-
-interface ISeller {
-  name: string;
+interface SaleDataType {
   _id: string;
-}
-
-interface ITableData extends Omit<IProduct, 'seller'> {
-  key: string;
-  categoryName: string;
-  seller?: ISeller;
-  sellerName: string;
-}
-
-interface ISaleData {
-  _id:any;
   product: string;
   productName: string;
   productPrice: number;
@@ -46,31 +32,36 @@ interface ISaleData {
   quantity: number;
   buyerName: string;
   date: string;
+  originalPrice: number;
+  profitLoss: {
+    perUnit: number;
+    total: number;
+    isProfit: boolean;
+  };
   totalPrice: number;
-  totalvalue: number;
-}
-
-interface IProfitLoss {
-  perUnit: number;
-  total: number;
-  isProfit: boolean;
 }
 
 const ProductManagePageuser = () => {
   const [current, setCurrent] = useState(1);
-  const [query, setQuery] = useState<IQuery>({
+  const [query, setQuery] = useState({
     name: '',
     category: '',
     brand: '',
     limit: 10,
+    page: 1,
   });
 
   const { data: products, isFetching } = useGetAllProductsQuery(query);
 
   const onChange: PaginationProps['onChange'] = (page) => {
     setCurrent(page);
+    setQuery((prevQuery) => ({
+      ...prevQuery,
+      page, 
+    }));
   };
-
+  const totaltotalValue = products?.meta?.summary?.totalValue || 0;
+ 
   const tableData = products?.data?.map((product: IProduct) => ({
     key: product._id,
     name: product.name,
@@ -81,16 +72,31 @@ const ProductManagePageuser = () => {
     seller: product?.seller,
     sellerName: product?.seller?.name || 'DELETED SELLER',
     brand: product.brand,
-    measurementInfo: product.measurement 
-      ? `${product.measurement.value} ${product.measurement.unit}`
-      : 'N/A',
-    measurement: product.measurement,
+    size: product.measurement?.value || product.size || '',
+    unit: product.measurement?.unit || '',
     description: product.description,
     totalValue: product.price * product.stock,
+    images: product.images || [],
   }));
-  
-  
-  const columns: TableColumnsType<ITableData> = [
+
+  const columns: TableColumnsType<IProduct> = [
+    {
+      title: 'Image',
+      key: 'image',
+      dataIndex: 'images',
+      align: 'center',
+      width: '80px',
+      render: (images: string[]) => (
+        <Image
+          src={images[0] || '/placeholder-image.png'}
+          alt="Product"
+          style={{ width: 50, height: 50, objectFit: 'cover' }}
+          fallback="/placeholder-image.png"
+          preview={images.length > 0}
+        />
+      ),
+    },
+    
     {
       title: 'Product Name',
       key: 'name',
@@ -103,19 +109,13 @@ const ProductManagePageuser = () => {
       align: 'center',
     },
     {
-      title: 'Price',
+      title: 'price',
       key: 'price',
       dataIndex: 'price',
       align: 'center',
-      render: (price: number) => `${price.toFixed(2)}`,
     },
     {
-      title: 'Stock',
-      key: 'stock',
-      dataIndex: 'stock',
-      align: 'center',
-    }, {
-      title: 'Stock',
+      title: 'stock',
       key: 'stock',
       dataIndex: 'stock',
       align: 'center',
@@ -124,6 +124,12 @@ const ProductManagePageuser = () => {
       title: 'total Value',
       key: 'totalValue',
       dataIndex: 'totalValue',
+      align: 'center',
+    },
+    {
+      title: 'unit',
+      key: 'unit',
+      dataIndex: 'unit',
       align: 'center',
     },
     {
@@ -140,16 +146,20 @@ const ProductManagePageuser = () => {
       title: 'Action',
       key: 'x',
       align: 'center',
-      render: (item: ITableData) => {
+      render: (item) => {
         return (
-          <div style={{ display: 'flex' }}>
+          <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
             <SellProductModal product={item} />
+            {/* <AddStockModal product={item} /> */}
+            <UpdateProductModal product={item} />
+            <DeleteProductModal id={item.key} />
           </div>
         );
       },
       width: '1%',
     },
   ];
+  
 
   return (
     <>
@@ -160,6 +170,9 @@ const ProductManagePageuser = () => {
         columns={columns}
         dataSource={tableData}
         pagination={false}
+        rowKey="_id"
+        className="border rounded-lg"
+        scroll={{ x: true }}
       />
       <Flex justify='center' style={{ marginTop: '1rem' }}>
         <Pagination
@@ -169,10 +182,14 @@ const ProductManagePageuser = () => {
           total={products?.meta?.total}
         />
       </Flex>
+      <Flex justify="end" className="mt-4 pr-4">
+        <Typography.Title level={4}>
+          Total Stock Value: <span className="text-green-600">{totaltotalValue} frw</span>
+        </Typography.Title>
+      </Flex>
     </>
   );
 };
-
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -366,6 +383,15 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
+            <div className="mb-4">
+              <Image
+                src={product.images?.[0] || '/placeholder-image.png'}
+                alt={product.name}
+                style={{ width: '100%', height: 200, objectFit: 'contain' }}
+                fallback="/placeholder-image.png"
+              />
+            </div>
+            
             <CustomInput
               name='buyerName'
               label='Buyer Name'
@@ -458,7 +484,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                   }}
                 />
 
-                <CustomInput
+                <Input
                   name='dueDate'
                   label='Payment Due Date'
                   errors={errors}

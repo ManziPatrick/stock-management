@@ -7,9 +7,13 @@ import {
   Legend, Cell
 } from 'recharts';
 import { useDailySaleQuery } from '../../redux/features/management/saleApi';
+
  import {useGetAllExpensesQuery} from '../../redux/features/management/expenseApi';
 import Loader from '../Loader';
-
+import {
+  useDeletePurchaseMutation,
+  useGetAllPurchasesQuery,
+} from '../../redux/features/management/purchaseApi';
 const { Option } = Select;
 
 const DailyChart = () => {
@@ -23,6 +27,9 @@ const DailyChart = () => {
     date: item.date,
     amount: item.amount, 
   }));
+  const { data: purchaseData } = useGetAllPurchasesQuery();
+  const totalPurchasedAmount = purchaseData?.meta?.totalPurchasedAmount || 0;
+  console.log("Purchase Data:mmmm",totalPurchasedAmount);
   
   const today = new Date();
   // console.log("today", today);
@@ -44,7 +51,7 @@ const DailyChart = () => {
     quantity: item.dailyPurchased || 0,
     profit: dailyNetProfit  || 0,
     expense: totalAmountToday || 0,
-    potentialRevenue: response?.data?.totalRevenue?.totalOverallRevenue || 0
+    potentialRevenue: totalPurchasedAmount || 0
   })) || [];
 
   console.log("Data:", data);
@@ -75,7 +82,7 @@ const DailyChart = () => {
       <Card bordered={false} className="shadow-sm">
         <Statistic
           title="Daily Purchased Amount"
-          value={response?.data?.summary?.dailyPurchased|| 0}
+          value={totalPurchasedAmount|| 0}
           suffix="frw"
         />
       </Card>
