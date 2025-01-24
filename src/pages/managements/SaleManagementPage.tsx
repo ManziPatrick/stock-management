@@ -79,8 +79,10 @@ const SaleManagementPage = () => {
     setQuery((prev) => ({ ...prev, page }));
   };
 
-  const totalMarginProfit = data?.data?.summary?.totalMarginProfit || 0;
-const totalSellingPrice = data?.data?.summary?.totalSellingPrice || 0;
+  const totalMarginProfit = data?.data.meta?.totalSales.stats.totalMarginProfit || 0; 
+const totalSellingPrice = data?.data.meta?.totalSales.stats.totalSellingPrice|| 0;
+console.log('yyyyyu',totalSellingPrice);
+console.log("ggggggg",totalSellingPrice);
   const tableData: ITableSaleData[] = data?.data?.data?.map((sale: any) => ({
     key: sale._id,
     productName: sale.productName,

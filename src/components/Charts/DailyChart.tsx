@@ -82,7 +82,7 @@ const DailyChart = () => {
       <Area type="monotone" dataKey="revenue" stroke="#82ca9d" fill="#82ca9d" name="Revenue" />
       <Area type="monotone" dataKey="profit" stroke="#ff7300" fill="#ff7300" name="Profit" />
       <Area type="monotone" dataKey="expense" stroke="#ff0000" fill="#ff0000" name="Expense" />
-      <Area type="monotone" dataKey="potentialRevenue" stroke="#0088fe" fill="#0088fe" name="Potential Revenue" />
+      <Area type="monotone" dataKey="potentialRevenue" stroke="#0088fe" fill="#0088fe" name="Total Purchased Amount" />
     </AreaChart>
   );
 
@@ -120,7 +120,7 @@ console.log("HHDXFJCDX",renderLineChart)
       <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => value.toLocaleString()} />
       <Tooltip formatter={(value) => value.toLocaleString()} />
       <Legend />
-      <Area type="monotone" dataKey="potentialRevenue" fill="#0088fe" stroke="#0088fe" name="Potential Revenue" />
+      <Area type="monotone" dataKey="potentialRevenue" fill="#0088fe" stroke="#0088fe" name="Total Purchased Amount" />
       <Bar dataKey="profit" fill="#ff7300" name="Profit" />
       <Line type="monotone" dataKey="revenue" stroke="#82ca9d" name="Revenue" />
     </ComposedChart>
@@ -131,7 +131,7 @@ console.log("HHDXFJCDX",renderLineChart)
       { name: 'Revenue', value: dailyTotalSellingPrice },
       { name: 'Profit', value: dailyTotalProfit - TotalExpense },
       { name: 'Expense', value: TotalExpense },
-      { name: 'Potential Revenue', value: DailyTotalPurchases },
+      { name: 'Total Purchased Amount', value: DailyTotalPurchases },
     ];
 console.log("HHDXFJCDX",pieData)
     return (
