@@ -151,8 +151,8 @@ const ProductManagePageuser = () => {
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
             <SellProductModal product={item} />
             {/* <AddStockModal product={item} /> */}
-            <UpdateProductModal product={item} />
-            <DeleteProductModal id={item.key} />
+            {/* <UpdateProductModal product={item} />
+            <DeleteProductModal id={item.key} /> */}
           </div>
         );
       },
@@ -162,7 +162,7 @@ const ProductManagePageuser = () => {
   
 
   return (
-    <>
+    <div className="p-6 bg-white rounded-lg shadow-md h-[90vh]">
       <ProductManagementFilter query={query} setQuery={setQuery} />
       <Table
         size='small'
@@ -187,7 +187,7 @@ const ProductManagePageuser = () => {
           Total Stock Value: <span className="text-green-600">{totaltotalValue} frw</span>
         </Typography.Title>
       </Flex>
-    </>
+    </div>
   );
 };
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
@@ -383,7 +383,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-            <div className="mb-4">
+            <div className="mb-4  flex flex-col items-center justify-center">
               <Image
                 src={product.images?.[0] || '/placeholder-image.png'}
                 alt={product.name}
@@ -502,7 +502,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 
                 <CustomInput
                   name='description'
-                  label='Description (Optional)'
+                  label='Description (Required)'
                   errors={errors}
                   required={false}
                   register={register}

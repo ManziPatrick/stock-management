@@ -162,7 +162,7 @@ const ProductManagePage = () => {
   
 
   return (
-    <>
+    <div div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
       <ProductManagementFilter query={query} setQuery={setQuery} />
       <Table
         size='small'
@@ -187,7 +187,7 @@ const ProductManagePage = () => {
           Total Stock Value: <span className="text-green-600">{totaltotalValue} frw</span>
         </Typography.Title>
       </Flex>
-    </>
+    </div>
   );
 };
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
@@ -307,7 +307,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           ...salePayload,
           _id: saleResponse.data.sale._id 
         });
-
+ 
         setShowReceipt(true);
       }
       
@@ -502,7 +502,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 
                 <CustomInput
                   name='description'
-                  label='Description (Optional)'
+                  label='Description (Required)'
                   errors={errors}
                   required={false}
                   register={register}

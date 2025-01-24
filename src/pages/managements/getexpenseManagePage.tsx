@@ -110,13 +110,15 @@ const GetExpenseManagementPage = () => {
     },
   ];
 
-  const expenses = data?.data?.expenses || [];
+  const expenses = data?.data.data || [];
+  console.log("ggggggg",expenses);
   const totalExpenses = data?.data?.totalExpenses || 0;
+  console.log("ggggggg",totalExpenses);
   const currentPage = data?.pagination?.currentPage || 1;
   const totalPages = data?.pagination?.totalPages || 1;
 
   return (
-    <>
+    <div className="p-6 bg-white rounded-lg shadow-md h-[90vh]">
       {contextHolder}
       <Flex justify="end" style={{ margin: '16px', gap: 8 }}>
         <Input.Search 
@@ -138,6 +140,7 @@ const GetExpenseManagementPage = () => {
         loading={isFetching}
         columns={columns}
         dataSource={expenses}
+        className="border rounded-lg"
         rowKey="_id"
         pagination={false}
       />
@@ -245,7 +248,7 @@ const GetExpenseManagementPage = () => {
                 <Input.TextArea
                   {...field}
                   id="description"
-                  placeholder="Enter description (optional)"
+                  placeholder="Enter Description (Required)"
                   rows={4}
                 />
               )}
@@ -273,7 +276,7 @@ const GetExpenseManagementPage = () => {
           </Flex>
         </form>
       </Modal>
-    </>
+    </div>
   );
 };
 

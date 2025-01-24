@@ -135,12 +135,13 @@ const ProductManagePageKeeper = () => {
   ];
 
   return (
-    <>
+    <div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
       <ProductManagementFilter query={query} setQuery={setQuery} />
       <Table
         size='small'
         loading={isFetching}
         columns={columns}
+        className='rounded-lg border'
         dataSource={tableData}
         pagination={false}
       />
@@ -152,7 +153,7 @@ const ProductManagePageKeeper = () => {
           total={products?.meta?.total}
         />
       </Flex>
-    </>
+    </div>
   );
 };
 

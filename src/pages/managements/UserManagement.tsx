@@ -68,7 +68,7 @@ const UserManagementPage = () => {
   ];
 
   return (
-    <>
+    <div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
       <Flex justify='end' style={{ margin: '5px' }}>
         <SearchInput setQuery={setQuery} placeholder='Search User...' />
       </Flex>
@@ -77,17 +77,19 @@ const UserManagementPage = () => {
         loading={isFetching}
         columns={columns}
         dataSource={tableData}
+         className='border shadow'
         pagination={false}
       />
       <Flex justify='center' style={{ marginTop: '1rem' }}>
         <Pagination
           current={query.page}
           onChange={onChange}
+         
           defaultPageSize={query.limit}
           total={data?.meta?.total}
         />
       </Flex>
-    </>
+    </div>
   );
 };
 

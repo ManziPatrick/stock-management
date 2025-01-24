@@ -14,24 +14,27 @@ import toastMessage from '../../lib/toastMessage';
 import SearchInput from '../../components/SearchInput';
 import Typography from 'antd/es/typography/Typography';
 
-
 const PurchaseManagementPage = () => {
-  const [query, setQuery]= useState({
+  const [query, setQuery] = useState({
     page: 1,
     limit: 10,
     search: '',
   });
 
-  const { data, isFetching } = useGetAllPurchasesQuery(query);
-  const totalPurchasedAmount = data?.meta?.totalPurchasedAmount || 0;
- 
+  const { data: purchaseResponse, isFetching } = useGetAllPurchasesQuery(query);
+  
+  // Safely access the total purchased amount from the nested structure
+  const totalPurchasedAmount = purchaseResponse?.meta?.totalPurchasedAmount?.stats?.totalPurchasedAmount || 0;
+
   const onChange: PaginationProps['onChange'] = (page) => {
     setQuery((prev) => ({ ...prev, page: page }));
   };
 
-  const tableData = data?.data?.map((purchase: IPurchase) => ({
+  // Map the purchase data from the response
+  const tableData = purchaseResponse?.data?.map((purchase: IPurchase) => ({
     key: purchase._id,
-    sellerName: purchase.sellerName,
+    //@ts-ignore
+    sellerName: purchase.seller?.name || purchase.sellerName, // Handle both possible structures
     productName: purchase.productName,
     price: purchase.unitPrice,
     quantity: purchase.quantity,
@@ -74,24 +77,10 @@ const PurchaseManagementPage = () => {
       dataIndex: 'date',
       align: 'center',
     },
-    // {
-    //   title: 'Action',
-    //   key: 'x',
-    //   align: 'center',
-    //   render: (item) => {
-    //     return (
-    //       <div style={{ display: 'flex' }}>
-    //         <UpdateModal product={item} />
-    //         {/* <DeleteModal id={item.key} /> */}
-    //       </div>
-    //     );
-    //   },
-    //   width: '1%',
-    // },
   ];
 
   return (
-    <>
+    <div className='p-6 bg-white rounded-lg shadow-md h-[90vh]'>
       <Flex justify='end' style={{ margin: '5px' }}>
         <SearchInput setQuery={setQuery} placeholder='Search Purchase...' />
       </Flex>
@@ -99,31 +88,28 @@ const PurchaseManagementPage = () => {
         size='small'
         loading={isFetching}
         columns={columns}
+        className='rounded-lg border'
         dataSource={tableData}
         pagination={false}
       />
-        
 
       <Flex justify='center' style={{ marginTop: '1rem' }}>
         <Pagination
           current={query.page}
           onChange={onChange}
           defaultPageSize={query.limit}
-          total={data?.meta?.total}
+          total={purchaseResponse?.meta?.total || 0}
         />
       </Flex>
       <Flex justify="end" className="mt-4 pr-4">
-      <Typography >
-          Total Purchase value: <span className="text-green-600">{totalPurchasedAmount} frw</span>
+        <Typography>
+          Total Purchase value: <span className="text-green-600">{totalPurchasedAmount.toLocaleString()} frw</span>
         </Typography>
       </Flex>
-    </>
+    </div>
   );
 };
 
-/**
- * Update Modal
- */
 const UpdateModal = ({ product }: { product: IProduct }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { handleSubmit } = useForm();
@@ -140,8 +126,6 @@ const UpdateModal = ({ product }: { product: IProduct }) => {
     setIsModalOpen(false);
   };
 
-  // ! This is not complete, need to complete this to make it work
-  return;
   return (
     <>
       <Button
@@ -162,9 +146,6 @@ const UpdateModal = ({ product }: { product: IProduct }) => {
   );
 };
 
-/**
- * Delete Modal
- */
 const DeleteModal = ({ id }: { id: string }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deletePurchase] = useDeletePurchaseMutation();
@@ -204,21 +185,11 @@ const DeleteModal = ({ id }: { id: string }) => {
         <div style={{ textAlign: 'center', padding: '2rem' }}>
           <h2>Are you want to delete this product?</h2>
           <h4>You won't be able to revert it.</h4>
-          <div
-            style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}
-          >
-            <Button
-              onClick={handleCancel}
-              type='primary'
-              style={{ backgroundColor: 'lightseagreen' }}
-            >
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}>
+            <Button onClick={handleCancel} type='primary' style={{ backgroundColor: 'lightseagreen' }}>
               Cancel
             </Button>
-            <Button
-              onClick={() => handleDelete(id)}
-              type='primary'
-              style={{ backgroundColor: 'red' }}
-            >
+            <Button onClick={() => handleDelete(id)} type='primary' style={{ backgroundColor: 'red' }}>
               Yes! Delete
             </Button>
           </div>

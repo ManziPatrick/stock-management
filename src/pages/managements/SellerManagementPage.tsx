@@ -66,7 +66,7 @@ const SellerManagementPage = () => {
   ];
 
   return (
-    <>
+    <div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
       <Flex justify='end' style={{ margin: '5px' }}>
         <SearchInput setQuery={setQuery} placeholder='Search Seller...' />
       </Flex>
@@ -74,6 +74,7 @@ const SellerManagementPage = () => {
         size='small'
         loading={isFetching}
         columns={columns}
+        className='rounded-lg border'
         dataSource={tableData}
         pagination={false}
       />
@@ -85,7 +86,7 @@ const SellerManagementPage = () => {
           total={data?.meta?.total}
         />
       </Flex>
-    </>
+    </div>
   );
 };
 

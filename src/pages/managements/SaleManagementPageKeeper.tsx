@@ -103,7 +103,7 @@ const SaleManagementPageKepper = () => {
   ];
 
   return (
-    <>
+    <div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
       <Flex justify="end" className="m-1 gap-1">
         <SearchInput setQuery={setQuery} placeholder="Search Sold Products..." />
       </Flex>
@@ -111,6 +111,7 @@ const SaleManagementPageKepper = () => {
       <Table
         size="small"
         loading={isFetching}
+        className='rounded-lg border'
         columns={columns}
         dataSource={tableData}
         pagination={false}
@@ -128,7 +129,7 @@ const SaleManagementPageKepper = () => {
       
 
       
-    </>
+    </div>
   );
 };
 

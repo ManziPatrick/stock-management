@@ -182,7 +182,7 @@ const RegisterPage = () => {
 
                   <Form.Item name="description">
                     <Input.TextArea 
-                      placeholder="Description (Optional)"
+                      placeholder="Description (Required)"
                       className="rounded-lg py-2 px-3 min-h-[120px]"
                       rows={4}
                     />

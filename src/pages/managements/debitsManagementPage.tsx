@@ -188,7 +188,7 @@ const DebitManagementPage: React.FC = () => {
   ];
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow">
+    <div className="p-6 bg-white rounded-lg shadow h-[90vh]">
       {contextHolder}
       
       <div className="flex justify-between items-center mb-6">

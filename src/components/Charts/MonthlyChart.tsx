@@ -21,6 +21,7 @@ import { months } from '../../utils/generateDate';
 import { Flex, Select, Card, Typography, Statistic } from 'antd';
 import Loader from '../Loader';
 import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
+import { useGetAllPurchasesQuery } from '../../redux/features/management/purchaseApi';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -36,6 +37,12 @@ const MonthlyChart: React.FC = () => {
   const currentYear = new Date().getFullYear();
 
   const monthlyExpenses = response?.data?.summary?.monthlyExpenses || 0;
+
+    const { data: purchaseData } = useGetAllPurchasesQuery();
+        
+        // Extract yearly total from purchase data
+        const MonthlytotalPurchases = purchaseData?.meta?.totalPurchasedAmount?.monthlyStats?.[0]?.monthlyTotal || 0;
+    
 
   if (isLoading) {
     return (
@@ -73,7 +80,7 @@ const MonthlyChart: React.FC = () => {
         { title: 'Monthly Revenue', value: response?.data?.summary?.monthlyRevenue || 0, unit: 'frw' },
         { title: 'Monthly Net Profit', value: response?.data?.summary?.monthlyNetProfit - monthlyExpenses || 0, unit: 'frw' },
         { title: 'Monthly Expenses', value: monthlyExpenses || 0, unit: 'frw' },
-        { title: 'Monthly Purchased Amount', value: response?.data?.summary?.totalPurchasedAmount || 0, unit: 'frw' },
+        { title: 'Monthly Purchased Amount', value: MonthlytotalPurchases || 0, unit: 'frw' },
       ].map((item, idx) => (
         <Card key={idx} bordered={false} className="shadow-sm">
           <Statistic
