@@ -1,5 +1,5 @@
 import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
-import { Button, Col, Flex, Row } from 'antd';
+import { Button, Col, Flex, Row, message } from 'antd';
 import userProPic from '../assets/User.png';
 import CustomInput from '../components/CustomInput';
 import { useForm } from 'react-hook-form';
@@ -32,8 +32,9 @@ const EditProfilePage = () => {
       }
   
       // Validate file type
-      if (!file.type.startsWith('image/')) {
-        toast.error('Please upload only image files', { id: toastId });
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Please upload only JPG, PNG or WebP images', { id: toastId });
         return;
       }
   
@@ -46,11 +47,21 @@ const EditProfilePage = () => {
   
       const formData = new FormData();
       formData.append('file', file);
-      formData.append('upload_preset', 'YOUR_UPLOAD_PRESET'); // Replace with your actual upload preset
-      formData.append('cloud_name', config.VITE_CLOUDINARY_CLOUD_NAME as string);
+      
+      // These values should be in your config
+      const uploadPreset = config.VITE_CLOUDINARY_UPLOAD_PRESET;
+      const cloudName = config.VITE_CLOUDINARY_CLOUD_NAME;
+      
+      if (!uploadPreset || !cloudName) {
+        toast.error('Missing Cloudinary configuration', { id: toastId });
+        return;
+      }
+
+      formData.append('upload_preset', uploadPreset);
+      formData.append('cloud_name', cloudName);
   
-      // Direct upload to Cloudinary with error handling
-      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${config.VITE_CLOUDINARY_CLOUD_NAME}/image/upload`;
+      // Upload to Cloudinary
+      const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`;
       
       const response = await fetch(cloudinaryUrl, {
         method: 'POST',
@@ -59,12 +70,10 @@ const EditProfilePage = () => {
   
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Cloudinary Error:', errorData);
-        throw new Error(`Upload failed: ${errorData.message || 'Unknown error'}`);
+        throw new Error(errorData.message || 'Failed to upload image');
       }
   
       const data = await response.json();
-      console.log('Upload response:', data); // Added for debugging
   
       if (!data.secure_url) {
         throw new Error('No secure URL received from Cloudinary');
@@ -82,14 +91,8 @@ const EditProfilePage = () => {
       }
   
     } catch (error) {
-      console.error('Upload error details:', error);
-      let errorMessage = 'Failed to upload image';
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      toast.error(errorMessage, { id: toastId });
+      console.error('Upload error:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to upload image', { id: toastId });
     }
   };
 
@@ -105,6 +108,7 @@ const EditProfilePage = () => {
               border: '2px solid gray',
               padding: '.5rem',
               borderRadius: '50%',
+              overflow: 'hidden',
             }}
           >
             <img
@@ -118,8 +122,7 @@ const EditProfilePage = () => {
               type="file"
               name="avatar"
               id="avatar"
-              accept="image/*"
-              placeholder="Change Profile Picture"
+              accept="image/jpeg,image/png,image/webp"
               style={{ display: 'none' }}
               onChange={handleFileChange}
             />
@@ -155,8 +158,6 @@ const EditProfilePage = () => {
   );
 };
 
-export default EditProfilePage;
-
 const EditProfileForm = ({ data }: { data: any }) => {
   const location = useLocation();
   const newPath = location.pathname.replace('edit-profile', 'profile');
@@ -171,11 +172,13 @@ const EditProfileForm = ({ data }: { data: any }) => {
 
   const onSubmit = async (formData: any) => {
     const cleanedData = { ...formData };
+    // Remove unnecessary fields
     delete cleanedData._id;
     delete cleanedData.createdAt;
     delete cleanedData.updatedAt;
     delete cleanedData.__v;
 
+    // Remove empty fields
     Object.keys(cleanedData).forEach(key => {
       if (!cleanedData[key]) {
         delete cleanedData[key];
@@ -223,3 +226,5 @@ const EditProfileForm = ({ data }: { data: any }) => {
     </form>
   );
 };
+
+export default EditProfilePage;
