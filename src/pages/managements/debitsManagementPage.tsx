@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+
+import { DeleteOutlined, FileAddOutlined, PlusOutlined, PrinterOutlined, UnorderedListOutlined } from '@ant-design/icons';import React, { useState, useEffect } from 'react';
 import {
   Table,
   Button,
@@ -14,6 +15,7 @@ import { useGetAllDebitsQuery, useCreateDebitMutation, useUpdateDebitMutation } 
 import dayjs from 'dayjs';
 import type { TableColumnsType } from 'antd';
 import getUserFromPersistedAuth from '../../utils/GetUserId';
+import Title from 'antd/es/skeleton/Title';
 
 interface DebitFormData {
   productName: string;
@@ -40,6 +42,10 @@ const STATUS_OPTIONS = [
 ];
 
 const DebitManagementPage: React.FC = () => {
+  const [isListView, setIsListView] = useState(false);
+  const toggleView = () => {
+    setIsListView(!isListView);
+  };
   const [form] = Form.useForm();
   const [query, setQuery] = useState({
     page: 1,
@@ -189,8 +195,32 @@ const DebitManagementPage: React.FC = () => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow h-[90vh]">
+
       {contextHolder}
-      
+      <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          marginBottom: '16px' 
+        }}>
+          <div  style={{ margin: 0 }}>
+            {isListView ? 'credit List' : 'Debits List'}
+          </div>
+          <Button 
+            onClick={toggleView} 
+            type="primary" 
+            icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined />}
+          >
+            {isListView ? 'Create New Invoice' : 'View Invoices List'}
+          </Button>
+        </div>
+
+        {isListView ? (
+          
+          <div>
+            hello cardit
+          </div>
+        ) : (
+      <div>
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <Select
@@ -206,17 +236,7 @@ const DebitManagementPage: React.FC = () => {
             className="w-64"
           />
         </div>
-        {/* <Button
-          type="primary"
-          onClick={() => {
-            setEditingDebit(null);
-            form.resetFields();
-            setIsModalOpen(true);
-          }}
-          className="bg-blue-600 hover:bg-blue-700"
-        >
-          Add Debit
-        </Button> */}
+       
       </div>
 
       <Table
@@ -334,6 +354,8 @@ const DebitManagementPage: React.FC = () => {
           </div>
         </Form>
       </Modal>
+      </div>
+        )}
     </div>
   );
 };

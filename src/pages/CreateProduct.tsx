@@ -9,18 +9,19 @@ import {
   Col,
   Card,
   Modal,
-  Spin,
   Typography,
   InputNumber,
   Space,
   Divider,
-  message 
+  message,
+  Checkbox,
+  DatePicker
 } from 'antd';
-import { PlusOutlined, LoadingOutlined } from '@ant-design/icons';
-import { useForm } from 'react-hook-form';
+import { PlusOutlined } from '@ant-design/icons';
 import type { RcFile, UploadProps } from 'antd/es/upload';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useCreateNewProductMutation } from '../redux/features/management/productApi';
+import { useCreateCreditMutation } from '../redux/features/management/creditApi';
 import { useGetAllBrandsQuery } from '../redux/features/management/brandApi';
 import { useGetAllCategoriesQuery } from '../redux/features/management/categoryApi';
 import { useGetAllSellerQuery } from '../redux/features/management/sellerApi';
@@ -28,6 +29,7 @@ import { ICategory } from '../types/product.types';
 import CreateSeller from '../components/product/CreateSeller';
 import CreateCategory from '../components/product/CreateCategory';
 import CreateBrand from '../components/product/CreateBrand';
+import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -42,9 +44,19 @@ const getBase64 = (file: RcFile): Promise<string> =>
     reader.onerror = (error) => reject(error);
   });
 
+// Price formatting helper functions
+const formatPrice = (value: number | string): string => {
+  if (!value) return '';
+  const numValue = typeof value === 'string' ? parseFloat(value) : value;
+  return `frw ${numValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+};
+
+
+
 const CreateProduct: React.FC = () => {
   // Redux queries and mutations
   const [createNewProduct] = useCreateNewProductMutation();
+  const [createCredit] = useCreateCreditMutation();
   const { data: categories } = useGetAllCategoriesQuery(undefined);
   const { data: sellers } = useGetAllSellerQuery(undefined);
   const { data: brands } = useGetAllBrandsQuery(undefined);
@@ -57,30 +69,37 @@ const CreateProduct: React.FC = () => {
   const [previewTitle, setPreviewTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [isCredit, setIsCredit] = useState(false);
 
-  // Image preview handlers
+  // Handle image preview
   const handlePreview = async (file: UploadFile) => {
     if (!file.url && !file.preview) {
       file.preview = await getBase64(file.originFileObj as RcFile);
     }
+
     setPreviewImage(file.url || (file.preview as string));
     setPreviewOpen(true);
     setPreviewTitle(file.name || file.url!.substring(file.url!.lastIndexOf('/') + 1));
   };
-  const formatPrice = (value: number | string | undefined): string => {
-    if (value === undefined || value === '') return '';
-    return `frw ${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  };
 
-  const parsePrice = (value: string | undefined): number => {
-    if (!value) return 0;
-    // Remove 'frw', spaces, and commas, then convert to number
-    const numStr = value.replace(/frw\s?|(,*)/g, '');
-    return numStr ? Number(numStr) : 0;
-  };
-  
+  // Handle image change
   const handleChange: UploadProps['onChange'] = ({ fileList: newFileList }) => {
     setFileList(newFileList);
+  };
+
+  // Handle credit checkbox change
+  const handleCreditChange = (e: any) => {
+    setIsCredit(e.target.checked);
+    if (!e.target.checked) {
+      form.setFieldsValue({
+        downPayment: undefined,
+        paymentDueDate: undefined,
+        creditAmount: undefined,
+        customerName: undefined,
+        customerPhone: undefined,
+        customerEmail: undefined
+      });
+    }
   };
 
   // Form submission handler
@@ -96,39 +115,83 @@ const CreateProduct: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    const formData = new FormData();
-
-    // Append form fields
-    Object.keys(values).forEach(key => {
-      if (values[key] !== undefined && values[key] !== '') {
-        formData.append(key, values[key]);
-      }
-    });
-
-    // Handle measurement data
-    if (values.unitType) {
-      const measurement = {
-        type: values.unitType,
-        unit: values.unit,
-        value: Number(values.quantity)
-      };
-      formData.append('measurement', JSON.stringify(measurement));
-    }
-
-    // Append images
-    fileList.forEach((file) => {
-      if (file.originFileObj) {
-        formData.append('images', file.originFileObj);
-      }
-    });
 
     try {
-      const res = await createNewProduct(formData).unwrap();
-      if (res.statusCode === 201) {
-        message.success(res.message);
-        form.resetFields();
-        setFileList([]);
+      const productFormData = new FormData();
+
+      // Handle price fields before appending to FormData
+      const priceFields = ['price', 'downPayment', 'creditAmount'];
+      const processedValues = { ...values };
+      
+      priceFields.forEach(field => {
+        if (processedValues[field] !== undefined) {
+         
+        }
+      });
+
+      // Append basic product fields
+      Object.keys(processedValues).forEach(key => {
+        if (
+          processedValues[key] !== undefined && 
+          processedValues[key] !== '' && 
+          !['downPayment', 'creditAmount', 'paymentDueDate', 'customerName', 'customerPhone', 'customerEmail'].includes(key)
+        ) {
+          productFormData.append(key, processedValues[key].toString());
+        }
+      });
+
+      // Handle measurement data
+      if (values.unitType) {
+        const measurement = {
+          type: values.unitType,
+          unit: values.unit,
+          value: Number(values.quantity)
+        };
+        productFormData.append('measurement', JSON.stringify(measurement));
       }
+
+      // Append images
+      fileList.forEach((file) => {
+        if (file.originFileObj) {
+          productFormData.append('images', file.originFileObj);
+        }
+      });
+
+      // Create product
+      const productRes = await createNewProduct(productFormData).unwrap();
+
+      // If credit is enabled, create credit record
+      if (isCredit && productRes.statusCode === 201) {
+        const creditData = {
+          productId: productRes.data._id,
+          totalAmount: processedValues.price,
+          downPayment: processedValues.downPayment,
+          creditAmount: processedValues.creditAmount,
+          paymentDueDate: values.paymentDueDate.format('YYYY-MM-DD'),
+          customerDetails: {
+            name: values.customerName,
+            phone: values.customerPhone,
+            email: values.customerEmail
+          },
+          status: 'PENDING'
+        };
+
+        const creditRes = await createCredit(creditData).unwrap();
+        
+        if (creditRes.statusCode === 201) {
+          message.success('Product created and credit record established successfully');
+        } else {
+          message.warning('Product created but credit record creation failed');
+        }
+      } else {
+        message.success(productRes.message);
+      }
+
+      // Reset form and state
+      form.resetFields();
+      setFileList([]);
+      setIsCredit(false);
+      
     } catch (error: any) {
       console.error(error);
       message.error(error.data?.message || 'Failed to create product');
@@ -137,7 +200,6 @@ const CreateProduct: React.FC = () => {
     }
   };
 
-  // Unit options based on measurement type
   const renderUnitOptions = () => {
     const unitTypes = {
       weight: [
@@ -180,7 +242,6 @@ const CreateProduct: React.FC = () => {
         { value: 'EU_45', label: 'EU 45' },
         { value: 'EU_46', label: 'EU 46' },
         { value: 'EU_47', label: 'EU 47' },
-        
       ]
     };
 
@@ -202,12 +263,8 @@ const CreateProduct: React.FC = () => {
   return (
     <div className="p-6">
       <Row gutter={[24, 24]}>
-        {/* Main Form Section */}
         <Col xs={24} lg={16}>
-          <Card 
-            bordered={false} 
-            className="shadow-md rounded-lg"
-          >
+          <Card bordered={false} className="shadow-md rounded-lg">
             <Title level={2} className="text-center mb-6">
               Add New Product
             </Title>
@@ -219,7 +276,7 @@ const CreateProduct: React.FC = () => {
               className="space-y-4"
             >
               <Row gutter={[16, 16]}>
-                {/* Product Name */}
+                {/* Basic Product Fields */}
                 <Col xs={24}>
                   <Form.Item
                     label="Product Name"
@@ -234,24 +291,138 @@ const CreateProduct: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                {/* Price */}
                 <Col xs={24} md={12}>
                   <Form.Item
                     label="Price"
                     name="price"
                     rules={[{ required: true, message: 'Please enter price' }]}
                   >
-                   <InputNumber
+                    <InputNumber
                       size="large"
                       className="w-full rounded-md"
                       min={0}
                       placeholder="Enter price"
                       formatter={formatPrice}
-                      parser={parsePrice}
+                      
                       onFocus={(e) => e.target.select()}
                     />
                   </Form.Item>
                 </Col>
+
+                {/* Credit Checkbox */}
+                <Col xs={24}>
+                  <Form.Item name="isCredit" valuePropName="checked">
+                    <Checkbox onChange={handleCreditChange}>
+                      Sell on Credit
+                    </Checkbox>
+                  </Form.Item>
+                </Col>
+
+                {/* Credit Details Section */}
+                {isCredit && (
+                  <>
+                    <Col xs={24}>
+                      <Card className="bg-gray-50">
+                        <Title level={4}>Credit Details</Title>
+                        <Row gutter={[16, 16]}>
+                          <Col xs={24} md={8}>
+                            <Form.Item
+                              label="Down Payment"
+                              name="downPayment"
+                              rules={[{ required: true, message: 'Please enter down payment' }]}
+                            >
+                              <InputNumber
+                                size="large"
+                                className="w-full rounded-md"
+                                min={0}
+                                placeholder="Enter down payment"
+                                formatter={formatPrice}
+                                
+                              />
+                            </Form.Item>
+                          </Col>
+
+                          <Col xs={24} md={8}>
+                            <Form.Item
+                              label="Credit Amount"
+                              name="creditAmount"
+                              rules={[{ required: true, message: 'Please enter credit amount' }]}
+                            >
+                              <InputNumber
+                                size="large"
+                                className="w-full rounded-md"
+                                min={0}
+                                placeholder="Enter credit amount"
+                                formatter={formatPrice}
+                                
+                              />
+                            </Form.Item>
+                          </Col>
+
+                          <Col xs={24} md={8}>
+                            <Form.Item
+                              label="Payment Due Date"
+                              name="paymentDueDate"
+                              rules={[{ required: true, message: 'Please select due date' }]}
+                            >
+                              <DatePicker
+                                size="large"
+                                className="w-full rounded-md"
+                                disabledDate={(current) => current && current < dayjs().endOf('day')}
+                              />
+                            </Form.Item>
+                          </Col>
+
+                          {/* Customer Details */}
+                          <Col xs={24} md={8}>
+                            <Form.Item
+                              label="Customer Name"
+                              name="customerName"
+                              rules={[{ required: true, message: 'Please enter customer name' }]}
+                            >
+                              <Input
+                                size="large"
+                                placeholder="Enter customer name"
+                                className="rounded-md"
+                              />
+                              </Form.Item>
+                              </Col>
+
+                          <Col xs={24} md={8}>
+                            <Form.Item
+                              label="Customer Phone"
+                              name="customerPhone"
+                              rules={[{ required: true, message: 'Please enter customer phone' }]}
+                            >
+                              <Input
+                                size="large"
+                                placeholder="Enter customer phone"
+                                className="rounded-md"
+                              />
+                            </Form.Item>
+                          </Col>
+
+                          <Col xs={24} md={8}>
+                            <Form.Item
+                              label="Customer Email"
+                              name="customerEmail"
+                              rules={[
+                                { type: 'email', message: 'Please enter valid email' },
+                                { required: true, message: 'Please enter customer email' }
+                              ]}
+                            >
+                              <Input
+                                size="large"
+                                placeholder="Enter customer email"
+                                className="rounded-md"
+                              />
+                            </Form.Item>
+                          </Col>
+                        </Row>
+                      </Card>
+                    </Col>
+                  </>
+                )}
 
                 {/* Measurement Type */}
                 <Col xs={24} md={12}>

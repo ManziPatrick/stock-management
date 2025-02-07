@@ -37,6 +37,6 @@ const customBaseQuery: BaseQueryFn<FetchArgs, unknown, unknown> = async (args, a
 export const baseApi = createApi({
   reducerPath: "api",
   baseQuery: customBaseQuery, 
-  tagTypes: ["product", "sale", "user", "category", "brand", "seller", "purchases", "Expense","debit"], // Add tags as needed
+  tagTypes: ["product", "sale", "user", "category", "brand", "seller", "purchases", "Expense","debit","credit","proforma"], 
   endpoints: () => ({}),
 });

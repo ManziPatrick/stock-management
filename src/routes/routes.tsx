@@ -23,6 +23,8 @@ import ExpensesManagePage from '../pages/managements/expensesManagePage';
 import ProductManagePageKeeper from '../pages/managements/productManagePageKeeper';
 import SaleManagementPageKepper from '../pages/managements/SaleManagementPageKeeper';
 import GetDebitManagementPage from '../pages/managements/debitsManagementPage';
+import DashboardCase from '../pages/DashboardCases';
+import ProformaManager from '../pages/managements/ProformaManager';
 export const router = createBrowserRouter([
   {
     path: '/seller',
@@ -52,6 +54,7 @@ export const router = createBrowserRouter([
           </ProtectRoute>
         ),
       },
+      
       {
         path: 'products',
         element: (
@@ -123,10 +126,26 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'Proforma',
+        element: (
+          <ProtectRoute>
+            <ProformaManager />
+          </ProtectRoute>
+        ),
+      },
+      {
         path: 'dashboard',  
         element: (
           <ProtectRoute>
             <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'cases',
+        element: (
+          <ProtectRoute>
+            <DashboardCase/>
           </ProtectRoute>
         ),
       },

@@ -18,6 +18,16 @@ export const sidebarItems = [
     icon: React.createElement(DashboardOutlined),
   },
   {
+    key: 'Manage Cases',
+    label: <NavLink to='/admin/cases'>DASHBOARD CASES</NavLink>,
+    icon: React.createElement(AimOutlined),
+  },
+  {
+    key: 'proforma',
+    label: <NavLink to='/admin/proforma'>PROFORMA</NavLink>,
+    icon: React.createElement(ProfileFilled),
+  },
+  {
     key: 'New User',
     label: <NavLink to='/admin/register'>NEW USER</NavLink>,
     icon: React.createElement(ProfileFilled),
@@ -54,6 +64,7 @@ export const sidebarItems = [
     label: <NavLink to='/admin/expense'>MANAGE EXPENSES</NavLink>,
     icon: React.createElement(AimOutlined),
   },
+  
   {
     key: 'Manage Debits',
     label: <NavLink to='/admin/debits'>MANAGE DEBIT</NavLink>,

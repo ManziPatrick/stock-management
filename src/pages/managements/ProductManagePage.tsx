@@ -2,7 +2,7 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox, Image, Input } from 'antd';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag, Checkbox, Image, Input, Radio, Space } from 'antd';
 import { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
 import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
@@ -33,6 +33,7 @@ interface SaleDataType {
   buyerName: string;
   date: string;
   originalPrice: number;
+  paymentMode: string;
   profitLoss: {
     perUnit: number;
     total: number;
@@ -57,11 +58,11 @@ const ProductManagePage = () => {
     setCurrent(page);
     setQuery((prevQuery) => ({
       ...prevQuery,
-      page, 
+      page,
     }));
   };
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
- 
+
   const tableData = products?.data?.map((product: IProduct) => ({
     key: product._id,
     name: product.name,
@@ -96,7 +97,6 @@ const ProductManagePage = () => {
         />
       ),
     },
-    
     {
       title: 'Product Name',
       key: 'name',
@@ -150,7 +150,6 @@ const ProductManagePage = () => {
         return (
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
             <SellProductModal product={item} />
-            {/* <AddStockModal product={item} /> */}
             <UpdateProductModal product={item} />
             <DeleteProductModal id={item.key} />
           </div>
@@ -159,10 +158,9 @@ const ProductManagePage = () => {
       width: '1%',
     },
   ];
-  
 
   return (
-    <div div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
+    <div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
       <ProductManagementFilter query={query} setQuery={setQuery} />
       <Table
         size='small'
@@ -190,6 +188,7 @@ const ProductManagePage = () => {
     </div>
   );
 };
+
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -197,6 +196,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const [loading, setLoading] = useState(false);
   const [isDebit, setIsDebit] = useState(false);
   const [debitData, setDebitData] = useState<any>(null);
+  const [paymentMode, setPaymentMode] = useState('cash');
 
   const [profitLoss, setProfitLoss] = useState({
     perUnit: 0,
@@ -219,7 +219,11 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       isDebit: false,
       amountPaid: 0,
       dueDate: '',
-      description: ''
+      description: '',
+      momoNumber: '',
+      chequeNumber: '',
+      bankName: '',
+      accountNumber: ''
     }
   });
 
@@ -264,6 +268,16 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         buyerName: data.buyerName,
         date: data.date,
         originalPrice: product.price,
+        paymentMode: paymentMode,
+        paymentDetails: {
+          mode: paymentMode,
+          ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
+          ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
+          ...(paymentMode === 'transfer' && { 
+            bankName: data.bankName,
+            accountNumber: data.accountNumber 
+          }),
+        },
         profitLoss: {
           perUnit: profitLoss.perUnit,
           total: profitLoss.total,
@@ -328,6 +342,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
     setSaleData(null);
     setDebitData(null);
     setIsDebit(false);
+    setPaymentMode('cash');
     reset({
       quantity: 1,
       pricePerUnit: product.price,
@@ -336,7 +351,11 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       isDebit: false,
       amountPaid: 0,
       dueDate: '',
-      description: ''
+      description: '',
+      momoNumber: '',
+      chequeNumber: '',
+      bankName: '',
+      accountNumber: ''
     });
   };
 
@@ -346,6 +365,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
     setSaleData(null);
     setDebitData(null);
     setIsDebit(false);
+    setPaymentMode('cash');
     setProfitLoss({ perUnit: 0, total: 0, isProfit: true });
     reset();
   };
@@ -447,6 +467,29 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 }
               }}
             />
+<div className="mt-4">
+  <Typography.Text strong className="block mb-2">Payment Method</Typography.Text>
+  <Radio.Group 
+    value={paymentMode} 
+    onChange={(e) => setPaymentMode(e.target.value)}
+    className="w-full"
+  >
+    <Space direction="vertical" className="w-full">
+      <Radio value="cash" className="w-full h-10 flex items-center pl-4">
+        Cash Payment
+      </Radio>
+      <Radio value="momo" className="w-full h-10 flex items-center pl-4">
+        Mobile Money
+      </Radio>
+      <Radio value="cheque" className="w-full h-10 flex items-center pl-4">
+        Cheque
+      </Radio>
+      <Radio value="transfer" className="w-full h-10 flex items-center pl-4">
+        Bank Transfer
+      </Radio>
+    </Space>
+  </Radio.Group>
+</div>
 
             <div className="mt-4 mb-2">
               <Checkbox 
@@ -502,7 +545,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 
                 <CustomInput
                   name='description'
-                  label='Description (Required)'
+                  label='Description (Optional)'
                   errors={errors}
                   required={false}
                   register={register}
@@ -556,7 +599,6 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
     </>
   );
 };
-
 /**
  * Add Stock Modal
  */
