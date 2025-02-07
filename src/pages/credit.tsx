@@ -1,39 +1,40 @@
-
-import { DeleteOutlined, FileAddOutlined, PlusOutlined, PrinterOutlined, UnorderedListOutlined } from '@ant-design/icons';import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Table,
   Button,
   Input,
   Select,
-  message,
   DatePicker,
   Pagination,
   Modal,
   Form,
+  message,
 } from 'antd';
-import { useGetAllDebitsQuery, useCreateDebitMutation, useUpdateDebitMutation } from '../../redux/features/management/debitApi';
+import { PlusOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import type { TableColumnsType } from 'antd';
-import getUserFromPersistedAuth from '../../utils/GetUserId';
-import Title from 'antd/es/skeleton/Title';
-import Credit from '../credit'
+import getUserFromPersistedAuth from '../utils/GetUserId';
+import { useCreateCreditMutation, useGetAllCreditsQuery, useUpdateCreditMutation } from '../redux/features/management/creditApi';
 
-interface DebitFormData {
-  productName: string;
-  buyerName: string;
+interface CreditFormData {
+  productId: string;
   totalAmount: number;
-  paidAmount: number;
-  dueDate: string;
-  description?: string;
+  downPayment: number;
+  creditAmount: number;
+  paymentDueDate: string;
+  customerDetails: {
+    name: string;
+    phone: string;
+    email: string;
+  };
   status: 'PENDING' | 'COMPLETED' | 'OVERDUE';
 }
 
-interface Debit extends DebitFormData {
-  _id: string;
-  remainingAmount: number;
-  createdBy: string;
-  createdAt: string;
-  updatedAt: string;
+interface Credit extends CreditFormData {
+  id: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const STATUS_OPTIONS = [
@@ -42,11 +43,7 @@ const STATUS_OPTIONS = [
   { value: 'OVERDUE', label: 'Overdue' },
 ];
 
-const DebitManagementPage: React.FC = () => {
-  const [isListView, setIsListView] = useState(false);
-  const toggleView = () => {
-    setIsListView(!isListView);
-  };
+const CreditView: React.FC = () => {
   const [form] = Form.useForm();
   const [query, setQuery] = useState({
     page: 1,
@@ -55,68 +52,59 @@ const DebitManagementPage: React.FC = () => {
     status: 'PENDING',
   });
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingDebit, setEditingDebit] = useState<Debit | null>(null);
+  const [editingCredit, setEditingCredit] = useState<Credit | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
 
-  const { data, isFetching } = useGetAllDebitsQuery(query);
-  const [createDebit, { isLoading: isCreating }] = useCreateDebitMutation();
-  const [updateDebit, { isLoading: isUpdating }] = useUpdateDebitMutation();
+  const { data, isFetching } = useGetAllCreditsQuery(query);
+  const [createCredit, { isLoading: isCreating }] = useCreateCreditMutation();
+  const [updateCredit, { isLoading: isUpdating }] = useUpdateCreditMutation();
 
   const userId = getUserFromPersistedAuth();
 
   useEffect(() => {
-    if (editingDebit) {
+    if (editingCredit) {
       form.setFieldsValue({
-        ...editingDebit,
-        dueDate: dayjs(editingDebit.dueDate),
+        ...editingCredit,
+        paymentDueDate: dayjs(editingCredit.paymentDueDate),
       });
     }
-  }, [editingDebit, form]);
+  }, [editingCredit, form]);
 
-  const handleSubmit = async (values: DebitFormData) => {
+  const handleSubmit = async (values: CreditFormData) => {
     try {
-      const remainingAmount = values.totalAmount - values.paidAmount;
-      const status = remainingAmount <= 0 ? 'COMPLETED' : values.status;
-
-      if (editingDebit) {
-        await updateDebit({
-          id: editingDebit._id,
-          payload: {
-            ...values,
-            remainingAmount,
-            status,
-          },
+      if (editingCredit) {
+        await updateCredit({
+          id: editingCredit.id, // Using id instead of _id
+          payload: values,
         }).unwrap();
-        messageApi.success('Debit record updated successfully');
+        messageApi.success('Credit record updated successfully');
       } else {
-        await createDebit({
+        await createCredit({
           ...values,
-          remainingAmount,
-          status,
           createdBy: userId,
         }).unwrap();
-        messageApi.success('Debit record created successfully');
+        messageApi.success('Credit record created successfully');
       }
       form.resetFields();
       setIsModalOpen(false);
-      setEditingDebit(null);
+      setEditingCredit(null);
     } catch (error) {
-      messageApi.error(editingDebit ? 'Failed to update debit record' : 'Failed to create debit record');
+      messageApi.error(editingCredit ? 'Failed to update credit record' : 'Failed to create credit record');
       console.error('Error:', error);
     }
   };
 
-  const columns: TableColumnsType<Debit> = [
+  const columns: TableColumnsType<Credit> = [
     {
-      title: 'Buyer Name',
-      dataIndex: 'buyerName',
-      key: 'buyerName',
+      title: 'Customer Name',
+      dataIndex: ['customerDetails', 'name'],
+      key: 'customerName',
       className: 'text-sm font-medium',
     },
     {
-      title: 'Product Name',
-      dataIndex: 'productName',
-      key: 'productName',
+      title: 'Phone',
+      dataIndex: ['customerDetails', 'phone'],
+      key: 'phone',
       className: 'text-sm',
     },
     {
@@ -130,9 +118,9 @@ const DebitManagementPage: React.FC = () => {
       ),
     },
     {
-      title: 'Paid Amount',
-      dataIndex: 'paidAmount',
-      key: 'paidAmount',
+      title: 'Down Payment',
+      dataIndex: 'downPayment',
+      key: 'downPayment',
       align: 'right',
       className: 'text-sm',
       render: (amount: number) => (
@@ -140,9 +128,9 @@ const DebitManagementPage: React.FC = () => {
       ),
     },
     {
-      title: 'Remaining',
-      dataIndex: 'remainingAmount',
-      key: 'remainingAmount',
+      title: 'Credit Amount',
+      dataIndex: 'creditAmount',
+      key: 'creditAmount',
       align: 'right',
       className: 'text-sm',
       render: (amount: number) => (
@@ -151,8 +139,8 @@ const DebitManagementPage: React.FC = () => {
     },
     {
       title: 'Due Date',
-      dataIndex: 'dueDate',
-      key: 'dueDate',
+      dataIndex: 'paymentDueDate',
+      key: 'paymentDueDate',
       className: 'text-sm',
       render: (date: string) => dayjs(date).format('YYYY-MM-DD'),
     },
@@ -183,7 +171,7 @@ const DebitManagementPage: React.FC = () => {
         <Button
           type="link"
           onClick={() => {
-            setEditingDebit(record);
+            setEditingCredit(record);
             setIsModalOpen(true);
           }}
           className="text-blue-600 hover:text-blue-800"
@@ -196,32 +184,7 @@ const DebitManagementPage: React.FC = () => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow h-[90vh]">
-
       {contextHolder}
-      <div style={{ 
-          display: 'flex', 
-          justifyContent: 'space-between', 
-          marginBottom: '16px' 
-        }}>
-          <div  style={{ margin: 0 }}>
-            {isListView ? 'credit List' : 'Debits List'}
-          </div>
-          <Button 
-            onClick={toggleView} 
-            type="primary" 
-            icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined />}
-          >
-            {isListView ? 'Create New Invoice' : 'View Invoices List'}
-          </Button>
-        </div>
-
-        {isListView ? (
-          
-          <div>
-           <Credit/>
-          </div>
-        ) : (
-      <div>
       <div className="flex justify-between items-center mb-6">
         <div className="flex items-center gap-4">
           <Select
@@ -232,22 +195,30 @@ const DebitManagementPage: React.FC = () => {
             className="min-w-[150px]"
           />
           <Input.Search
-            placeholder="Search debits..."
+            placeholder="Search credits..."
             onSearch={(value) => setQuery((prev) => ({ ...prev, search: value, page: 1 }))}
             className="w-64"
           />
         </div>
-       
+        <Button
+          type="primary"
+          onClick={() => setIsModalOpen(true)}
+          icon={<PlusOutlined />}
+          className="bg-blue-600 hover:bg-blue-700"
+        >
+          Add New Credit
+        </Button>
       </div>
 
       <Table
         columns={columns}
-        dataSource={data?.data || []}
+        dataSource={data|| []}
         loading={isFetching}
-        rowKey="_id"
+        rowKey="id"
         pagination={false}
         className="border rounded-lg"
-        scroll={{ x: true }}
+        scroll={{ x: 1500 }}
+        bordered
       />
 
       <div className="flex justify-center mt-6">
@@ -261,11 +232,11 @@ const DebitManagementPage: React.FC = () => {
       </div>
 
       <Modal
-        title={editingDebit ? "Update Debit" : "Add New Debit"}
+        title={editingCredit ? "Update Credit" : "Add New Credit"}
         open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
-          setEditingDebit(null);
+          setEditingCredit(null);
           form.resetFields();
         }}
         footer={null}
@@ -279,20 +250,41 @@ const DebitManagementPage: React.FC = () => {
           initialValues={{ status: 'PENDING' }}
         >
           <Form.Item
-            name="buyerName"
-            label="Buyer Name"
-            rules={[{ required: true, message: 'Please enter buyer name' }]}
+            name="productId"
+            label="Product ID"
+            rules={[{ required: true, message: 'Please enter product ID' }]}
           >
-            <Input placeholder="Enter buyer name" />
+            <Input placeholder="Enter product ID" />
           </Form.Item>
 
           <Form.Item
-            name="productName"
-            label="Product Name"
-            rules={[{ required: true, message: 'Please enter product name' }]}
+            name={['customerDetails', 'name']}
+            label="Customer Name"
+            rules={[{ required: true, message: 'Please enter customer name' }]}
           >
-            <Input placeholder="Enter product name" />
+            <Input placeholder="Enter customer name" />
           </Form.Item>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Form.Item
+              name={['customerDetails', 'phone']}
+              label="Phone Number"
+              rules={[{ required: true, message: 'Please enter phone number' }]}
+            >
+              <Input placeholder="Enter phone number" />
+            </Form.Item>
+
+            <Form.Item
+              name={['customerDetails', 'email']}
+              label="Email"
+              rules={[
+                { required: true, message: 'Please enter email' },
+                { type: 'email', message: 'Please enter a valid email' }
+              ]}
+            >
+              <Input placeholder="Enter email" />
+            </Form.Item>
+          </div>
 
           <div className="grid grid-cols-2 gap-4">
             <Form.Item
@@ -304,26 +296,34 @@ const DebitManagementPage: React.FC = () => {
             </Form.Item>
 
             <Form.Item
-              name="paidAmount"
-              label="Paid Amount"
+              name="downPayment"
+              label="Down Payment"
               rules={[
-                { required: true, message: 'Please enter paid amount' },
+                { required: true, message: 'Please enter down payment' },
                 ({ getFieldValue }) => ({
                   validator(_, value) {
                     if (!value || getFieldValue('totalAmount') >= value) {
                       return Promise.resolve();
                     }
-                    return Promise.reject(new Error('Paid amount cannot exceed total amount'));
+                    return Promise.reject(new Error('Down payment cannot exceed total amount'));
                   },
                 }),
               ]}
             >
-              <Input type="number" min={0} placeholder="Enter paid amount" />
+              <Input type="number" min={0} placeholder="Enter down payment" />
             </Form.Item>
           </div>
 
           <Form.Item
-            name="dueDate"
+            name="creditAmount"
+            label="Credit Amount"
+            rules={[{ required: true, message: 'Please enter credit amount' }]}
+          >
+            <Input type="number" min={0} placeholder="Enter credit amount" />
+          </Form.Item>
+
+          <Form.Item
+            name="paymentDueDate"
             label="Due Date"
             rules={[{ required: true, message: 'Please select due date' }]}
           >
@@ -338,7 +338,7 @@ const DebitManagementPage: React.FC = () => {
             <Button
               onClick={() => {
                 setIsModalOpen(false);
-                setEditingDebit(null);
+                setEditingCredit(null);
                 form.resetFields();
               }}
             >
@@ -350,15 +350,13 @@ const DebitManagementPage: React.FC = () => {
               loading={isCreating || isUpdating}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              {editingDebit ? 'Update' : 'Submit'}
+              {editingCredit ? 'Update' : 'Submit'}
             </Button>
           </div>
         </Form>
       </Modal>
-      </div>
-        )}
     </div>
   );
 };
 
-export default DebitManagementPage;
+export default CreditView;

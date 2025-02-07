@@ -51,7 +51,12 @@ const formatPrice = (value: number | string): string => {
   return `frw ${numValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 };
 
-
+const parsePrice = (value: string | number): number => {
+  if (typeof value === 'number') return value;
+  if (!value) return 0;
+  const numStr = value.replace(/[^\d.]/g, '');
+  return parseFloat(numStr) || 0;
+};
 
 const CreateProduct: React.FC = () => {
   // Redux queries and mutations
@@ -125,7 +130,7 @@ const CreateProduct: React.FC = () => {
       
       priceFields.forEach(field => {
         if (processedValues[field] !== undefined) {
-         
+          processedValues[field] = parsePrice(processedValues[field]);
         }
       });
 
@@ -303,7 +308,7 @@ const CreateProduct: React.FC = () => {
                       min={0}
                       placeholder="Enter price"
                       formatter={formatPrice}
-                      
+                      parser={parsePrice}
                       onFocus={(e) => e.target.select()}
                     />
                   </Form.Item>
@@ -337,7 +342,7 @@ const CreateProduct: React.FC = () => {
                                 min={0}
                                 placeholder="Enter down payment"
                                 formatter={formatPrice}
-                                
+                                parser={parsePrice}
                               />
                             </Form.Item>
                           </Col>
@@ -354,7 +359,7 @@ const CreateProduct: React.FC = () => {
                                 min={0}
                                 placeholder="Enter credit amount"
                                 formatter={formatPrice}
-                                
+                                parser={parsePrice}
                               />
                             </Form.Item>
                           </Col>
