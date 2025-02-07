@@ -1,5 +1,6 @@
 
-import { DeleteOutlined, FileAddOutlined, PlusOutlined, PrinterOutlined, UnorderedListOutlined } from '@ant-design/icons';import React, { useState, useEffect } from 'react';
+import { DeleteOutlined, FileAddOutlined, PlusOutlined, PrinterOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
 import {
   Table,
   Button,
@@ -211,7 +212,7 @@ const DebitManagementPage: React.FC = () => {
             type="primary" 
             icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined />}
           >
-            {isListView ? 'Create New Invoice' : 'View Invoices List'}
+            {isListView ? 'Debits List' : 'credit List'}
           </Button>
         </div>
 
