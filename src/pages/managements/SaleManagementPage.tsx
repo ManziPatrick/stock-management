@@ -87,6 +87,7 @@ const totalSellingPrice = data?.data.meta?.totalSales.stats.totalSellingPrice|| 
     productName: sale.productName,
     productPrice: Number(sale.productPrice) || 0,
     buyerName: sale.buyerName,
+    paymentMode:sale.paymentMode,
     quantity: Number(sale.quantity) || 0,
     totalPrice: Number(sale.SellingPrice) || 0,
     sellingPrice: (Number(sale.SellingPrice) || 0) * (Number(sale.quantity) || 0),
@@ -134,6 +135,13 @@ const totalSellingPrice = data?.data.meta?.totalSales.stats.totalSellingPrice|| 
       dataIndex: 'sellingPrice',
       align: 'center',
       render: (price: number) => formatCurrency(price),
+    },
+    {
+      title: 'paymentMode',
+      key: 'paymentMode',
+      dataIndex: 'paymentMode',
+      align: 'center',
+      
     },
     {
       title: 'Margin',

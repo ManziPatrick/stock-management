@@ -280,14 +280,14 @@ const CreditManagementPage: React.FC = () => {
               className="w-64"
             />
           </div>
-          <Button
+          {/* <Button
             type="primary"
             onClick={() => setIsModalOpen(true)}
             icon={<PlusOutlined />}
             className="bg-blue-600 hover:bg-blue-700"
           >
             Add New Credit
-          </Button>
+          </Button> */}
         </div>
 
         <Table
