@@ -314,16 +314,16 @@ const CreateProduct: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                {/* Credit Checkbox */}
-                <Col xs={24}>
+                
+                {/* <Col xs={24}>
                   <Form.Item name="isCredit" valuePropName="checked">
                     <Checkbox onChange={handleCreditChange}>
                       Sell on Credit
                     </Checkbox>
                   </Form.Item>
-                </Col>
+                </Col> */}
 
-                {/* Credit Details Section */}
+               
                 {isCredit && (
                   <>
                     <Col xs={24}>

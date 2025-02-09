@@ -62,7 +62,7 @@ const AdminSidebar = () => {
         }}
         width={220}
         style={{
-          backgroundColor: '#164863',
+          backgroundColor: '#16486',
           position: mobileView ? 'fixed' : 'relative',
           height: '100vh',
           zIndex: 1000,
@@ -73,17 +73,7 @@ const AdminSidebar = () => {
         }}
       >
         <div className="demo-logo-vertical">
-          <h1
-            style={{
-              color: 'white',
-              fontWeight: 800,
-              padding: '1rem',
-              fontSize: '1.8rem',
-              textAlign: 'center'
-            }}
-          >
-            WELCOME
-          </h1>
+          
         </div>
 
         <Menu
@@ -99,16 +89,7 @@ const AdminSidebar = () => {
 
         {showLogoutBtn && (
           <div
-            style={{
-              margin: 'auto',
-              position: 'absolute',
-              bottom: 0,
-              padding: '1rem',
-              display: 'flex',
-              
-              width: '100%',
-              justifyContent: 'center'
-            }}
+           
           >
             <Button
               type="primary"

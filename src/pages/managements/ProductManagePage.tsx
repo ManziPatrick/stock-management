@@ -53,18 +53,21 @@ const ProductManagePage = () => {
   });
 
   const { data: products, isFetching } = useGetAllProductsQuery(query);
-
-  const onChange: PaginationProps['onChange'] = (page) => {
+  const [pageSize, setPageSize] = useState(10);
+  const handlePageChange: PaginationProps['onChange'] = (page, pageSize) => {
     setCurrent(page);
-    setQuery((prevQuery) => ({
+    setPageSize(pageSize);
+    setQuery(prevQuery => ({
       ...prevQuery,
       page,
+      limit: pageSize
     }));
   };
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
 
-  const tableData = products?.data?.map((product: IProduct) => ({
+  const tableData = products?.data?.map((product: IProduct,index: number) => ({
     key: product._id,
+    serialNumber: (query.page - 1) * query.limit + index + 1,
     name: product.name,
     category: product.category,
     categoryName: product.category.name,
@@ -81,6 +84,13 @@ const ProductManagePage = () => {
   }));
 
   const columns: TableColumnsType<IProduct> = [
+     {
+    title: '#',
+    key: 'serialNumber',
+    dataIndex: 'serialNumber',
+    align: 'center',
+    width: '50px',
+  },
     {
       title: 'Image',
       key: 'image',
@@ -91,7 +101,7 @@ const ProductManagePage = () => {
         <Image
           src={images[0] || '/placeholder-image.png'}
           alt="Product"
-          style={{ width: 50, height: 50, objectFit: 'cover' }}
+          style={{ width: 50, height: 50, objectFit: 'contain'}}
           fallback="/placeholder-image.png"
           preview={images.length > 0}
         />
@@ -150,6 +160,7 @@ const ProductManagePage = () => {
         return (
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
             <SellProductModal product={item} />
+            {/* <AddStockModal product={item} /> */}
             <UpdateProductModal product={item} />
             <DeleteProductModal id={item.key} />
           </div>
@@ -173,12 +184,16 @@ const ProductManagePage = () => {
         scroll={{ x: true }}
       />
       <Flex justify='center' style={{ marginTop: '1rem' }}>
-        <Pagination
-          current={current}
-          onChange={onChange}
-          defaultPageSize={query.limit}
-          total={products?.meta?.total}
-        />
+      <Pagination
+  current={current}
+  pageSize={pageSize}
+  onChange={handlePageChange}
+  onShowSizeChange={handlePageChange}
+  total={products?.meta?.total}
+  showSizeChanger
+  showQuickJumper
+  showTotal={(total) => `Total ${total} items`}
+/>
       </Flex>
       <Flex justify="end" className="mt-4 pr-4">
         <Typography.Title level={4}>
@@ -602,47 +617,55 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 /**
  * Add Stock Modal
  */
-const AddStockModal = ({ product }: { product: IProduct }) => {
+const AddStockModal = ({ product }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [addToStock] = useAddStockMutation();
+  
   const { handleSubmit, register, reset, formState: { errors }, watch } = useForm({
     defaultValues: {
-      stock: 1
+      stock: 1,
+      seller: product?.seller?._id || ''  // Initialize seller field
     }
   });
-  const [addToStock] = useAddStockMutation();
+
   const watchStock = watch('stock');
 
-  const onSubmit = async (data: FieldValues) => {
+  const onSubmit = async (data) => {
     setLoading(true);
-    const stockValue = Number(data.stock);
 
-    // Ensure positive stock value
-    if (stockValue <= 0) {
-      toastMessage({ icon: 'error', text: 'Stock quantity must be greater than 0' });
+    if (!data.seller) {
+      toastMessage({ 
+        icon: 'error', 
+        text: 'Seller information is required' 
+      });
       setLoading(false);
       return;
     }
 
     const payload = {
-      stock: stockValue,
-      seller: product.seller._id, // Send only the seller ID
+      stock: Number(data.stock),
+      seller: data.seller,
+      product:product.key
     };
 
     try {
-      const res = await addToStock({ 
-        id: product._id, 
+      const response = await addToStock({ 
+        id: product.key,
         payload 
       }).unwrap();
 
-      if (res.success) {
-        toastMessage({ icon: 'success', text: 'Product stock added successfully!' });
-        reset();
+      if (response.success) {
+        toastMessage({ 
+          icon: 'success', 
+          text: 'Stock added successfully!' 
+        });
         handleCancel();
       } else {
-        throw new Error(res.message || 'Failed to add stock');
+        throw new Error(response.message || 'Failed to add stock');
       }
-    } catch (error: any) {
+    } catch (error) {
+      console.error('Error adding stock:', error);
       const errorMessage = error.data?.message || error.message || 'Failed to add stock';
       toastMessage({ icon: 'error', text: errorMessage });
     } finally {
@@ -652,13 +675,31 @@ const AddStockModal = ({ product }: { product: IProduct }) => {
 
   const showModal = () => {
     setIsModalOpen(true);
-    reset({ stock: 1 });
+    reset({ 
+      stock: 1,
+      seller: product?.seller?._id || ''
+    });
   };
 
   const handleCancel = () => {
     setIsModalOpen(false);
     reset();
   };
+
+  // Hide the modal if there's no seller
+  if (!product?.seller?._id) {
+    return (
+      <Button
+        type="primary"
+        className="table-btn"
+        style={{ backgroundColor: 'blue', opacity: 0.5 }}
+        disabled
+        title="Cannot add stock - No seller associated with this product"
+      >
+        Add Stock
+      </Button>
+    );
+  }
 
   return (
     <>
@@ -670,6 +711,7 @@ const AddStockModal = ({ product }: { product: IProduct }) => {
       >
         Add Stock
       </Button>
+      
       <Modal 
         title="Add Product to Stock" 
         open={isModalOpen} 
@@ -677,14 +719,28 @@ const AddStockModal = ({ product }: { product: IProduct }) => {
         footer={null}
         maskClosable={false}
       >
-        <form onSubmit={handleSubmit(onSubmit)} style={{ margin: '2rem' }}>
-          <div style={{ marginBottom: '1rem' }}>
-            <p>Current Stock: {product.stock}</p>
-            <p>Price per unit: {product.price.toFixed(0)} frw </p>
+        <form onSubmit={handleSubmit(onSubmit)} className="p-4">
+          <div className="mb-4 space-y-2">
+            <Typography.Text className="block">
+              Current Stock: {product.stock}
+            </Typography.Text>
+            <Typography.Text className="block">
+              Price per unit: {product.price.toFixed(0)} frw
+            </Typography.Text>
             {watchStock && (
-              <p>Total Purchase Value: {(Number(watchStock) * product.price).toFixed(0)} frw</p>
+              <Typography.Text className="block">
+                Total Purchase Value: {(Number(watchStock) * product.price).toFixed(0)} frw
+              </Typography.Text>
             )}
           </div>
+
+          {/* Hidden seller field */}
+          <input 
+            type="hidden" 
+            {...register('seller', { 
+              required: 'Seller is required'
+            })} 
+          />
 
           <CustomInput 
             name="stock" 
@@ -701,7 +757,16 @@ const AddStockModal = ({ product }: { product: IProduct }) => {
             errors={errors}
           />
 
-          <Flex justify="center" style={{ marginTop: '1rem' }} gap="small">
+          <div className="mt-4">
+            <Typography.Text type="secondary" className="block mb-2">
+              Product ID: {product.key}
+            </Typography.Text>
+            <Typography.Text type="secondary" className="block">
+              Seller: {product.seller?.name || 'Unknown'}
+            </Typography.Text>
+          </div>
+
+          <Flex justify="center" className="mt-6" gap="small">
             <Button onClick={handleCancel}>
               Cancel
             </Button>
@@ -719,6 +784,7 @@ const AddStockModal = ({ product }: { product: IProduct }) => {
     </>
   );
 };
+
 /**
  * Update Product Modal
  */
