@@ -62,7 +62,7 @@ const AdminSidebar = () => {
         }}
         width={220}
         style={{
-          backgroundColor: '#16486',
+          backgroundColor: '#164863',
           position: mobileView ? 'fixed' : 'relative',
           height: '100vh',
           zIndex: 1000,
@@ -73,7 +73,17 @@ const AdminSidebar = () => {
         }}
       >
         <div className="demo-logo-vertical">
-          
+          <h1
+            style={{
+              color: 'white',
+              fontWeight: 800,
+              padding: '1rem',
+              fontSize: '1.2rem',
+              textAlign: 'center'
+            }}
+          >
+            STOCKX
+          </h1>
         </div>
 
         <Menu
