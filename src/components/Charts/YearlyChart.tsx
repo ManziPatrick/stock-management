@@ -13,26 +13,26 @@ import {
   ComposedChart,
   Brush
 } from 'recharts';
-import { useMonthlySaleQuery } from '../../redux/features/management/saleApi';
+import { useYearlySaleQuery } from '../../redux/features/management/saleApi';
 import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
+
 interface ChartProps {
 
-  data: any;
+    data: any;
+  
+  }
 
-}
-
-const MonthlySalesChart: React.FC<ChartProps>  = () => {
+const YearlySalesChart :React.FC<ChartProps>  = () => {
   const [chartType, setChartType] = useState('composed');
-  const { data: saleResponse, isLoading } = useMonthlySaleQuery(undefined);
+  const { data: saleResponse, isLoading } = useYearlySaleQuery(undefined);
   const { data: expenses } = useGetAllExpensesQuery({});
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
 
-  // Process the data from the monthly sales response
   const processedData = saleResponse?.data?.map(item => ({
-    name: `${item._id.month}/${item._id.year}`,
+    name: `${item._id.year}`,
     quantity: item.totalQuantitySold || 0,
     sales: item.totalSaleAmount || 0,
     sellingPrice: item.totalSellingPrice || 0,
@@ -108,7 +108,7 @@ const MonthlySalesChart: React.FC<ChartProps>  = () => {
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg">
       <div className="mb-6">
-  
+
         <div className="flex justify-end mb-4">
           <select
             className="p-2 border rounded-md"
@@ -156,4 +156,4 @@ const MonthlySalesChart: React.FC<ChartProps>  = () => {
   );
 };
 
-export default MonthlySalesChart;
+export default YearlySalesChart;

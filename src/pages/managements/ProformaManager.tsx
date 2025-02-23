@@ -304,9 +304,9 @@ const ProformaInvoice = () => {
           justifyContent: 'space-between', 
           marginBottom: '16px' 
         }}>
-          <Title level={2} style={{ margin: 0 }}>
+          <div className='font-semibold mt-4'>
             {isListView ? 'Proforma Invoices List' : 'Create Proforma Invoice'}
-          </Title>
+          </div>
           <Button 
             onClick={toggleView} 
             type="primary" 
@@ -327,10 +327,10 @@ const ProformaInvoice = () => {
             terms: { paymentDays: 30, lateFeePercentage: 5 }
           }}
         >
-          <Title level={2} style={{ textAlign: 'center' }}>PROFORMA INVOICE</Title>
+          
           
           {/* Bill From/To Section */}
-          <div style={{ display: 'flex', gap: '32px', marginBottom: '24px' }}>
+          <div  className=" flex flex-col md:flex-row gap-8 mb-6"  >
             <div style={{ flex: 1 }}>
               <Title level={5}>Bill From</Title>
               <Space direction="vertical" style={{ width: '100%' }}>
@@ -392,6 +392,8 @@ const ProformaInvoice = () => {
             columns={columns}
             pagination={false}
             bordered
+            className="border rounded-lg"
+        scroll={{ x: true }}
             footer={() => (
               <Button type="dashed" onClick={addItem} block icon={<PlusOutlined />}>
                 Add Item

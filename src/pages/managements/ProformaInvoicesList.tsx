@@ -135,20 +135,20 @@ const ProformaInvoicesList = () => {
 
   return (
     <>
-      <Card>
-        <Title level={2} style={{ textAlign: 'center', marginBottom: '24px' }}>
-          Proforma Invoices
-        </Title>
+    
+       
         <Table 
           columns={columns}
           dataSource={proformaResponse?.data || []}
           rowKey="_id"
+          className=" rounded-lg"
+          scroll={{ x: true }}
           pagination={{ 
             pageSize: 10, 
             showSizeChanger: true 
           }}
         />
-      </Card>
+     
 
       <Modal
         open={isViewModalVisible}

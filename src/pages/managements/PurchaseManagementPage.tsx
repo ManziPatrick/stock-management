@@ -1,4 +1,4 @@
-import { DeleteFilled, EditFilled } from '@ant-design/icons';
+import { DeleteFilled, EditFilled, FileAddOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
 import { Button, Flex, Modal, Pagination, Table } from 'antd';
 import { useState } from 'react';
@@ -13,6 +13,7 @@ import formatDate from '../../utils/formatDate';
 import toastMessage from '../../lib/toastMessage';
 import SearchInput from '../../components/SearchInput';
 import Typography from 'antd/es/typography/Typography';
+import UpdatedProductsTable from './updatedProduct';
 
 const PurchaseManagementPage = () => {
   const [query, setQuery] = useState({
@@ -23,14 +24,15 @@ const PurchaseManagementPage = () => {
 
   const { data: purchaseResponse, isFetching } = useGetAllPurchasesQuery(query);
   
-  // Safely access the total purchased amount from the nested structure
   const totalPurchasedAmount = purchaseResponse?.meta?.totalPurchasedAmount?.stats?.totalPurchasedAmount || 0;
 
   const onChange: PaginationProps['onChange'] = (page) => {
     setQuery((prev) => ({ ...prev, page: page }));
   };
-
-  // Map the purchase data from the response
+  const [isListView, setIsListView] = useState(false);
+  const toggleView = () => {
+    setIsListView(!isListView);
+  };
   const tableData = purchaseResponse?.data?.map((purchase: IPurchase) => ({
     key: purchase._id,
     //@ts-ignore
@@ -80,7 +82,20 @@ const PurchaseManagementPage = () => {
   ];
 
   return (
+    
     <div className='p-6 bg-white rounded-lg shadow-md h-[90vh]'>
+      <Button 
+            onClick={toggleView} 
+            type="primary" 
+            icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined  />}
+          >
+            {isListView ? 'Purchase table':'Updated purchase '}
+          </Button>
+          {isListView ? (
+          <UpdatedProductsTable/>
+        ) : (
+        
+      <div>
       <Flex justify='end' style={{ margin: '5px' }}>
         <SearchInput setQuery={setQuery} placeholder='Search Purchase...' />
       </Flex>
@@ -106,6 +121,8 @@ const PurchaseManagementPage = () => {
           Total Purchase value: <span className="text-green-600">{totalPurchasedAmount.toLocaleString()} frw</span>
         </Typography>
       </Flex>
+    </div>
+      )}
     </div>
   );
 };

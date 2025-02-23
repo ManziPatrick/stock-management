@@ -1,211 +1,245 @@
 import React, { useState } from 'react';
-import { Select, Card, Statistic, Spin, Row, Col } from 'antd';
 import {
-  AreaChart, BarChart, LineChart, PieChart, ComposedChart,
-  CartesianGrid, Tooltip, XAxis, YAxis, Legend, Area, Bar, Line, Pie, Cell,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  PieChart,
+  Pie,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
   ResponsiveContainer,
-  
+  ComposedChart,
+  Brush,
+  ReferenceLine
 } from 'recharts';
-import { useGetAllSaleQuery } from '../../redux/features/management/saleApi';
+import { useDailySaleQuery } from '../../redux/features/management/saleApi';
 import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
 import { useGetAllPurchasesQuery } from '../../redux/features/management/purchaseApi';
 
-const { Option } = Select;
+interface ChartProps {
 
-const DailyChart = () => {
+  data: any;
+
+}
+const DailySalesChart: React.FC<ChartProps>  = () => {
   const [chartType, setChartType] = useState('area');
-  const { data: salesData, isLoading: isLoadingSales } = useGetAllSaleQuery({});
+  const { data: salesData, isLoading: isLoadingSales } = useDailySaleQuery({});
   const { data: expensesData, isLoading: isLoadingExpenses } = useGetAllExpensesQuery({});
   const { data: purchaseData, isLoading: isLoadingPurchases } = useGetAllPurchasesQuery({});
 
-  // Get today's date
-  const today = new Date();
-  const todayYear = today.getFullYear();
-  const todayMonth = today.getMonth() + 1;
-  const todayDay = today.getDate();
-
-  // Extract data for today
-  const dailyTotalSellingPrices = salesData?.data?.meta?.totalSales?.dailyStats?.find(
-    (stat) =>
-      stat._id.year === todayYear &&
-      stat._id.month === todayMonth &&
-      stat._id.day === todayDay
-  );
-  const dailyTotalProfit = dailyTotalSellingPrices?.profit || 0;
-  const dailyTotalSellingPrice = dailyTotalSellingPrices?.dailyTotalSellingPrice || 0;
-
-  const dailyExpenses = expensesData?.data?.meta?.totalExpenses?.dailyStats?.find(
-    (stat) =>
-      stat._id.year === todayYear &&
-      stat._id.month === todayMonth &&
-      stat._id.day === todayDay
-  );
-  const TotalExpense = dailyExpenses?.dailyTotal || 0;
-
-  const todayPurchaseData = purchaseData?.meta?.totalPurchasedAmount?.dailyStats?.find(
-    (stat) =>
-      stat._id.year === todayYear &&
-      stat._id.month === todayMonth &&
-      stat._id.day === todayDay
-  );
-  const DailyTotalPurchases = todayPurchaseData?.dailyTotal || 0;
-
-  // Prepare data for charts using DailySummary values
-  const chartData = [
-    {
-      name: 'Today',
-      revenue: dailyTotalSellingPrice,
-      profit: dailyTotalProfit - TotalExpense,
-      expense: TotalExpense,
-      potentialRevenue: DailyTotalPurchases,
-    }
-  ];
-
-  // Conditional rendering for loading and error states
   if (isLoadingSales || isLoadingExpenses || isLoadingPurchases) {
-    return (
-      <div style={{ textAlign: 'center' }}>
-        <Spin size="large" />
-        <p>Loading data...</p>
-      </div>
-    );
+    return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
 
-  // Chart Rendering Functions
-  const renderAreaChart = () => (
-    <AreaChart data={chartData} margin={{ top: 10, right: 30, left: 4, bottom: 0 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-      <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => value.toLocaleString()} />
-      <Tooltip formatter={(value) => value.toLocaleString()} labelStyle={{ fontSize: 12 }} />
-      <Legend />
-      <Area type="monotone" dataKey="revenue" stroke="#82ca9d" fill="#82ca9d" name="Revenue" />
-      <Area type="monotone" dataKey="profit" stroke="#ff7300" fill="#ff7300" name="Profit" />
-      <Area type="monotone" dataKey="expense" stroke="#ff0000" fill="#ff0000" name="Expense" />
-      <Area type="monotone" dataKey="potentialRevenue" stroke="#0088fe" fill="#0088fe" name="Total Purchased Amount" />
-    </AreaChart>
-  );
+  // Process multiple days of data
+  const processedData = salesData?.data?.map(dailyData => ({
+    name: `${dailyData._id?.day}/${dailyData._id?.month}`,
+    date: new Date(dailyData._id?.year, dailyData._id?.month - 1, dailyData._id?.day).getTime(),
+    revenue: dailyData.totalSaleAmount || 0,
+    sellingPrice: dailyData.totalSellingPrice || 0,
+    productCost: dailyData.totalProductPrice || 0,
+    profit: dailyData.netProfit || 0,
+    margin: dailyData.totalMarginProfit || 0,
+    quantity: dailyData.totalQuantitySold || 0,
+    cash: dailyData.cashTotal || 0,
+    momo: dailyData.momoTotal || 0,
+    cheque: dailyData.chequeTotal || 0,
+    transfer: dailyData.transferTotal || 0,
+    expenses: dailyData.expenses || 0,
+    purchases: purchaseData?.meta?.totalPurchasedAmount?.dailyStats?.[0]?.dailyTotal || 0
+  })) || [];
 
-  console.log("HHDXFJCDX",renderAreaChart)
-  const renderBarChart = () => (
-    <BarChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-      <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => value.toLocaleString()} />
-      <Tooltip formatter={(value) => value.toLocaleString()} />
-      <Legend />
-      <Bar dataKey="revenue" fill="#82ca9d" name="Revenue" />
-      <Bar dataKey="profit" fill="#ff7300" name="Profit" />
-      <Bar dataKey="expense" fill="#ff0000" name="Expense" />
-    </BarChart>
-  );
-console.log("HHDXFJCDX",renderBarChart)
-  const renderLineChart = () => (
-    <LineChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-      <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => value.toLocaleString()} />
-      <Tooltip formatter={(value) => value.toLocaleString()} />
-      <Legend />
-      <Line type="monotone" dataKey="revenue" stroke="#82ca9d" name="Revenue" />
-      <Line type="monotone" dataKey="profit" stroke="#ff7300" name="Profit" />
-      <Line type="monotone" dataKey="expense" stroke="#ff0000" name="Expense" />
-    </LineChart>
-  );
-console.log("HHDXFJCDX",renderLineChart)  
-  const renderComposedChart = () => (
-    <ComposedChart data={chartData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-      <CartesianGrid strokeDasharray="3 3" />
-      <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-      <YAxis tick={{ fontSize: 12 }} tickFormatter={(value) => value.toLocaleString()} />
-      <Tooltip formatter={(value) => value.toLocaleString()} />
-      <Legend />
-      <Area type="monotone" dataKey="potentialRevenue" fill="#0088fe" stroke="#0088fe" name="Total Purchased Amount" />
-      <Bar dataKey="profit" fill="#ff7300" name="Profit" />
-      <Line type="monotone" dataKey="revenue" stroke="#82ca9d" name="Revenue" />
-    </ComposedChart>
-  );
+  // Sort data by date
+  const sortedData = processedData.sort((a, b) => a.date - b.date);
 
-  const renderPieChart = () => {
-    const pieData = [
-      { name: 'Revenue', value: dailyTotalSellingPrice },
-      { name: 'Profit', value: dailyTotalProfit - TotalExpense },
-      { name: 'Expense', value: TotalExpense },
-      { name: 'Total Purchased Amount', value: DailyTotalPurchases },
-    ];
-console.log("HHDXFJCDX",pieData)
-    return (
-      <PieChart margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-        <Pie
-          data={pieData}
-          cx="50%"
-          cy="50%"
-          innerRadius={60}
-          outerRadius={80}
-          fill="#8884d8"
-          paddingAngle={5}
-          dataKey="value"
-        >
-          {pieData.map((entry, index) => (
-            <Cell key={`cell-${index}`} fill={['#82ca9d', '#ff7300', '#ff0000', '#0088fe'][index % 4]} />
-          ))}
-        </Pie>
-        <Tooltip formatter={(value) => value.toLocaleString()} />
-        <Legend />
-      </PieChart>
-    );
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
+
+  // Calculate totals for summary
+  const totals = processedData.reduce((acc, curr) => ({
+    revenue: acc.revenue + curr.revenue,
+    profit: acc.profit + curr.profit,
+    expenses: acc.expenses + curr.expenses,
+    quantity: acc.quantity + curr.quantity,
+    cash: acc.cash + curr.cash,
+    momo: acc.momo + curr.momo,
+    cheque: acc.cheque + curr.cheque,
+    transfer: acc.transfer + curr.transfer
+  }), {
+    revenue: 0, profit: 0, expenses: 0, quantity: 0,
+    cash: 0, momo: 0, cheque: 0, transfer: 0
+  });
+
+  const renderChart = () => {
+    const commonProps = {
+      data: sortedData,
+      margin: { top: 10, right: 30, left: 0, bottom: 0 }
+    };
+
+    const commonChildren = <>
+      <CartesianGrid strokeDasharray="3 3" />
+      <XAxis 
+        dataKey="name"
+        tick={{ fontSize: 12 }}
+        interval="preserveStartEnd"
+      />
+      <YAxis 
+        tickFormatter={(value) => `${value.toLocaleString()} RWF`}
+        tick={{ fontSize: 12 }}
+      />
+      <Tooltip 
+        formatter={(value) => `${value.toLocaleString()} RWF`}
+        labelFormatter={(label) => `Day: ${label}`}
+      />
+      <Legend />
+      <Brush 
+        dataKey="name"
+        height={30}
+        stroke="#8884d8"
+        startIndex={Math.max(0, sortedData.length - 7)}
+      />
+      <ReferenceLine y={0} stroke="#000" />
+    </>;
+
+    switch (chartType) {
+      case 'area':
+        return (
+          <AreaChart {...commonProps}>
+            {commonChildren}
+            <Area type="monotone" dataKey="sellingPrice" stackId="1" fill="#8884d8" stroke="#8884d8" name="Selling Price" />
+            <Area type="monotone" dataKey="revenue" stackId="1" fill="#82ca9d" stroke="#82ca9d" name="Revenue" />
+            <Area type="monotone" dataKey="profit" stackId="2" fill="#ffc658" stroke="#ffc658" name="Profit" />
+            <Area type="monotone" dataKey="expenses" stackId="2" fill="#ff8042" stroke="#ff8042" name="Expenses" />
+          </AreaChart>
+        );
+
+      case 'bar':
+        return (
+          <BarChart {...commonProps}>
+            {commonChildren}
+            <Bar dataKey="revenue" fill="#82ca9d" name="Revenue" />
+            <Bar dataKey="productCost" fill="#8884d8" name="Product Cost" />
+            <Bar dataKey="profit" fill="#ffc658" name="Profit" />
+            <Bar dataKey="expenses" fill="#ff8042" name="Expenses" />
+          </BarChart>
+        );
+
+      case 'line':
+        return (
+          <LineChart {...commonProps}>
+            {commonChildren}
+            <Line type="monotone" dataKey="sellingPrice" stroke="#8884d8" name="Selling Price" dot={false} />
+            <Line type="monotone" dataKey="revenue" stroke="#82ca9d" name="Revenue" dot={false} />
+            <Line type="monotone" dataKey="profit" stroke="#ffc658" name="Profit" dot={false} />
+            <Line type="monotone" dataKey="quantity" stroke="#ff8042" name="Quantity" yAxisId="right" dot={false} />
+          </LineChart>
+        );
+
+      case 'composed':
+        return (
+          <ComposedChart {...commonProps}>
+            {commonChildren}
+            <Bar dataKey="revenue" fill="#82ca9d" name="Revenue" />
+            <Bar dataKey="expenses" fill="#ff8042" name="Expenses" />
+            <Line type="monotone" dataKey="profit" stroke="#ffc658" name="Profit" dot={false} />
+            <Area type="monotone" dataKey="margin" fill="#8884d8" stroke="#8884d8" name="Margin" />
+          </ComposedChart>
+        );
+
+      case 'pie':
+        const pieData = [
+          { name: 'Revenue', value: totals.revenue },
+          { name: 'Product Cost', value: totals.expenses },
+          { name: 'Profit', value: totals.profit },
+          { name: 'Expenses', value: totals.expenses }
+        ];
+        return (
+          <PieChart>
+            <Pie
+              data={pieData}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={80}
+              fill="#8884d8"
+              paddingAngle={5}
+              dataKey="value"
+              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+            >
+              {pieData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip formatter={(value) => `${value.toLocaleString()} RWF`} />
+            <Legend />
+          </PieChart>
+        );
+
+      default:
+        return null;
+    }
   };
 
-  // Daily Summary Component
-  const DailySummary = () => (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <Card bordered={false} className="shadow-sm">
-        <Statistic title="Daily Revenue" value={dailyTotalSellingPrice} suffix="frw" />
-      </Card>
-      <Card bordered={false} className="shadow-md">
-        <Statistic
-          title="Daily Net Profit"
-          value={dailyTotalProfit - TotalExpense || 0}
-          suffix="frw"
-        />
-      </Card>
-      <Card bordered={false} className="shadow-sm">
-        <Statistic title="Daily Expenses" value={TotalExpense || 0} suffix="frw" />
-      </Card>
-      <Card bordered={false} className="shadow-sm">
-        <Statistic
-          title="Today's Purchased Amount"
-          value={DailyTotalPurchases || 0}
-          suffix="frw"
-        />
-      </Card>
-    </div>
-  );
-
   return (
-    <Card className="w-full p-4">
-      <DailySummary />
-      <Row justify="end" className="mb-4">
-        <Col>
-          <Select
-            defaultValue="area"
-            style={{ width: 200 }}
-            onChange={(value) => setChartType(value)}
+    <div className="p-6 bg-white rounded-lg shadow-lg">
+      <div className="mb-6">
+      <div className="flex justify-end mb-4">
+          <select
+            className="p-2 border rounded-md"
+            value={chartType}
+            onChange={(e) => setChartType(e.target.value)}
           >
-            <Option value="bar">Bar Chart</Option>
-            <Option value="area">Area Chart</Option>
-            <Option value="line">Line Chart</Option>
-            <Option value="composed">Composed Chart</Option>
-            <Option value="pie">Pie Chart</Option>
-          </Select>
-        </Col>
-      </Row>
-      <ResponsiveContainer width="100%" height={300}>
-      {renderPieChart ()}
+            <option value="area">Area Chart</option>
+            <option value="bar">Bar Chart</option>
+            <option value="line">Line Chart</option>
+            <option value="composed">Composed Chart</option>
+            <option value="pie">Pie Chart</option>
+          </select>
+        </div>
         
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <h3 className="text-sm text-gray-600 mb-2">Total Sales</h3>
+            <p className=" font-semibold">
+              {totals.revenue.toLocaleString()} RWF
+            </p>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <h3 className="text-sm text-gray-600 mb-2">Total Profit</h3>
+            <p className=" font-semibold">
+              {totals.profit.toLocaleString()} RWF
+            </p>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-lg">
+            <h3 className="text-sm text-gray-600 mb-2">Total Expenses</h3>
+            <p className=" font-semibold">
+              {totals.expenses.toLocaleString()} RWF
+            </p>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <h3 className="text-sm text-gray-600 mb-2">Total Quantity</h3>
+            <p className=" font-semibold">
+              {totals.quantity.toLocaleString()} units
+            </p>
+          </div>
+        </div>
+
+        
+
+        
+      </div>
+
+      <ResponsiveContainer width="100%" height={400}>
+        {renderChart()}
       </ResponsiveContainer>
-    </Card>
+    </div>
   );
 };
 
-export default DailyChart;
+export default DailySalesChart;

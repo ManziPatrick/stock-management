@@ -1,12 +1,12 @@
 //@ts-nocheck
 import { useState } from 'react';
 import { Form, Input, Select, Button, Modal, message } from 'antd';
-import { UserOutlined, MailOutlined, LockOutlined, IdcardOutlined, FileTextOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { UserOutlined, MailOutlined, LockOutlined, IdcardOutlined, FileTextOutlined, CheckCircleOutlined, FileAddOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useRegisterMutation } from '../../redux/features/authApi';
 import { useAppDispatch } from '../../redux/hooks';
+import UserManagementPage from '../managements/UserManagement';
 
-// Interface for the API response
 interface RegistrationResponse {
   statusCode: number;
   success: boolean;
@@ -72,44 +72,62 @@ const RegisterPage = () => {
   const [registeredUser, setRegisteredUser] = useState(null);
   const [role, setRole] = useState('');
 
+  const [isListView, setIsListView] = useState(false);
+  const toggleView = () => {
+    setIsListView(!isListView);
+  };
+
   const onFinish = async (values) => {
     setLoading(true);
     const toastId = message.loading('Registering new account...', 0);
-
+  
     try {
       const { confirmPassword, ...registrationData } = values;
       const response = await userRegistration(registrationData).unwrap() as RegistrationResponse;
-
+  
+      message.destroy(); // Clear all messages
+  
       if (response.statusCode === 201 && response.success) {
         message.success({
           content: response.message,
-          key: toastId,
           duration: 2,
         });
-        
+  
         setRegisteredUser(response.data);
         setShowSuccessModal(true);
-
+  
         setTimeout(() => {
           setShowSuccessModal(false);
           navigate('/admin/');
         }, 3000);
       }
     } catch (error: any) {
+      message.destroy(); // Ensure the loading message disappears on failure
       message.error({
         content: error.data?.message || 'Registration failed',
-        key: toastId,
         duration: 2,
       });
     } finally {
       setLoading(false);
     }
   };
+  
 
   return (
-    <div className="min-h-screen bg-gray-50/30 py-8 px-4">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen  bg-gray-50/30 py-8 px-4">
+      <Button 
+            onClick={toggleView} 
+            type="primary" 
+            icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined  />}
+          >
+            {isListView ? 'Regist user':'View all user'}
+          </Button>
+          {isListView ? (
+          <UserManagementPage/>
+        ) : (
+      <div className="max-w-2xl mx-auto items-center">
         <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+
           {/* Header */}
           <div className="px-8 py-6 border-b border-gray-200">
             <h2 className="text-2xl font-bold text-center text-gray-800">Create New Account</h2>
@@ -244,7 +262,7 @@ const RegisterPage = () => {
           </div>
         </div>
       </div>
-
+ )}
       {/* Success Modal */}
       <SuccessModal
         visible={showSuccessModal}

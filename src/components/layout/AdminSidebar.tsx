@@ -5,13 +5,13 @@ import { MenuOutlined, LogoutOutlined } from '@ant-design/icons';
 import { sidebarItems } from '../../constant/sidebarItemsAdmin';
 import { useAppDispatch } from '../../redux/hooks';
 import { logoutUser } from '../../redux/services/authSlice';
+import log from '../../../public/color-spectrum-1192509_1280.png';
 
 const { Content, Sider } = Layout;
 
 const AdminSidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState(window.innerWidth <= 768);
-  const [showLogoutBtn, setShowLogoutBtn] = useState(true);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
@@ -30,7 +30,6 @@ const AdminSidebar = () => {
 
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
-    setShowLogoutBtn(!collapsed);
   };
 
   return (
@@ -49,7 +48,6 @@ const AdminSidebar = () => {
           icon={<MenuOutlined />}
         />
       )}
-
       <Sider
         breakpoint="lg"
         collapsedWidth={mobileView ? 0 : 80}
@@ -57,7 +55,6 @@ const AdminSidebar = () => {
         onCollapse={(collapsed, type) => {
           if (type === 'responsive') {
             setCollapsed(collapsed);
-            setShowLogoutBtn(!collapsed);
           }
         }}
         width={220}
@@ -69,21 +66,16 @@ const AdminSidebar = () => {
           left: 0,
           top: 0,
           transition: 'all 0.2s ease-in-out',
-          transform: mobileView && collapsed ? 'translateX(-100%)' : 'translateX(0)'
+          transform: mobileView && collapsed ? 'translateX(-100%)' : 'translateX(0)',
         }}
       >
-        <div className="demo-logo-vertical">
-          <h1
-            style={{
-              color: 'white',
-              fontWeight: 800,
-              padding: '1rem',
-              fontSize: '1.2rem',
-              textAlign: 'center'
-            }}
-          >
-            STOCKX
-          </h1>
+        <div className="demo-logo-vertical ml-8 md:ml-0 flex items-center p-4 space-x-2 md:relative">
+          <img src={log} className="w-[28px] h-[28px]" alt="Logo" />
+          {!collapsed && !mobileView && (
+            <h1 className="text-white font-extrabold text-[1.2rem]">
+              STOCKXI
+            </h1>
+          )}
         </div>
 
         <Menu
@@ -91,32 +83,34 @@ const AdminSidebar = () => {
           mode="inline"
           style={{
             backgroundColor: '#164863',
-            fontWeight: '700'
+            fontWeight: '700',
+            paddingBottom: '64px',
           }}
           defaultSelectedKeys={['Dashboard']}
           items={sidebarItems}
         />
 
-        {showLogoutBtn && (
-          <div
-           
-          >
-            <Button
-              type="primary"
-              style={{
-                width: '100%',
-                backgroundColor: 'cyan',
-                color: '#000',
-                fontWeight: 600,
-                textTransform: 'uppercase'
-              }}
-              onClick={handleClick}
-              icon={<LogoutOutlined />}
-            >
-              Logout
-            </Button>
-          </div>
-        )}
+        <Button
+          type="primary"
+          style={{
+            width: '80%',
+            backgroundColor: 'cyan',
+            color: '#000',
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            position: 'absolute',
+            
+            bottom: 10,
+            left: 10,
+            borderRadius: 10,
+            height: '32px',
+          }}
+          onClick={handleClick}
+          icon={<LogoutOutlined />}
+          className=' rounded-md'
+        >
+          {!collapsed && 'Logout'}
+        </Button>
       </Sider>
 
       <Layout>

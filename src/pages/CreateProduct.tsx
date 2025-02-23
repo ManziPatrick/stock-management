@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Form,
   Input, 
@@ -25,7 +25,7 @@ import { useCreateCreditMutation } from '../redux/features/management/creditApi'
 import { useGetAllBrandsQuery } from '../redux/features/management/brandApi';
 import { useGetAllCategoriesQuery } from '../redux/features/management/categoryApi';
 import { useGetAllSellerQuery } from '../redux/features/management/sellerApi';
-import { ICategory } from '../types/product.types';
+import { ICategory, ISeller } from '../types/product.types';
 import CreateSeller from '../components/product/CreateSeller';
 import CreateCategory from '../components/product/CreateCategory';
 import CreateBrand from '../components/product/CreateBrand';
@@ -76,6 +76,56 @@ const CreateProduct: React.FC = () => {
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [isCredit, setIsCredit] = useState(false);
 
+  const [selectedSupplier, setSelectedSupplier] = useState<ISeller | null>(null);
+  const [initialPayment, setInitialPayment] = useState<number>(0);
+
+
+  const calculateCreditDetails = (totalPrice: number, initial: number, dueDate: any, quantity: number = 1) => {
+    if (!dueDate || !initial) return;
+
+    const totalAmount = totalPrice * quantity;
+    const downPayment = initial;
+    const creditAmount = totalAmount - downPayment;
+
+    form.setFieldsValue({
+      downPayment,
+      creditAmount,
+    });
+  };
+
+  const handleSupplierSelect = (supplierId: string) => {
+    const supplier = sellers?.data.find((s: ISeller) => s._id === supplierId);
+    if (supplier) {
+      setSelectedSupplier(supplier);
+      
+      // Update credit details if credit is enabled
+      if (isCredit) {
+        const price = form.getFieldValue('price');
+        const initialPayment = form.getFieldValue('initialPayment');
+        const dueDate = form.getFieldValue('paymentDueDate');
+        const quantity = form.getFieldValue('quantity') || 1;
+        
+        calculateCreditDetails(price, initialPayment, dueDate, quantity);
+      }
+    }
+  };
+
+ 
+  useEffect(() => {
+    if (isCredit) {
+      const price = form.getFieldValue('price');
+      const initialPayment = form.getFieldValue('initialPayment');
+      const dueDate = form.getFieldValue('paymentDueDate');
+      const quantity = form.getFieldValue('quantity') || 1;
+      
+      
+      calculateCreditDetails(price, initialPayment, dueDate, quantity);
+    }
+  }, [form.getFieldValue('quantity')]);
+
+ 
+
+
   // Handle image preview
   const handlePreview = async (file: UploadFile) => {
     if (!file.url && !file.preview) {
@@ -107,7 +157,6 @@ const CreateProduct: React.FC = () => {
     }
   };
 
-  // Form submission handler
   const onFinish = async (values: any) => {
     if (fileList.length === 0) {
       message.error('Please upload at least one image');
@@ -119,13 +168,19 @@ const CreateProduct: React.FC = () => {
       return;
     }
 
+    // Validate supplier selection for credit sales
+    if (isCredit && !values.seller) {
+      message.error('Please select a supplier for credit sale');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       const productFormData = new FormData();
 
       // Handle price fields before appending to FormData
-      const priceFields = ['price', 'downPayment', 'creditAmount'];
+      const priceFields = ['price', 'initialPayment', 'downPayment', 'creditAmount'];
       const processedValues = { ...values };
       
       priceFields.forEach(field => {
@@ -139,7 +194,7 @@ const CreateProduct: React.FC = () => {
         if (
           processedValues[key] !== undefined && 
           processedValues[key] !== '' && 
-          !['downPayment', 'creditAmount', 'paymentDueDate', 'customerName', 'customerPhone', 'customerEmail'].includes(key)
+          !['initialPayment', 'downPayment', 'creditAmount', 'paymentDueDate'].includes(key)
         ) {
           productFormData.append(key, processedValues[key].toString());
         }
@@ -162,31 +217,45 @@ const CreateProduct: React.FC = () => {
         }
       });
 
-      // Create product
+      // Create product first
       const productRes = await createNewProduct(productFormData).unwrap();
 
-      // If credit is enabled, create credit record
-      if (isCredit && productRes.statusCode === 201) {
+      // If credit is enabled and product creation was successful, create credit record
+      if (isCredit && productRes.data?._id) {
+        const supplier = sellers?.data.find((s: ISeller) => s._id === values.seller);
+        
+        if (!supplier) {
+          throw new Error('Supplier information not found');
+        }
+
+        const quantity = values.quantity || 1;
+        const totalAmount = parsePrice(values.price) * quantity;
+
         const creditData = {
           productId: productRes.data._id,
-          totalAmount: processedValues.price,
-          downPayment: processedValues.downPayment,
-          creditAmount: processedValues.creditAmount,
+          totalAmount: totalAmount,
+          downPayment: parsePrice(values.initialPayment),
+          creditAmount: totalAmount - parsePrice(values.initialPayment),
           paymentDueDate: values.paymentDueDate.format('YYYY-MM-DD'),
           customerDetails: {
-            name: values.customerName,
-            phone: values.customerPhone,
-            email: values.customerEmail
+            name: supplier.name,
+            phone: supplier.contactNo,
+            email: supplier.email
           },
           status: 'PENDING'
         };
 
-        const creditRes = await createCredit(creditData).unwrap();
-        
-        if (creditRes.statusCode === 201) {
-          message.success('Product created and credit record established successfully');
-        } else {
-          message.warning('Product created but credit record creation failed');
+        try {
+          const creditRes = await createCredit(creditData).unwrap();
+          if (creditRes.statusCode === 201) {
+            message.success('Product created and credit record established successfully');
+          } else {
+            message.warning('Product created but credit record creation failed');
+          }
+        } catch (creditError: any) {
+          console.error('Credit creation error:', creditError);
+          message.error('Product created but failed to create credit record: ' + 
+            (creditError.data?.message || 'Unknown error'));
         }
       } else {
         message.success(productRes.message);
@@ -196,9 +265,11 @@ const CreateProduct: React.FC = () => {
       form.resetFields();
       setFileList([]);
       setIsCredit(false);
+      setSelectedSupplier(null);
+      setInitialPayment(0);
       
     } catch (error: any) {
-      console.error(error);
+      console.error('Product creation error:', error);
       message.error(error.data?.message || 'Failed to create product');
     } finally {
       setIsSubmitting(false);
@@ -315,120 +386,7 @@ const CreateProduct: React.FC = () => {
                 </Col>
 
                 
-                {/* <Col xs={24}>
-                  <Form.Item name="isCredit" valuePropName="checked">
-                    <Checkbox onChange={handleCreditChange}>
-                      Sell on Credit
-                    </Checkbox>
-                  </Form.Item>
-                </Col> */}
-
-               
-                {isCredit && (
-                  <>
-                    <Col xs={24}>
-                      <Card className="bg-gray-50">
-                        <Title level={4}>Credit Details</Title>
-                        <Row gutter={[16, 16]}>
-                          <Col xs={24} md={8}>
-                            <Form.Item
-                              label="Down Payment"
-                              name="downPayment"
-                              rules={[{ required: true, message: 'Please enter down payment' }]}
-                            >
-                              <InputNumber
-                                size="large"
-                                className="w-full rounded-md"
-                                min={0}
-                                placeholder="Enter down payment"
-                                formatter={formatPrice}
-                                parser={parsePrice}
-                              />
-                            </Form.Item>
-                          </Col>
-
-                          <Col xs={24} md={8}>
-                            <Form.Item
-                              label="Credit Amount"
-                              name="creditAmount"
-                              rules={[{ required: true, message: 'Please enter credit amount' }]}
-                            >
-                              <InputNumber
-                                size="large"
-                                className="w-full rounded-md"
-                                min={0}
-                                placeholder="Enter credit amount"
-                                formatter={formatPrice}
-                                parser={parsePrice}
-                              />
-                            </Form.Item>
-                          </Col>
-
-                          <Col xs={24} md={8}>
-                            <Form.Item
-                              label="Payment Due Date"
-                              name="paymentDueDate"
-                              rules={[{ required: true, message: 'Please select due date' }]}
-                            >
-                              <DatePicker
-                                size="large"
-                                className="w-full rounded-md"
-                                disabledDate={(current) => current && current < dayjs().endOf('day')}
-                              />
-                            </Form.Item>
-                          </Col>
-
-                          {/* Customer Details */}
-                          <Col xs={24} md={8}>
-                            <Form.Item
-                              label="Customer Name"
-                              name="customerName"
-                              rules={[{ required: true, message: 'Please enter customer name' }]}
-                            >
-                              <Input
-                                size="large"
-                                placeholder="Enter customer name"
-                                className="rounded-md"
-                              />
-                              </Form.Item>
-                              </Col>
-
-                          <Col xs={24} md={8}>
-                            <Form.Item
-                              label="Customer Phone"
-                              name="customerPhone"
-                              rules={[{ required: true, message: 'Please enter customer phone' }]}
-                            >
-                              <Input
-                                size="large"
-                                placeholder="Enter customer phone"
-                                className="rounded-md"
-                              />
-                            </Form.Item>
-                          </Col>
-
-                          <Col xs={24} md={8}>
-                            <Form.Item
-                              label="Customer Email"
-                              name="customerEmail"
-                              rules={[
-                                { type: 'email', message: 'Please enter valid email' },
-                                { required: true, message: 'Please enter customer email' }
-                              ]}
-                            >
-                              <Input
-                                size="large"
-                                placeholder="Enter customer email"
-                                className="rounded-md"
-                              />
-                            </Form.Item>
-                          </Col>
-                        </Row>
-                      </Card>
-                    </Col>
-                  </>
-                )}
-
+            
                 {/* Measurement Type */}
                 <Col xs={24} md={12}>
                   <Form.Item
@@ -487,24 +445,116 @@ const CreateProduct: React.FC = () => {
 
                 {/* Supplier */}
                 <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Supplier"
-                    name="seller"
-                    rules={[{ required: true, message: 'Please select supplier' }]}
-                  >
-                    <Select
-                      size="large"
-                      placeholder="Select supplier"
-                      className="rounded-md"
-                    >
-                      {sellers?.data.map((item: ICategory) => (
-                        <Option key={item._id} value={item._id}>
-                          {item.name}
-                        </Option>
-                      ))}
-                    </Select>
+                <Form.Item
+      label="Supplier"
+      name="seller"
+      rules={[{ required: true, message: 'Please select supplier' }]}
+    >
+      <Select
+        size="large"
+        placeholder="Select supplier"
+        className="rounded-md"
+        onSelect={handleSupplierSelect}
+      >
+        {sellers?.data.map((item: ICategory) => (
+          <Option key={item._id} value={item._id}>
+            {item.name}
+          </Option>
+        ))}
+      </Select>
+    </Form.Item>
+                </Col>
+
+                <Col xs={24}>
+                  <Form.Item name="isCredit" valuePropName="checked">
+                    <Checkbox onChange={handleCreditChange}>
+                      Sell on Credit
+                    </Checkbox>
                   </Form.Item>
                 </Col>
+
+               
+                {isCredit && (
+                  <Col xs={24}>
+                    <Card className="bg-gray-50">
+                      <Title level={4}>Credit Details</Title>
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Initial Payment"
+                            name="initialPayment"
+                            rules={[{ required: true, message: 'Please enter initial payment' }]}
+                          >
+                            <InputNumber
+                              size="large"
+                              className="w-full rounded-md"
+                              min={0}
+                              placeholder="Enter initial payment"
+                              formatter={formatPrice}
+                              parser={parsePrice}
+                              onChange={(value) => {
+                                setInitialPayment(value || 0);
+                                const quantity = form.getFieldValue('quantity') || 1;
+                                const dueDate = form.getFieldValue('paymentDueDate');
+                                const price = form.getFieldValue('price');
+                                calculateCreditDetails(price, value, dueDate);
+                              }}
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Payment Due Date"
+                            name="paymentDueDate"
+                            rules={[{ required: true, message: 'Please select due date' }]}
+                          >
+                            <DatePicker
+                              size="large"
+                              className="w-full rounded-md"
+                              disabledDate={(current) => current && current < dayjs().endOf('day')}
+                              onChange={(date) => {
+                                const price = form.getFieldValue('price');
+                                calculateCreditDetails(price, initialPayment, date);
+                              }}
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        {/* Read-only calculated fields */}
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Down Payment"
+                            name="downPayment"
+                          >
+                            <InputNumber
+                              size="large"
+                              className="w-full rounded-md"
+                              disabled
+                              formatter={formatPrice}
+                              parser={parsePrice}
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Credit Amount"
+                            name="creditAmount"
+                          >
+                            <InputNumber
+                              size="large"
+                              className="w-full rounded-md"
+                              disabled
+                              formatter={formatPrice}
+                              parser={parsePrice}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </Card>
+                  </Col>
+                )}
 
                 {/* Category */}
                 <Col xs={24} md={12}>

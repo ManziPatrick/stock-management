@@ -2,9 +2,10 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag, Checkbox, Image, Input, Radio, Space } from 'antd';
-import { useEffect, useState } from 'react';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table,Select,Empty, Tag, Checkbox, Image, Input, Radio, Space } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
+import {useUpdatePurchaseMutation} from '../../redux/features/management/purchaseApi'
 import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
 import {
   useAddStockMutation,
@@ -207,28 +208,26 @@ const ProductManagePage = () => {
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [saleData, setSaleData] = useState<SaleDataType | null>(null);
+  const [saleData, setSaleData] = useState<SaleDataType[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDebit, setIsDebit] = useState(false);
   const [debitData, setDebitData] = useState<any>(null);
   const [paymentMode, setPaymentMode] = useState('cash');
-
-  const [profitLoss, setProfitLoss] = useState({
-    perUnit: 0,
-    total: 0,
-    isProfit: true
-  });
-
+  const [selectedProducts, setSelectedProducts] = useState<(IProduct & { key: string, selectedQuantity: number, sellingPrice: number })[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalProfitLoss, setTotalProfitLoss] = useState({ amount: 0, isProfit: true });
+  
+  const { data: allProducts } = useGetAllProductsQuery({ limit: 100 });
+  
   const {
     handleSubmit,
     register,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      quantity: 1,
-      pricePerUnit: product.price,
       buyerName: '',
       date: new Date().toISOString().split('T')[0],
       isDebit: false,
@@ -246,43 +245,114 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const [createDebit] = useCreateDebitMutation();
   const today = new Date().toISOString().split('T')[0];
 
-  const watchQuantity = watch("quantity");
-  const watchPricePerUnit = watch("pricePerUnit");
   const watchAmountPaid = watch("amountPaid");
-
-  const totalAmount = watchQuantity * watchPricePerUnit;
   const remainingAmount = isDebit ? totalAmount - (watchAmountPaid || 0) : 0;
 
+  // Initialize with the initially provided product
   useEffect(() => {
-    if (watchQuantity && watchPricePerUnit) {
-      const originalPricePerUnit = product.price;
-      const currentPricePerUnit = Number(watchPricePerUnit);
-      const currentQuantity = Number(watchQuantity);
-      
-      const profitPerUnit = currentPricePerUnit - originalPricePerUnit;
-      const totalProfitLoss = profitPerUnit * currentQuantity;
-      
-      setProfitLoss({
-        perUnit: Math.abs(profitPerUnit),
-        total: Math.abs(totalProfitLoss),
-        isProfit: profitPerUnit >= 0
-      });
+    if (product && isModalOpen) {
+      addProduct(product);
     }
-  }, [watchQuantity, watchPricePerUnit, product.price]);
+  }, [isModalOpen]);
+
+  // Update total amount and profit/loss calculations
+  useEffect(() => {
+    let calculatedTotal = 0;
+    let calculatedProfit = 0;
+    
+    selectedProducts.forEach(prod => {
+      const itemTotal = prod.selectedQuantity * prod.sellingPrice;
+      calculatedTotal += itemTotal;
+      
+      const itemProfit = (prod.sellingPrice - prod.price) * prod.selectedQuantity;
+      calculatedProfit += itemProfit;
+    });
+    
+    setTotalAmount(calculatedTotal);
+    setTotalProfitLoss({
+      amount: Math.abs(calculatedProfit),
+      isProfit: calculatedProfit >= 0
+    });
+  }, [selectedProducts]);
+
+  const addProduct = (product: IProduct & { key: string }) => {
+    // Check if product already exists in selected products
+    const existingProductIndex = selectedProducts.findIndex(p => p.key === product.key);
+    
+    if (existingProductIndex >= 0) {
+      // Product already exists, update the quantity
+      const updatedProducts = [...selectedProducts];
+      updatedProducts[existingProductIndex].selectedQuantity += 1;
+      setSelectedProducts(updatedProducts);
+    } else {
+      // Add new product
+      setSelectedProducts(prevProducts => [
+        ...prevProducts,
+        {
+          ...product,
+          selectedQuantity: 1,
+          sellingPrice: product.price
+        }
+      ]);
+    }
+  };
+
+  const removeProduct = (productKey: string) => {
+    setSelectedProducts(prevProducts => prevProducts.filter(p => p.key !== productKey));
+  };
+
+  const updateProductQuantity = (productKey: string, quantity: number) => {
+    setSelectedProducts(prevProducts => 
+      prevProducts.map(p => {
+        if (p.key === productKey) {
+          return { ...p, selectedQuantity: quantity };
+        }
+        return p;
+      })
+    );
+  };
+
+  const updateProductPrice = (productKey: string, price: number) => {
+    setSelectedProducts(prevProducts => 
+      prevProducts.map(p => {
+        if (p.key === productKey) {
+          return { ...p, sellingPrice: price };
+        }
+        return p;
+      })
+    );
+  };
 
   const onSubmit = async (data: FieldValues) => {
     try {
       setLoading(true);
-
-      const salePayload = {
-        product: product.key,
-        productName: product.name,
-        SellingPrice: Number(data.pricePerUnit),
-        productPrice: product.price,
-        quantity: Number(data.quantity),
+  
+      // Check if any products are selected
+      if (selectedProducts.length === 0) {
+        toastMessage({ 
+          icon: 'error', 
+          text: 'Please select at least one product to sell'
+        });
+        return;
+      }
+  
+      // Check if any product has invalid quantity
+      const invalidProduct = selectedProducts.find(p => 
+        p.selectedQuantity <= 0 || p.selectedQuantity > p.stock
+      );
+      
+      if (invalidProduct) {
+        toastMessage({ 
+          icon: 'error', 
+          text: `Invalid quantity for product: ${invalidProduct.name}`
+        });
+        return;
+      }
+  
+      // Create common sale details object
+      const saleDetails = {
         buyerName: data.buyerName,
         date: data.date,
-        originalPrice: product.price,
         paymentMode: paymentMode,
         paymentDetails: {
           mode: paymentMode,
@@ -292,31 +362,57 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
             bankName: data.bankName,
             accountNumber: data.accountNumber 
           }),
-        },
-        profitLoss: {
-          perUnit: profitLoss.perUnit,
-          total: profitLoss.total,
-          isProfit: profitLoss.isProfit
-        },
-        totalPrice: totalAmount
+        }
       };
-
-      const saleResponse = await saleProduct(salePayload).unwrap();
-
+  
+      // Create products array with only product-specific information
+      const productsPayload = selectedProducts.map(prod => {
+        const profitPerUnit = prod.sellingPrice - prod.price;
+        const totalProductProfit = profitPerUnit * prod.selectedQuantity;
+        
+        return {
+          product: prod.key,
+          productName: prod.name,
+          SellingPrice: prod.sellingPrice,
+          productPrice: prod.price,
+          quantity: prod.selectedQuantity,
+          originalPrice: prod.price,
+          profitLoss: {
+            perUnit: Math.abs(profitPerUnit),
+            total: Math.abs(totalProductProfit),
+            isProfit: profitPerUnit >= 0
+          },
+          totalPrice: prod.selectedQuantity * prod.sellingPrice
+        };
+      });
+  
+      // Combine into final payload
+      const salesPayload = {
+        ...saleDetails,
+        products: productsPayload
+      };
+  
+      // Send the combined payload in a single API call
+      const saleResponse = await saleProduct(salesPayload).unwrap();
+      
+      // Check if sale was successful
       if (saleResponse.success) {
         if (isDebit) {
+          // Create debit record
           const debitPayload = {
-            productName: product.name,
+            productName: `Multiple Products (${selectedProducts.length})`,
             totalAmount: totalAmount,
             paidAmount: Number(data.amountPaid) || 0,
             remainingAmount: remainingAmount,
+            buyerEmail: data.email,
+            buyerPhoneNumber: data.phoneNumber,
             dueDate: data.dueDate,
             buyerName: data.buyerName,
-            saleId: saleResponse.data.sale._id,
+            saleId: saleResponse.data.sales[0]._id,
             status: 'PENDING',
-            description: data.description || `Debit for ${product.name} - Quantity: ${data.quantity}`
+            description: data.description || `Debit for multiple products - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
           };
-
+  
           const debitResponse = await createDebit(debitPayload).unwrap();
           if (debitResponse.status === 'success') {
             setDebitData(debitResponse.data);
@@ -328,15 +424,37 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         } else {
           toastMessage({ 
             icon: 'success', 
-            text: 'Sale created successfully'
+            text: `Successfully sold ${selectedProducts.length} products`
           });
         }
         
-        setSaleData({
-          ...salePayload,
-          _id: saleResponse.data.sale._id 
+        // Prepare sale data for receipt
+        const processedSaleData = saleResponse.data.sales.map((sale: any, index: number) => {
+          const prod = selectedProducts[index];
+          const profitPerUnit = prod.sellingPrice - prod.price;
+          const totalProductProfit = profitPerUnit * prod.selectedQuantity;
+          
+          return {
+            _id: sale._id,
+            product: prod.key,
+            productName: prod.name,
+            productPrice: prod.price,
+            SellingPrice: prod.sellingPrice,
+            quantity: prod.selectedQuantity,
+            buyerName: data.buyerName,
+            date: data.date,
+            originalPrice: prod.price,
+            paymentMode: paymentMode,
+            profitLoss: {
+              perUnit: Math.abs(profitPerUnit),
+              total: Math.abs(totalProductProfit),
+              isProfit: profitPerUnit >= 0
+            },
+            totalPrice: prod.selectedQuantity * prod.sellingPrice
+          };
         });
- 
+        
+        setSaleData(processedSaleData);
         setShowReceipt(true);
       }
       
@@ -354,13 +472,12 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const showModal = () => {
     setIsModalOpen(true);
     setShowReceipt(false);
-    setSaleData(null);
+    setSaleData([]);
     setDebitData(null);
     setIsDebit(false);
     setPaymentMode('cash');
+    setSelectedProducts([]);
     reset({
-      quantity: 1,
-      pricePerUnit: product.price,
       buyerName: '',
       date: today,
       isDebit: false,
@@ -377,17 +494,18 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const handleCancel = () => {
     setIsModalOpen(false);
     setShowReceipt(false);
-    setSaleData(null);
+    setSaleData([]);
     setDebitData(null);
     setIsDebit(false);
     setPaymentMode('cash');
-    setProfitLoss({ perUnit: 0, total: 0, isProfit: true });
+    setSelectedProducts([]);
     reset();
   };
 
-  const validateQuantity = (value: number) => {
-    return value > 0 && value <= product.stock;
-  };
+  // Filter out already selected products from the dropdown options
+  const availableProducts = allProducts?.data?.filter(p => 
+    !selectedProducts.some(sp => sp.key === p._id)
+  ) || [];
 
   return (
     <>
@@ -400,16 +518,31 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         Sell
       </Button>
       <Modal 
-        title={showReceipt ? 'Sale Receipt' : 'Sell Product'}
+        title={showReceipt ? 'Sale Receipt' : 'Sell Products'}
         open={isModalOpen} 
         onCancel={handleCancel} 
         footer={null}
-        width={showReceipt ? 600 : 400}
+        width={showReceipt ? 600 : 700}
         maskClosable={false}
       >
-        {showReceipt && saleData ? (
+        {showReceipt && saleData.length > 0 ? (
           <div>
-            <SaleReceipt saleData={saleData} debitData={debitData} />
+            <SaleReceipt 
+              saleData={saleData.length === 1 ? saleData[0] : {
+                _id: 'multiple',
+                productName: `Multiple Products (${saleData.length})`,
+                buyerName: saleData[0].buyerName,
+                date: saleData[0].date,
+                paymentMode: saleData[0].paymentMode,
+                totalPrice: totalAmount,
+                profitLoss: {
+                  total: totalProfitLoss.amount,
+                  isProfit: totalProfitLoss.isProfit
+                }
+              }} 
+              debitData={debitData}
+              multipleProducts={saleData.length > 1 ? saleData : undefined}
+            />
             <Flex justify='center' style={{ marginTop: '1rem' }}>
               <Button onClick={handleCancel} type='primary'>
                 Close
@@ -418,15 +551,138 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-            <div className="mb-4">
-              <Image
-                src={product.images?.[0] || '/placeholder-image.png'}
-                alt={product.name}
-                style={{ width: '100%', height: 200, objectFit: 'contain' }}
-                fallback="/placeholder-image.png"
-              />
+            {/* Form content remains the same */}
+            {/* Product Selection Section */}
+            <div className="mb-4 border p-4 rounded-md bg-gray-50">
+              <Typography.Title level={5}>Select Products</Typography.Title>
+              
+              {/* Product Dropdown */}
+              <div className="mb-4">
+                <Select
+                  showSearch
+                  style={{ width: '100%' }}
+                  placeholder="Search and select products"
+                  optionFilterProp="children"
+                  filterOption={(input, option) =>
+                    (option?.label?.toString().toLowerCase() || '').includes(input.toLowerCase())
+                  }
+                  onChange={(value) => {
+                    const selectedProduct = allProducts?.data?.find(p => p._id === value);
+                    if (selectedProduct) {
+                      addProduct({
+                        ...selectedProduct,
+                        key: selectedProduct._id
+                      });
+                    }
+                  }}
+                  value={undefined}
+                  options={availableProducts.map(p => ({
+                    value: p._id,
+                    label: `${p.name} - ${p.stock} in stock - ${p.price} frw`
+                  }))}
+                />
+              </div>
+              
+              {/* Rest of the form remains the same */}
+              {/* Selected Products Table */}
+              {selectedProducts.length > 0 && (
+                <Table
+                  size="small"
+                  dataSource={selectedProducts}
+                  pagination={false}
+                  rowKey="key"
+                  className="mb-4"
+                >
+                  <Table.Column 
+                    title="Product" 
+                    dataIndex="name" 
+                    key="name"
+                    render={(text, record: any) => (
+                      <Flex align="center" gap="small">
+                        <Image
+                          src={record.images?.[0] || '/placeholder-image.png'}
+                          alt={record.name}
+                          style={{ width: 40, height: 40, objectFit: 'contain' }}
+                          fallback="/placeholder-image.png"
+                        />
+                        <span>{text}</span>
+                      </Flex>
+                    )}
+                  />
+                  <Table.Column 
+                    title="Original Price" 
+                    dataIndex="price" 
+                    key="price"
+                    render={(price) => `${price} frw`}
+                  />
+                  <Table.Column 
+                    title="Selling Price" 
+                    key="sellingPrice"
+                    render={(record: any) => (
+                      <Input
+                        type="number"
+                        value={record.sellingPrice}
+                        onChange={(e) => updateProductPrice(record.key, Number(e.target.value))}
+                        style={{ width: 100 }}
+                      />
+                    )}
+                  />
+                  <Table.Column 
+                    title={`Quantity`} 
+                    key="quantity"
+                    render={(record: any) => (
+                      <Input
+                        type="number"
+                        min={1}
+                        max={record.stock}
+                        value={record.selectedQuantity}
+                        onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
+                        style={{ width: 80 }}
+                        suffix={<span>/ {record.stock}</span>}
+                      />
+                    )}
+                  />
+                  <Table.Column 
+                    title="Subtotal" 
+                    key="subtotal"
+                    render={(record: any) => `${(record.selectedQuantity * record.sellingPrice).toFixed(2)} frw`}
+                  />
+                  <Table.Column 
+                    title="Action" 
+                    key="action"
+                    render={(record: any) => (
+                      <Button 
+                        danger 
+                        type="text" 
+                        icon={<DeleteFilled />} 
+                        onClick={() => removeProduct(record.key)}
+                      />
+                    )}
+                  />
+                </Table>
+              )}
+              
+              {selectedProducts.length === 0 && (
+                <Empty description="No products selected" />
+              )}
+              
+              {selectedProducts.length > 0 && (
+                <div className="mb-4 mt-2 text-right">
+                  <Typography.Text strong className="text-lg">
+                    Total: {totalAmount.toFixed(2)} frw
+                  </Typography.Text>
+                  <br />
+                  <Typography.Text 
+                    className="text-md"
+                    type={totalProfitLoss.isProfit ? "success" : "danger"}
+                  >
+                    {totalProfitLoss.isProfit ? "Profit" : "Loss"}: {totalProfitLoss.amount.toFixed(2)} frw
+                  </Typography.Text>
+                </div>
+              )}
             </div>
             
+            {/* Customer Information Section */}
             <CustomInput
               name='buyerName'
               label='Buyer Name'
@@ -453,58 +709,29 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
               rules={{ required: 'Date is required' }}
             />
             
-            <CustomInput
-              name='pricePerUnit'
-              label='Selling Price Per Unit'
-              errors={errors}
-              required={true}
-              register={register}
-              type='number'
-              defaultValue={product.price}
-              rules={{
-                required: 'Price is required',
-                min: { value: 0.01, message: 'Price must be greater than 0' }
-              }}
-            />
-
-            <CustomInput
-              name='quantity'
-              label={`Quantity (Available: ${product.stock})`}
-              errors={errors}
-              required={true}
-              register={register}
-              type='number'
-              rules={{
-                required: 'Quantity is required',
-                validate: {
-                  positive: (value) => value > 0 || 'Quantity must be greater than 0',
-                  inStock: (value) => value <= product.stock || 'Not enough stock available',
-                }
-              }}
-            />
-<div className="mt-4">
-  <Typography.Text strong className="block mb-2">Payment Method</Typography.Text>
-  <Radio.Group 
-    value={paymentMode} 
-    onChange={(e) => setPaymentMode(e.target.value)}
-    className="w-full"
-  >
-    <Space direction="vertical" className="w-full">
-      <Radio value="cash" className="w-full h-10 flex items-center pl-4">
-        Cash Payment
-      </Radio>
-      <Radio value="momo" className="w-full h-10 flex items-center pl-4">
-        Mobile Money
-      </Radio>
-      <Radio value="cheque" className="w-full h-10 flex items-center pl-4">
-        Cheque
-      </Radio>
-      <Radio value="transfer" className="w-full h-10 flex items-center pl-4">
-        Bank Transfer
-      </Radio>
-    </Space>
-  </Radio.Group>
-</div>
+            <div className="mt-4">
+              <Typography.Text strong className="block mb-2">Payment Method</Typography.Text>
+              <Radio.Group 
+                value={paymentMode} 
+                onChange={(e) => setPaymentMode(e.target.value)}
+                className="w-full"
+              >
+                <Space direction="vertical" className="w-full">
+                  <Radio value="cash" className="w-full h-10 flex items-center pl-4">
+                    Cash Payment
+                  </Radio>
+                  <Radio value="momo" className="w-full h-10 flex items-center pl-4">
+                    Mobile Money
+                  </Radio>
+                  <Radio value="cheque" className="w-full h-10 flex items-center pl-4">
+                    Cheque
+                  </Radio>
+                  <Radio value="transfer" className="w-full h-10 flex items-center pl-4">
+                    Bank Transfer
+                  </Radio>
+                </Space>
+              </Radio.Group>
+            </div>
 
             <div className="mt-4 mb-2">
               <Checkbox 
@@ -517,7 +744,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 
             {isDebit && (
               <div className="border p-4 rounded-md bg-gray-50 mb-4">
-                <Typography.Text strong>Total Amount: {totalAmount} frw</Typography.Text>
+                <Typography.Text strong>Total Amount: {totalAmount.toFixed(2)} frw</Typography.Text>
                 
                 <CustomInput
                   name='amountPaid'
@@ -557,7 +784,37 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                       'Due date must be in the future'
                   }}
                 />
+                <CustomInput
+                  name='phoneNumber'
+                  label='Phone Number'
+                  errors={errors}
+                  required={true}
+                  register={register}
+                  type='tel'
+                  rules={{
+                    required: 'Phone number is required',
+                    pattern: {
+                      value: /^[0-9]{10}$/,
+                      message: 'Enter a valid 10-digit phone number'
+                    }
+                  }}
+                />
 
+                <CustomInput
+                  name='email'
+                  label='Email Address'
+                  errors={errors}
+                  required={true}
+                  register={register}
+                  type='email'
+                  rules={{
+                    required: 'Email address is required',
+                    pattern: {
+                      value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                      message: 'Enter a valid email address'
+                    }
+                  }}
+                />
                 <CustomInput
                   name='description'
                   label='Description (Optional)'
@@ -569,7 +826,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 
                 <div className="mt-2">
                   <Typography.Text type={remainingAmount > 0 ? "warning" : "error"}>
-                    Remaining Amount: {remainingAmount} frw
+                    Remaining Amount: {remainingAmount.toFixed(2)} frw
                   </Typography.Text>
                 </div>
 
@@ -582,18 +839,6 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 )}
               </div>
             )}
-            
-            <div style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-              <h4>Calculation Summary:</h4>
-              <p>Original Price: {product.price}frw /unit</p>
-              <p>Selling Price: {watchPricePerUnit || product.price}frw /unit</p>
-              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw /unit
-              </p>
-              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
-              </p>
-            </div>
 
             <Flex justify='center' style={{ marginTop: '1rem' }} gap="small">
               <Button onClick={handleCancel} type='default'>
@@ -603,9 +848,14 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 htmlType='submit' 
                 type='primary'
                 loading={loading}
-                disabled={loading || !validateQuantity(watchQuantity) || (isDebit && remainingAmount <= 0)}
+                disabled={
+                  loading || 
+                  selectedProducts.length === 0 ||
+                  selectedProducts.some(p => p.selectedQuantity <= 0 || p.selectedQuantity > p.stock) ||
+                  (isDebit && remainingAmount <= 0)
+                }
               >
-                {loading ? 'Processing...' : 'Sell Product'}
+                {loading ? 'Processing...' : 'Complete Sale'}
               </Button>
             </Flex>
           </form>
@@ -625,7 +875,7 @@ const AddStockModal = ({ product }) => {
   const { handleSubmit, register, reset, formState: { errors }, watch } = useForm({
     defaultValues: {
       stock: 1,
-      seller: product?.seller?._id || ''  // Initialize seller field
+      seller: product?.seller?._id || ''
     }
   });
 
@@ -635,10 +885,7 @@ const AddStockModal = ({ product }) => {
     setLoading(true);
 
     if (!data.seller) {
-      toastMessage({ 
-        icon: 'error', 
-        text: 'Seller information is required' 
-      });
+      toastMessage({ icon: 'error', text: 'Seller information is required' });
       setLoading(false);
       return;
     }
@@ -646,7 +893,9 @@ const AddStockModal = ({ product }) => {
     const payload = {
       stock: Number(data.stock),
       seller: data.seller,
-      product:product.key
+      product: product.key,
+      unitPrice: product.price, // Add unit price for purchase record
+      totalPrice: Number(data.stock) * product.price // Calculate total price
     };
 
     try {
@@ -656,10 +905,7 @@ const AddStockModal = ({ product }) => {
       }).unwrap();
 
       if (response.success) {
-        toastMessage({ 
-          icon: 'success', 
-          text: 'Stock added successfully!' 
-        });
+        toastMessage({ icon: 'success', text: 'Stock added successfully!' });
         handleCancel();
       } else {
         throw new Error(response.message || 'Failed to add stock');
@@ -672,6 +918,8 @@ const AddStockModal = ({ product }) => {
       setLoading(false);
     }
   };
+   
+  
 
   const showModal = () => {
     setIsModalOpen(true);
@@ -788,11 +1036,15 @@ const AddStockModal = ({ product }) => {
 /**
  * Update Product Modal
  */
-const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }) => {
+const UpdateProductModal = ({ product }) => {
   const [updateProduct] = useUpdateProductMutation();
+  const [updatePurchase] = useUpdatePurchaseMutation();
   const { data: categories } = useGetAllCategoriesQuery(undefined);
   const { data: sellers, isLoading: isSellerLoading } = useGetAllSellerQuery(undefined);
   const { data: brands } = useGetAllBrandsQuery(undefined);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [shouldUpdatePurchases, setShouldUpdatePurchases] = useState(true);
 
   const {
     handleSubmit,
@@ -801,9 +1053,9 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
     reset,
     watch,
   } = useForm({
-    defaultValues: {
+    defaultValues: React.useMemo(() => ({
       name: product.name,
-      price: product.price,
+      unitPrice: product.price,
       seller: product?.seller?._id,
       category: product.category._id,
       brand: product.brand?._id,
@@ -811,154 +1063,191 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
       unitType: product.measurement?.type || '',
       unit: product.measurement?.unit || '',
       quantity: product.measurement?.value || product.stock || 0,
-    },
+    }), [product])
   });
 
-  const selectedUnit = watch('unitType');
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const onSubmit = async (data: FieldValues) => {
-    setIsSubmitting(true);
-    
-    const payload = { ...data };
-    payload.price = Number(data.price);
-    
-    if (data.unitType) {
-      payload.measurement = {
-        type: data.unitType,
-        unit: data.unit,
-        value: Number(data.quantity)
-      };
-      payload.stock = Number(data.quantity);
-
-      delete payload.unitType;
-      delete payload.unit;
-      delete payload.quantity;
-    }
-
+  const onSubmit = async (data) => {
     try {
-      const res = await updateProduct({ id: product.key, payload }).unwrap();
-      if (res.statusCode === 200) {
-        toastMessage({ icon: 'success', text: res.message });
-        reset();
-        handleCancel();
+      setIsSubmitting(true);
+
+      // Step 1: Prepare product update payload
+      const productPayload = {
+        name: data.name,
+        price: Number(data.unitPrice),
+        seller: data.seller,
+        category: data.category,
+        brand: data.brand,
+        description: data.description,
+        measurement: data.unitType ? {
+          type: data.unitType,
+          unit: data.unit,
+          value: Number(data.quantity)
+        } : undefined,
+        stock: Number(data.quantity)
+      };
+
+      // Step 2: Update product first
+      const productRes = await updateProduct({
+        id: product.key,
+        payload: productPayload
+      }).unwrap();
+
+      // Step 3: If shouldUpdatePurchases is true and product update was successful,
+      // update the associated purchase
+      if (shouldUpdatePurchases && productRes.statusCode === 200) {
+        const purchasePayload = {
+          unitPrice: Number(data.unitPrice),
+          quantity: Number(data.quantity),
+          measurement: data.unitType ? {
+            type: data.unitType,
+            unit: data.unit,
+            value: Number(data.quantity)
+          } : undefined
+        };
+        await updatePurchase({
+          id: product.key,
+          payload: purchasePayload
+        }).unwrap();
+      
       }
-    } catch (error: any) {
-      toastMessage({ icon: 'error', text: error.data.message });
+
+      toastMessage({
+        icon: 'success',
+        text: shouldUpdatePurchases 
+          ? 'Product and associated purchase updated successfully'
+          : 'Product updated successfully'
+      });
+      
+      handleCancel();
+    } catch (error) {
+      console.error('Update failed:', error);
+      toastMessage({
+        icon: 'error',
+        text: error.data?.message || 'Update failed'
+      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const renderUnitOptions = () => {
-    switch (selectedUnit) {
-      case 'weight':
-        return (
-          <>
-            <option value="g">Grams (g)</option>
-            <option value="kg">Kilograms (kg)</option>
-            <option value="lb">Pounds (lb)</option>
-          </>
-        );
-      case 'length':
-        return (
-          <>
-            <option value="cm">Centimeters (cm)</option>
-            <option value="m">Meters (m)</option>
-            <option value="inch">Inches (in)</option>
-          </>
-        );
-      case 'volume':
-        return (
-          <>
-            <option value="ml">Milliliters (ml)</option>
-            <option value="l">Liters (l)</option>
-            <option value="oz">Fluid Ounces (oz)</option>
-          </>
-        );
-      case 'pieces':
-        return (
-          <>
-            <option value="pc">Piece</option>
-            <option value="dozen">Dozen</option>
-            <option value="set">Set</option>
-          </>
-        );
-      case 'size':
-        return (
-          <>
-            <option value="EXTRA_SMALL">Extra Small (XS)</option>
-            <option value="SMALL">Small (S)</option>
-            <option value="MEDIUM">Medium (M)</option>
-            <option value="LARGE">Large (L)</option>
-            <option value="EXTRA_LARGE">Extra Large (XL)</option>
-            <option value="XXL">XXL</option>
-            <option value="XXXL">XXXL</option>
-            <option value="EU_36">EU 36</option>
-            <option value="EU_37">EU 37</option>
-            <option value="EU_38">EU 38</option>
-            <option value="EU_39">EU 39</option>
-            <option value="EU_40">EU 40</option>
-            <option value="EU_41">EU 41</option>
-            <option value="EU_42">EU 42</option>
-            <option value="EU_43">EU 43</option>
-            <option value="EU_44">EU 44</option>
-            <option value="EU_45">EU 45</option>
-            <option value="EU_46">EU 46</option>
-            <option value="EU_47">EU 47</option>
-          </>
-        );
-      default:
-        return null;
-    }
+    const unitOptions = {
+      weight: [
+        { value: 'g', label: 'Grams (g)' },
+        { value: 'kg', label: 'Kilograms (kg)' },
+        { value: 'lb', label: 'Pounds (lb)' }
+      ],
+      length: [
+        { value: 'cm', label: 'Centimeters (cm)' },
+        { value: 'm', label: 'Meters (m)' },
+        { value: 'inch', label: 'Inches (in)' }
+      ],
+      volume: [
+        { value: 'ml', label: 'Milliliters (ml)' },
+        { value: 'l', label: 'Liters (l)' },
+        { value: 'oz', label: 'Fluid Ounces (oz)' }
+      ],
+      pieces: [
+        { value: 'pc', label: 'Piece' },
+        { value: 'dozen', label: 'Dozen' },
+        { value: 'set', label: 'Set' }
+      ],
+      size: [
+        { value: 'EXTRA_SMALL', label: 'Extra Small (XS)' },
+        { value: 'SMALL', label: 'Small (S)' },
+        { value: 'MEDIUM', label: 'Medium (M)' },
+        { value: 'LARGE', label: 'Large (L)' },
+        { value: 'EXTRA_LARGE', label: 'Extra Large (XL)' },
+        { value: 'XXL', label: 'XXL' },
+        { value: 'XXXL', label: 'XXXL' },
+        ...Array.from({ length: 12 }, (_, i) => ({
+          value: `EU_${i + 36}`,
+          label: `EU ${i + 36}`
+        }))
+      ]
+    };
+
+    const selectedType = watch('unitType');
+    const options = unitOptions[selectedType] || [];
+
+    return options.map(({ value, label }) => (
+      <option key={value} value={value}>{label}</option>
+    ));
   };
 
   const showModal = () => {
+    reset({
+      name: product.name,
+      unitPrice: product.price,
+      seller: product?.seller?._id,
+      category: product.category._id,
+      brand: product.brand?._id,
+      description: product.description,
+      unitType: product.measurement?.type || '',
+      unit: product.measurement?.unit || '',
+      quantity: product.measurement?.value || product.stock || 0,
+    });
     setIsModalOpen(true);
   };
 
   const handleCancel = () => {
     setIsModalOpen(false);
+    reset();
   };
 
   return (
     <>
       <Button
         onClick={showModal}
-        type='primary'
-        className='table-btn-small'
+        type="primary"
+        className="table-btn-small"
         style={{ backgroundColor: 'green' }}
       >
         <EditFilled />
       </Button>
-      <Modal 
-        title='Update Product Info' 
-        open={isModalOpen} 
-        onCancel={handleCancel} 
+
+      <Modal
+        title="Update Product Info"
+        open={isModalOpen}
+        onCancel={handleCancel}
         footer={null}
         closable={!isSubmitting}
         maskClosable={!isSubmitting}
       >
         <form onSubmit={handleSubmit(onSubmit)}>
+          <Row className="mt-4">
+            <Col xs={{ span: 23 }} lg={{ span: 24 }}>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  checked={shouldUpdatePurchases}
+                  onChange={(e) => setShouldUpdatePurchases(e.target.checked)}
+                  className="mr-2"
+                />
+                <span>Update associated purchase records with new price/measurement</span>
+              </label>
+            </Col>
+          </Row>
+
           <CustomInput
-            name='name'
+            name="name"
             errors={errors}
-            label='Name'
+            label="Name"
             register={register}
             required={true}
             disabled={isSubmitting}
           />
+
           <CustomInput
             errors={errors}
-            label='Price'
-            type='number'
-            name='price'
+            label="Unit Price"
+            type="number"
+            name="unitPrice"
             register={register}
             required={true}
             disabled={isSubmitting}
           />
-          
+
           <Row>
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
               <label htmlFor="unitType" className="text-sm">
@@ -968,10 +1257,9 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
               <select
                 {...register('unitType')}
-                className=" p-2.5 bg-transparent"
+                className="p-2.5 bg-transparent w-full"
                 required={true}
                 disabled={isSubmitting}
-                
               >
                 <option value="">Select Measurement Type</option>
                 <option value="weight">Weight</option>
@@ -983,30 +1271,30 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
           </Row>
 
-          <Row>
+          <Row className="mt-4">
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
               <label htmlFor="quantity" className="label">
                 Quantity
               </label>
             </Col>
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <div style={{ flex: 1 }}>
+              <div className="flex gap-4">
+                <div className="flex-1">
                   <CustomInput
                     errors={errors}
                     type="number"
-                    label=''
+                    label=""
                     name="quantity"
                     register={register}
                     required={true}
                     disabled={isSubmitting}
                   />
                 </div>
-                {selectedUnit && (
-                  <div style={{ flex: 1 }}>
+                {watch('unitType') && (
+                  <div className="flex-1">
                     <select
                       {...register('unit')}
-                      className="p-2.5 bg-transparent"
+                      className="p-2.5 bg-transparent w-full"
                       required={true}
                       disabled={isSubmitting}
                     >
@@ -1019,20 +1307,20 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
           </Row>
 
-          <Row>
+          <Row className="mt-4">
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor='Size' className='label'>
-                suppliers 
+              <label htmlFor="seller" className="label">
+                Suppliers
               </label>
             </Col>
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
               <select
                 disabled={isSellerLoading || isSubmitting}
                 {...register('seller', { required: true })}
-                className={`input-field ${errors['seller'] ? 'input-field-error' : ''}`}
+                className={`w-full p-2.5 ${errors['seller'] ? 'border-red-500' : ''}`}
               >
-                <option value=''>Select supplier*</option>
-                {sellers?.data.map((item: ICategory) => (
+                <option value="">Select supplier</option>
+                {sellers?.data.map((item) => (
                   <option value={item._id} key={item._id}>
                     {item.name}
                   </option>
@@ -1041,20 +1329,20 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
           </Row>
 
-          <Row>
+          <Row className="mt-4">
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor='Size' className='label'>
+              <label htmlFor="category" className="label">
                 Category
               </label>
             </Col>
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
               <select
                 {...register('category', { required: true })}
-                className={`input-field ${errors['category'] ? 'input-field-error' : ''}`}
+                className={`w-full p-2.5 ${errors['category'] ? 'border-red-500' : ''}`}
                 disabled={isSubmitting}
               >
-                <option value=''>Select Category*</option>
-                {categories?.data.map((item: ICategory) => (
+                <option value="">Select Category*</option>
+                {categories?.data.map((item) => (
                   <option value={item._id} key={item._id}>
                     {item.name}
                   </option>
@@ -1063,20 +1351,20 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
           </Row>
 
-          <Row>
+          <Row className="mt-4">
             <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor='Size' className='label'>
+              <label htmlFor="brand" className="label">
                 Brand
               </label>
             </Col>
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
               <select
                 {...register('brand')}
-                className={`input-field ${errors['brand'] ? 'input-field-error' : ''}`}
+                className={`w-full p-2.5 ${errors['brand'] ? 'border-red-500' : ''}`}
                 disabled={isSubmitting}
               >
-                <option value=''>Select brand</option>
-                {brands?.data.map((item: ICategory) => (
+                <option value="">Select brand</option>
+                {brands?.data.map((item) => (
                   <option value={item._id} key={item._id}>
                     {item.name}
                   </option>
@@ -1085,30 +1373,23 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
             </Col>
           </Row>
 
-          <CustomInput 
-            label='Description' 
-            name='description' 
+          <CustomInput
+            label="Description"
+            name="description"
             register={register}
-            disabled={isSubmitting} 
+            disabled={isSubmitting}
           />
 
-          <Flex justify='center' style={{ marginTop: '20px' }}>
+          <Flex justify="center" className="mt-6">
             <Button
               htmlType="submit"
               type="primary"
               disabled={isSubmitting}
-              style={{
-                textTransform: 'uppercase',
-                fontWeight: 'bold',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                minWidth: '120px',
-              }}
+              className="uppercase font-bold min-w-[120px] flex items-center justify-center"
             >
               {isSubmitting ? (
                 <>
-                  <Spin size="small" style={{ marginRight: '8px' }} />
+                  <Spin size="small" className="mr-2" />
                   Updating...
                 </>
               ) : (
@@ -1120,8 +1401,7 @@ const UpdateProductModal = ({ product }: { product: IProduct & { key: string } }
       </Modal>
     </>
   );
-};   
-
+};
 
 /**
  * Delete Product Modal

@@ -70,11 +70,11 @@ export const sidebarItems = [
     label: <NavLink to='/admin/debits'>MANAGE DEBIT</NavLink>,
     icon: React.createElement(AimOutlined),
   },
-  {
-    key: 'users',
-    label: <NavLink to='/admin/users'>ALL USERS</NavLink>,
-    icon: React.createElement(AimOutlined),
-  },
+  // {
+  //   key: 'users',
+  //   label: <NavLink to='/admin/users'>ALL USERS</NavLink>,
+  //   icon: React.createElement(AimOutlined),
+  // },
 
   {
     key: 'Profile',
