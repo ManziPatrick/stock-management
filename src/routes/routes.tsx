@@ -25,6 +25,7 @@ import SaleManagementPageKepper from '../pages/managements/SaleManagementPageKee
 import GetDebitManagementPage from '../pages/managements/debitsManagementPage';
 import DashboardCase from '../pages/DashboardCases';
 import ProformaManager from '../pages/managements/ProformaManager';
+import SuperAdminSidebar from '../components/layout/SuperSidebar';
 export const router = createBrowserRouter([
   {
     path: '/seller',
@@ -265,6 +266,159 @@ export const router = createBrowserRouter([
       
     ],
   },
+  {
+    path: '/superadmin',
+    element: <SuperAdminSidebar />,
+    children: [
+      {
+        path: '',  // This will be /admin
+        element: (
+          <ProtectRoute>
+            <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'Proforma',
+        element: (
+          <ProtectRoute>
+            <ProformaManager />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'dashboard',  
+        element: (
+          <ProtectRoute>
+            <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'cases',
+        element: (
+          <ProtectRoute>
+            <DashboardCase/>
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'debits',  
+        element: (
+          <ProtectRoute>
+            <GetDebitManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'create-expense',  
+        element: (
+          <ProtectRoute>
+            <ExpensesManagePage />
+          </ProtectRoute>
+        ),
+      },
+   
+      {
+        path: 'create-product',  // This will be /admin/create-product
+        element: (
+          <ProtectRoute>
+            <CreateProduct />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'expense',  
+        element: (
+          <ProtectRoute>
+            <GetExpensesManagePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'profile',  // This will be /admin/profile
+        element: (
+          <ProtectRoute>
+            <ProfilePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'products',  // This will be /admin/products
+        element: (
+          <ProtectRoute>
+            <ProductManagePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'sales',  // This will be /admin/sales
+        element: (
+          <ProtectRoute>
+            <SaleManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'sellers',  // This will be /admin/sellers
+        element: (
+          <ProtectRoute>
+            <SellerManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      { 
+        path: 'register',  // This will be /admin/register
+        element: (
+          <ProtectRoute>
+            <RegisterPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'purchases',  // This will be /admin/purchases
+        element: (
+          <ProtectRoute>
+            <PurchaseManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'sales-history',  // This will be /admin/sales-history
+        element: (
+          <ProtectRoute>
+            <SaleHistoryPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'edit-profile',  // This will be /admin/edit-profile
+        element: (
+          <ProtectRoute>
+            <EditProfilePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'change-password',  // This will be /admin/change-password
+        element: (
+          <ProtectRoute>
+            <ChangePasswordPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'users', 
+        element: (
+          <ProtectRoute>
+            <UserManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      
+    ],
+  },
+
   {
     path: '/keeper',
     element: <KeeperSidebar />,

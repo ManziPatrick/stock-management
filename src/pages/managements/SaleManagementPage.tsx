@@ -6,26 +6,32 @@ import Receipt from '../../components/product/receipt';
 import SearchInput from '../../components/SearchInput';
 import { useGetAllSaleQuery } from '../../redux/features/management/saleApi';
 
-interface ISaleData {
-  _id: string;
+interface IProduct {
+  product: string;
   productName: string;
   productPrice: number;
   SellingPrice: number;
-  buyerName: string;
   quantity: number;
+  _id: string;
+}
+
+interface ISaleData {
+  _id: string;
+  buyerName: string;
   date: string;
   paymentMode: 'cash' | 'momo' | 'cheque' | 'transfer';
+  products: IProduct[];
+  totalAmount: number;
+  createdAt: string;
 }
 
 interface ITableSaleData {
   key: string;
-  productName: string;
-  productPrice: number;
+  products: IProduct[];
   buyerName: string;
-  quantity: number;
-  totalPrice: number;
-  sellingPrice: number;
-  profit: number;
+  totalQuantity: number;
+  totalAmount: number;
+  totalProfit: number;
   date: string;
   paymentMode: string;
 }
@@ -39,14 +45,14 @@ const SaleManagementPage = () => {
     search: '',
     sortBy: 'createdAt',
     sortOrder: 'desc',
-    filterBy: 'daily' 
+    filterBy: 'daily',
   });
 
-  const [selectedSale, setSelectedSale] = useState<ISaleData | null>(null);
+  const [selectedSale, setSelectedSale] = useState<any>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
   const { data, isFetching } = useGetAllSaleQuery(query);
-console.log("hfjefcirdsjfcnc",data)
+
   const formatCurrency = (value: number): string => {
     return `${value?.toFixed(0) || '0.00'} frw`;
   };
@@ -55,20 +61,32 @@ console.log("hfjefcirdsjfcnc",data)
     return new Date(date).toISOString().split('T')[0];
   };
 
+  const calculateSaleStats = (products: IProduct[]) => {
+    return products.reduce(
+      (acc, product) => {
+        const quantity = Number(product.quantity) || 0;
+        const sellingPrice = Number(product.SellingPrice) || 0;
+        const purchasePrice = Number(product.productPrice) || 0;
+        
+        acc.totalQuantity += quantity;
+        acc.totalAmount += sellingPrice * quantity;
+        acc.totalProfit += (sellingPrice - purchasePrice) * quantity;
+        
+        return acc;
+      },
+      { totalQuantity: 0, totalAmount: 0, totalProfit: 0 }
+    );
+  };
+
   const showReceiptModal = (sale: ITableSaleData) => {
-    const receiptData = {
+    setSelectedSale({
       _id: sale.key,
-      productName: sale.productName,
-      productPrice: sale.productPrice,
-      SellingPrice: sale.totalPrice,
-      quantity: sale.quantity,
+      products: sale.products,
       buyerName: sale.buyerName,
-      date: formatDate(sale.date),
-      totalPrice: sale.sellingPrice,
-      paymentMode: sale.paymentMode
-    };
-    //@ts-ignore
-    setSelectedSale(receiptData);
+      date: sale.date,
+      totalAmount: sale.totalAmount,
+      paymentMode: sale.paymentMode,
+    });
     setIsReceiptModalOpen(true);
   };
 
@@ -85,80 +103,109 @@ console.log("hfjefcirdsjfcnc",data)
     setQuery((prev) => ({ ...prev, filterBy: value, page: 1 }));
   };
 
-  const tableData: ITableSaleData[] = data?.data?.map((sale: any) => ({
-    key: sale._id,
-    productName: sale.productName,
-    productPrice: Number(sale.productPrice) || 0,
-    buyerName: sale.buyerName,
-    paymentMode: sale.paymentMode,
-    quantity: Number(sale.quantity) || 0,
-    totalPrice: Number(sale.SellingPrice) || 0,
-    sellingPrice: (Number(sale.SellingPrice) || 0) * (Number(sale.quantity) || 0),
-    profit: ((Number(sale.SellingPrice) || 0) - (Number(sale.productPrice) || 0)) * (Number(sale.quantity) || 0),
-    date: formatDate(sale.createdAt),
-  })) || [];
+  const tableData: ITableSaleData[] = data?.data?.map((sale: ISaleData) => {
+    const stats = calculateSaleStats(sale.products);
+    
+    return {
+      key: sale._id,
+      products: sale.products,
+      buyerName: sale.buyerName,
+      paymentMode: sale.paymentMode,
+      totalQuantity: stats.totalQuantity,
+      totalAmount: stats.totalAmount,
+      totalProfit: stats.totalProfit,
+      date: formatDate(sale.createdAt),
+    };
+  }) || [];
+
+  // Calculate overall stats
+  const overallStats = tableData.reduce(
+    (acc, sale) => {
+      acc.totalRevenue += sale.totalAmount;
+      acc.totalProfit += sale.totalProfit;
+      return acc;
+    },
+    { totalRevenue: 0, totalProfit: 0 }
+  );
+
+  const expandedRowRender = (record: ITableSaleData) => {
+    const columns: TableColumnsType<IProduct> = [
+      { title: 'Product', dataIndex: 'productName' },
+      { 
+        title: 'Purchase Price', 
+        dataIndex: 'productPrice',
+        render: (price: number) => formatCurrency(price),
+      },
+      { 
+        title: 'Selling Price', 
+        dataIndex: 'SellingPrice',
+        render: (price: number) => formatCurrency(price),
+      },
+      { title: 'Quantity', dataIndex: 'quantity' },
+      {
+        title: 'Subtotal',
+        render: (_, record) => formatCurrency(record.SellingPrice * record.quantity),
+      },
+      {
+        title: 'Profit',
+        render: (_, record) => {
+          const profit = (record.SellingPrice - record.productPrice) * record.quantity;
+          return <span style={{ color: profit >= 0 ? 'green' : 'red' }}>
+            {formatCurrency(profit)}
+          </span>;
+        },
+      },
+    ];
+
+    return <Table 
+      columns={columns} 
+      dataSource={record.products} 
+      pagination={false} 
+      size="small"
+    />;
+  };
 
   const columns: TableColumnsType<ITableSaleData> = [
     {
-      title: 'Product Name',
-      key: 'productName',
-      dataIndex: 'productName',
+      title: 'Date',
+      key: 'date',
+      dataIndex: 'date',
+      width: '120px',
     },
     {
-      title: 'Purchase Price',
-      key: 'productPrice',
-      dataIndex: 'productPrice',
-      align: 'center',
-      render: (price: number) => formatCurrency(price),
-    },
-    {
-      title: 'Buyer Name',
+      title: 'Buyer',
       key: 'buyerName',
       dataIndex: 'buyerName',
-      align: 'center',
     },
     {
-      title: 'Quantity',
-      key: 'quantity',
-      dataIndex: 'quantity',
-      align: 'center',
-    },
-    {
-      title: 'Unit Price',
-      key: 'totalPrice',
-      dataIndex: 'totalPrice',
-      align: 'center',
-      render: (price: number) => formatCurrency(price),
+      title: 'Total Items',
+      key: 'totalQuantity',
+      dataIndex: 'totalQuantity',
+      align: 'right',
     },
     {
       title: 'Total Amount',
-      key: 'sellingPrice',
-      dataIndex: 'sellingPrice',
-      align: 'center',
-      render: (price: number) => formatCurrency(price),
+      key: 'totalAmount',
+      dataIndex: 'totalAmount',
+      align: 'right',
+      render: (amount: number) => formatCurrency(amount),
     },
     {
-      title: 'Payment Mode',
+      title: 'Payment',
       key: 'paymentMode',
       dataIndex: 'paymentMode',
       align: 'center',
     },
     {
-      title: 'Margin',
-      key: 'profit',
-      dataIndex: 'profit',
-      align: 'center',
+      title: 'Profit',
+      key: 'totalProfit',
+      dataIndex: 'totalProfit',
+      align: 'right',
       render: (profit: number) => (
         <span style={{ color: profit >= 0 ? 'green' : 'red' }}>
           {formatCurrency(profit)}
         </span>
       ),
-    },
-    {
-      title: 'Sale Date',
-      key: 'date',
-      dataIndex: 'date',
-      align: 'center',
     },
     {
       title: 'Action',
@@ -174,22 +221,16 @@ console.log("hfjefcirdsjfcnc",data)
           Print
         </Button>
       ),
-      width: '1%',
+      width: '100px',
     },
   ];
-
-  const stats = data?.meta?.totalSales.stats || {
-    totalMarginProfit: 0,
-    totalSellingPrice: 0
-  };
 
   return (
     <div className="p-6 bg-white rounded-lg shadow min-h-[90vh] flex flex-col">
       <Flex justify="space-between" className="mb-4">
-        <SearchInput 
-          //@ts-ignore
-          setQuery={setQuery} 
-          placeholder="Search sales..." 
+        <SearchInput
+          setQuery={setQuery}
+          placeholder="Search sales..."
         />
         <Select
           defaultValue="daily"
@@ -202,31 +243,35 @@ console.log("hfjefcirdsjfcnc",data)
           ]}
         />
       </Flex>
-      
+
       <div className="flex-grow">
         <Table
           size="small"
           loading={isFetching}
           columns={columns}
           dataSource={tableData}
+          expandable={{
+            expandedRowRender,
+            expandRowByClick: true,
+          }}
           pagination={false}
           className="rounded-lg border"
         />
       </div>
-      
+
       <div className="mt-4 border-t pt-4">
         <Flex justify="space-between" align="center" className="mb-4">
           <div className="flex gap-8">
             <div>
-              <Text className="text-gray-600">Total Profit:</Text>
-              <Text strong className="ml-2 text-green-600">
-                {formatCurrency(stats.totalMarginProfit)}
+              <Text className="text-gray-600">Total Revenue:</Text>
+              <Text strong className="ml-2">
+                {formatCurrency(overallStats.totalRevenue)}
               </Text>
             </div>
             <div>
-              <Text className="text-gray-600">Total Sales:</Text>
-              <Text strong className="ml-2">
-                {formatCurrency(stats.totalSellingPrice)}
+              <Text className="text-gray-600">Total Profit:</Text>
+              <Text strong className="ml-2 text-green-600">
+                {formatCurrency(overallStats.totalProfit)}
               </Text>
             </div>
           </div>
@@ -236,15 +281,21 @@ console.log("hfjefcirdsjfcnc",data)
             pageSize={query.limit}
             total={data?.meta?.total || 0}
             showSizeChanger={true}
-            showTotal={(total, range) => `${range[0]}-${range[1]} of ${total} items`}
+            showTotal={(total, range) =>
+              `${range[0]}-${range[1]} of ${total} items`
+            }
           />
         </Flex>
       </div>
 
-      <Modal open={isReceiptModalOpen} onCancel={handleModalClose} footer={null} width={600} centered>
-        {selectedSale && <Receipt 
-        //@ts-ignore
-        saleData={selectedSale} />}
+      <Modal
+        open={isReceiptModalOpen}
+        onCancel={handleModalClose}
+        footer={null}
+        width={600}
+        centered
+      >
+        {selectedSale && <Receipt saleData={selectedSale} />}
       </Modal>
     </div>
   );

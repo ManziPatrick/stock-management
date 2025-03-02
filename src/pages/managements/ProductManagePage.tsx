@@ -234,10 +234,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       amountPaid: 0,
       dueDate: '',
       description: '',
-      momoNumber: '',
-      chequeNumber: '',
-      bankName: '',
-      accountNumber: ''
+     
     }
   });
 
@@ -359,8 +356,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
           ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
           ...(paymentMode === 'transfer' && { 
-            bankName: data.bankName,
-            accountNumber: data.accountNumber 
+    
           }),
         }
       };
@@ -428,33 +424,31 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           });
         }
         
-        // Prepare sale data for receipt
-        const processedSaleData = saleResponse.data.sales.map((sale: any, index: number) => {
-          const prod = selectedProducts[index];
-          const profitPerUnit = prod.sellingPrice - prod.price;
-          const totalProductProfit = profitPerUnit * prod.selectedQuantity;
-          
-          return {
-            _id: sale._id,
-            product: prod.key,
-            productName: prod.name,
-            productPrice: prod.price,
-            SellingPrice: prod.sellingPrice,
-            quantity: prod.selectedQuantity,
-            buyerName: data.buyerName,
-            date: data.date,
-            originalPrice: prod.price,
-            paymentMode: paymentMode,
+        const processedSaleData = {
+          _id: saleResponse.data.transaction._id,
+          products: saleResponse.data.transaction.products.map((product: any) => ({
+            _id: product._id,
+            productName: product.productName,
+            productPrice: product.productPrice,
+            SellingPrice: product.SellingPrice,
+            quantity: product.quantity,
             profitLoss: {
-              perUnit: Math.abs(profitPerUnit),
-              total: Math.abs(totalProductProfit),
-              isProfit: profitPerUnit >= 0
-            },
-            totalPrice: prod.selectedQuantity * prod.sellingPrice
-          };
-        });
+              perUnit: Math.abs(product.SellingPrice - product.productPrice),
+              total: Math.abs((product.SellingPrice - product.productPrice) * product.quantity),
+              isProfit: product.SellingPrice > product.productPrice
+            }
+          })),
+          buyerName: saleResponse.data.transaction.buyerName,
+          date: saleResponse.data.transaction.date,
+          paymentMode: saleResponse.data.transaction.paymentMode,
+          totalAmount: saleResponse.data.transaction.totalAmount,
+          profitLoss: {
+            total: totalProfitLoss.amount,
+            isProfit: totalProfitLoss.isProfit
+          }
+        };
         
-        setSaleData(processedSaleData);
+        setSaleData([processedSaleData]);
         setShowReceipt(true);
       }
       
@@ -484,10 +478,8 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       amountPaid: 0,
       dueDate: '',
       description: '',
-      momoNumber: '',
-      chequeNumber: '',
-      bankName: '',
-      accountNumber: ''
+     
+     
     });
   };
 
@@ -526,29 +518,29 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         maskClosable={false}
       >
         {showReceipt && saleData.length > 0 ? (
-          <div>
-            <SaleReceipt 
-              saleData={saleData.length === 1 ? saleData[0] : {
-                _id: 'multiple',
-                productName: `Multiple Products (${saleData.length})`,
-                buyerName: saleData[0].buyerName,
-                date: saleData[0].date,
-                paymentMode: saleData[0].paymentMode,
-                totalPrice: totalAmount,
-                profitLoss: {
-                  total: totalProfitLoss.amount,
-                  isProfit: totalProfitLoss.isProfit
-                }
-              }} 
-              debitData={debitData}
-              multipleProducts={saleData.length > 1 ? saleData : undefined}
-            />
-            <Flex justify='center' style={{ marginTop: '1rem' }}>
-              <Button onClick={handleCancel} type='primary'>
-                Close
-              </Button>
-            </Flex>
-          </div>
+        <div>
+      <SaleReceipt 
+      saleData={{
+        _id: saleData[0]._id,
+        products: saleData[0].products,
+        buyerName: saleData[0].buyerName,
+        date: saleData[0].date,
+        paymentMode: saleData[0].paymentMode,
+        totalAmount: saleData[0].totalAmount,
+        profitLoss: {
+          total: totalProfitLoss.amount,
+          isProfit: totalProfitLoss.isProfit
+        }
+      }}
+      debitData={debitData}
+      multipleProducts={saleData[0].products && saleData[0].products.length > 1}
+    />
+        <Flex justify='center' style={{ marginTop: '1rem' }}>
+          <Button onClick={handleCancel} type='primary'>
+            Close
+          </Button>
+        </Flex>
+      </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
             {/* Form content remains the same */}

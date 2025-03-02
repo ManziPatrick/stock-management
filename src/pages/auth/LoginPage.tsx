@@ -36,7 +36,11 @@ const LoginPage = () => {
           navigate('/keeper/products'); // Keeper dashboard route
         } else if (user.role === 'USER') {
           navigate('/seller/products');
-        } else {
+        } 
+        else if (user.role === 'SUPER_ADMIN'){
+          navigate('/superadmin/');
+        }
+        else {
           toastMessage({ icon: 'warning', text: 'No appropriate role found for this user.' });
         }
 

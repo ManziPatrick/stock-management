@@ -6,7 +6,7 @@ export type TUser = {
   email: string;
   exp: number;
   iat: number;
-  role: 'ADMIN' | 'KEEPER' | 'USER';
+  role: 'ADMIN' | 'KEEPER' | 'USER'|'SUPER_ADMIN';
 };
 
 interface InitialState {

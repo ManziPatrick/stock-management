@@ -1,16 +1,24 @@
 import React, { useRef } from 'react';
 import { Printer } from 'lucide-react';
 
-interface SaleData {
+interface Product {
   _id: string;
-  product: string;
   productName: string;
   productPrice: number;
-  SellingPrice: any;
+  SellingPrice: number;
   quantity: number;
+}
+
+interface SaleData {
+  _id: string;
+  productName?: string;  // For backwards compatibility
+  SellingPrice?: number; // For backwards compatibility
+  quantity?: number;     // For backwards compatibility
+  products?: Product[];
   buyerName: string;
   date: string;
-  totalPrice: number;
+  paymentMode?: string;
+  totalAmount?: number;
 }
 
 interface ReceiptProps {
@@ -108,22 +116,44 @@ const Receipt = ({ saleData }: ReceiptProps) => {
     printWindow.contentWindow?.focus();
     printWindow.contentWindow?.print();
 
-    // Clean up the iframe after printing
     setTimeout(() => document.body.removeChild(printWindow), 1000);
   };
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid Date';
+    }
   };
 
+  const formatCurrency = (amount: number | undefined): string => {
+    if (amount === undefined || isNaN(amount)) {
+      return '0.00 frw';
+    }
+    return `${amount.toFixed(2)} frw`;
+  };
 
+  const calculateSubtotal = (price: number | undefined, quantity: number | undefined): number => {
+    if (!price || !quantity) return 0;
+    return price * quantity;
+  };
 
+  // Handle both legacy single product and new multiple products format
+  const products = saleData.products || (saleData.productName ? [{
+    _id: saleData._id,
+    productName: saleData.productName,
+    productPrice: 0, // Legacy format doesn't include this
+    SellingPrice: saleData.SellingPrice || 0,
+    quantity: saleData.quantity || 0
+  }] : []);
 
+  const totalAmount = saleData.totalAmount || calculateSubtotal(saleData.SellingPrice, saleData.quantity);
 
   return (
     <div ref={receiptRef} className="max-w-md mx-auto bg-white p-8 rounded-lg shadow-lg">
@@ -131,7 +161,7 @@ const Receipt = ({ saleData }: ReceiptProps) => {
         <h1 className="text-2xl font-bold text-gray-800">SALES RECEIPT</h1>
         <p className="text-gray-500 text-sm mt-1">Receipt #: {saleData._id}</p>
       </div>
-
+ 
       <div className="text-center mb-6">
         <h2 className="text-lg font-semibold text-gray-700">Your Store Name</h2>
         <p className="text-sm text-gray-500">123 Business Street</p>
@@ -145,38 +175,43 @@ const Receipt = ({ saleData }: ReceiptProps) => {
 
           <div className="text-sm text-gray-600">Buyer Name:</div>
           <div className="text-sm text-gray-800 text-right">{saleData.buyerName}</div>
+          
+          {saleData.paymentMode && (
+            <>
+              <div className="text-sm text-gray-600">Payment Method:</div>
+              <div className="text-sm text-gray-800 text-right">{saleData.paymentMode}</div>
+            </>
+          )}
         </div>
       </div>
 
       <div className="mb-6">
-        <div className="grid grid-cols-4 gap-2 mb-2 text-sm font-semibold text-gray-700">
-          <div className="col-span-2">Item</div>
-          <div className="text-right">Qty</div>
-          <div className="text-right">Price</div>
+        <div className="grid grid-cols-12 gap-2 mb-2 text-sm font-semibold text-gray-700">
+          <div className="col-span-5">Item</div>
+          <div className="col-span-2 text-right">Price</div>
+          <div className="col-span-2 text-right">Qty</div>
+          <div className="col-span-3 text-right">Subtotal</div>
         </div>
 
-        <div className="grid grid-cols-4 gap-2 text-sm">
-          <div className="col-span-2 text-gray-800">{saleData.productName}</div>
-          <div className="text-right text-gray-600">{saleData.quantity}</div>
-          <div className="text-right text-gray-800">
-            {saleData.SellingPrice.toFixed(2)}frw
+        {products.map((product) => (
+          <div key={product._id} className="grid grid-cols-12 gap-2 text-sm py-1">
+            <div className="col-span-5 text-gray-800">{product.productName}</div>
+            <div className="col-span-2 text-right text-gray-600">
+              {formatCurrency(product.SellingPrice)}
+            </div>
+            <div className="col-span-2 text-right text-gray-600">{product.quantity}</div>
+            <div className="col-span-3 text-right text-gray-800">
+              {formatCurrency(calculateSubtotal(product.SellingPrice, product.quantity))}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
 
       <div className="border-t border-gray-200 pt-4 mb-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className="text-sm text-gray-600">Price Per Unit:</div>
-          <div className="text-sm text-gray-800 text-right">
-            {saleData.SellingPrice.toFixed(2)}frw
-          </div>
-
-          <div className="text-sm text-gray-600">Quantity:</div>
-          <div className="text-sm text-gray-800 text-right">{saleData.quantity}</div>
-
           <div className="text-base font-bold text-gray-800">Total Amount:</div>
           <div className="text-base font-bold text-gray-800 text-right">
-            {(saleData.SellingPrice.toFixed(2) * saleData.quantity)} frw
+            {formatCurrency(totalAmount)}
           </div>
         </div>
       </div>
