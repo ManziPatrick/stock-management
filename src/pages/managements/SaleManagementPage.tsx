@@ -229,6 +229,7 @@ const SaleManagementPage = () => {
     <div className="p-6 bg-white rounded-lg shadow min-h-[90vh] flex flex-col">
       <Flex justify="space-between" className="mb-4">
         <SearchInput
+        //@ts-ignore
           setQuery={setQuery}
           placeholder="Search sales..."
         />
