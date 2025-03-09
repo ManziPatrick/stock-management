@@ -8,6 +8,7 @@ import {
   useDeletePurchaseMutation,
   useGetAllPurchasesQuery,
 } from '../redux/features/management/purchaseApi';
+import { useGetAllExpensesQuery } from '../redux/features/management/expenseApi';
 import { useGetAllSaleQuery } from '../redux/features/management/saleApi';
 import { useGetAllProductsQuery } from '../redux/features/management/productApi';
 
@@ -42,7 +43,7 @@ console.log("hhhbhhhiuk",TotalMagrinProfit)
   const aggregateMetrics = {
     totalSalesRevenue: totalSellingPrice || 0,
     totalExpenses: rawData[0]?.expenses || 0,
-    netprofit: rawData?.[0]?.netProfit || 0,
+    netprofit: totalMarginProfit - rawData[0]?.expenses  || 0,
     totalStock: totaltotalValue|| 0,
   };
 

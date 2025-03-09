@@ -24,11 +24,10 @@ import { useGetAllExpensesQuery } from '../../redux/features/management/expenseA
 import { useGetAllPurchasesQuery } from '../../redux/features/management/purchaseApi';
 
 interface ChartProps {
-
-  data: any;
-
+  data?: any;
 }
-const DailySalesChart: React.FC<ChartProps>  = () => {
+
+const DailySalesChart: React.FC<ChartProps> = () => {
   const [chartType, setChartType] = useState('area');
   const { data: salesData, isLoading: isLoadingSales } = useDailySaleQuery({});
   const { data: expensesData, isLoading: isLoadingExpenses } = useGetAllExpensesQuery({});
@@ -38,23 +37,61 @@ const DailySalesChart: React.FC<ChartProps>  = () => {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
 
-  // Process multiple days of data
-  const processedData = salesData?.data?.map(dailyData => ({
-    name: `${dailyData._id?.day}/${dailyData._id?.month}`,
-    date: new Date(dailyData._id?.year, dailyData._id?.month - 1, dailyData._id?.day).getTime(),
-    revenue: dailyData.totalSaleAmount || 0,
-    sellingPrice: dailyData.totalSellingPrice || 0,
-    productCost: dailyData.totalProductPrice || 0,
-    profit: dailyData.netProfit || 0,
-    margin: dailyData.totalMarginProfit || 0,
-    quantity: dailyData.totalQuantitySold || 0,
-    cash: dailyData.cashTotal || 0,
-    momo: dailyData.momoTotal || 0,
-    cheque: dailyData.chequeTotal || 0,
-    transfer: dailyData.transferTotal || 0,
-    expenses: dailyData.expenses || 0,
-    purchases: purchaseData?.meta?.totalPurchasedAmount?.dailyStats?.[0]?.dailyTotal || 0
-  })) || [];
+  // Correctly extract expense data
+  const expenseDailyStats = expensesData?.data?.meta?.totalExpenses?.dailyStats || [];
+  console.log("expensesData", expenseDailyStats);
+  
+  // Create a map of date strings to expense values for easy lookup
+  const expenseMap = {};
+  expenseDailyStats.forEach(stat => {
+    const dateKey = `${stat._id.day}/${stat._id.month}`;
+    expenseMap[dateKey] = stat.dailyTotal || 0;
+  });
+  console.log("expenseMap", expenseMap);
+  
+  // Similarly for purchases
+  const purchaseDailyStats = purchaseData?.meta?.totalExpenses?.dailyStats || [];
+  const purchaseMap = {};
+  purchaseDailyStats.forEach(stat => {
+    const dateKey = `${stat._id.day}/${stat._id.month}`;
+    purchaseMap[dateKey] = stat.dailyTotal || 0;
+  });
+
+  const processedData = salesData?.data?.map(dailyData => {
+    const day = dailyData._id?.day;
+    const month = dailyData._id?.month;
+    const year = dailyData._id?.year;
+    
+    // Create a date object and add one day to fix the date issue
+    const utcDate = new Date(year, month - 1, day);
+    utcDate.setDate(utcDate.getDate() + 1);
+    
+    // Convert to Rwanda Time (UTC+2)
+    const rwandaTime = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000));
+    
+    // Create date key using the corrected date
+    const correctedDay = rwandaTime.getDate();
+    const correctedMonth = rwandaTime.getMonth() + 1;
+    const dateKey = `${correctedDay}/${correctedMonth}`;
+  
+    return {
+      name: dateKey,
+      date: rwandaTime.getTime(), // Use this in charts
+      formattedDate: rwandaTime.toLocaleString("en-US", { timeZone: "Africa/Kigali" }),
+      revenue: dailyData.totalSaleAmount || 0,
+      sellingPrice: dailyData.totalSellingPrice || 0,
+      productCost: dailyData.totalProductPrice || 0,
+      profit: dailyData.netProfit || 0,
+      margin: dailyData.totalMarginProfit || 0,
+      quantity: dailyData.totalQuantitySold || 0,
+      cash: dailyData.cashTotal || 0,
+      momo: dailyData.momoTotal || 0,
+      cheque: dailyData.chequeTotal || 0,
+      transfer: dailyData.transferTotal || 0,
+      expenses: expenseMap[dateKey] || 0,
+      purchases: purchaseMap[dateKey] || 0
+    };
+  }) || [];
 
   // Sort data by date
   const sortedData = processedData.sort((a, b) => a.date - b.date);
@@ -70,10 +107,11 @@ const DailySalesChart: React.FC<ChartProps>  = () => {
     cash: acc.cash + curr.cash,
     momo: acc.momo + curr.momo,
     cheque: acc.cheque + curr.cheque,
-    transfer: acc.transfer + curr.transfer
+    transfer: acc.transfer + curr.transfer,
+    productCost: (acc.productCost || 0) + (curr.productCost || 0)
   }), {
     revenue: 0, profit: 0, expenses: 0, quantity: 0,
-    cash: 0, momo: 0, cheque: 0, transfer: 0
+    cash: 0, momo: 0, cheque: 0, transfer: 0, productCost: 0
   });
 
   const renderChart = () => {
@@ -155,7 +193,7 @@ const DailySalesChart: React.FC<ChartProps>  = () => {
       case 'pie':
         const pieData = [
           { name: 'Revenue', value: totals.revenue },
-          { name: 'Product Cost', value: totals.expenses },
+          { name: 'Product Cost', value: totals.productCost || 0 },
           { name: 'Profit', value: totals.profit },
           { name: 'Expenses', value: totals.expenses }
         ];
@@ -189,7 +227,7 @@ const DailySalesChart: React.FC<ChartProps>  = () => {
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg">
       <div className="mb-6">
-      <div className="flex justify-end mb-4">
+        <div className="flex justify-end mb-4">
           <select
             className="p-2 border rounded-md"
             value={chartType}
@@ -206,33 +244,29 @@ const DailySalesChart: React.FC<ChartProps>  = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <h3 className="text-sm text-gray-600 mb-2">Total Sales</h3>
-            <p className=" font-semibold">
+            <p className="font-semibold">
               {totals.revenue.toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <h3 className="text-sm text-gray-600 mb-2">Total Profit</h3>
-            <p className=" font-semibold">
+            <p className="font-semibold">
               {totals.profit.toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-yellow-50 rounded-lg">
             <h3 className="text-sm text-gray-600 mb-2">Total Expenses</h3>
-            <p className=" font-semibold">
+            <p className="font-semibold">
               {totals.expenses.toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
             <h3 className="text-sm text-gray-600 mb-2">Total Quantity</h3>
-            <p className=" font-semibold">
+            <p className="font-semibold">
               {totals.quantity.toLocaleString()} units
             </p>
           </div>
         </div>
-
-        
-
-        
       </div>
 
       <ResponsiveContainer width="100%" height={400}>
