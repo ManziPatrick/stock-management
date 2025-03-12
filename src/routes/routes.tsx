@@ -25,6 +25,7 @@ import SaleManagementPageKepper from '../pages/managements/SaleManagementPageKee
 import GetDebitManagementPage from '../pages/managements/debitsManagementPage';
 import DashboardCase from '../pages/DashboardCases';
 import ProformaManager from '../pages/managements/ProformaManager';
+import DailyFinancialReport from '../pages/managements/DailyReport';
 import SuperAdminSidebar from '../components/layout/SuperSidebar';
 export const router = createBrowserRouter([
   {
@@ -147,6 +148,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectRoute>
             <DashboardCase/>
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'report',
+        element: (
+          <ProtectRoute>
+            <DailyFinancialReport/>
           </ProtectRoute>
         ),
       },

@@ -25,7 +25,16 @@ const sellerApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['seller']
     }),
+    updateSeller: builder.mutation({
+      query: ({ id, updateData }) => ({
+        url: `/sellers/${id}`,
+        method: 'PATCH',
+        body: updateData,
+      }),
+      invalidatesTags: ['seller'],
+    }),
   })
+  
 })
 
-export const { useGetAllSellerQuery, useCreateSellerMutation, useDeleteSellerMutation } = sellerApi
+export const { useGetAllSellerQuery, useCreateSellerMutation, useDeleteSellerMutation,useUpdateSellerMutation } = sellerApi

@@ -131,7 +131,7 @@ const SalesStatisticsDashboard = () => {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Total Sales Amount" value={stats.totalSaleAmount} />
+        <StatCard title="Total Sales Amount" value={stats.totalSellingPrice} />
         <StatCard title="Total Quantity Sold" value={stats.totalQuantitySold} />
         <StatCard title="Average Sale Amount" value={Math.round(stats.averageSaleAmount)} />
         <StatCard title="Total Margin Profit" value={stats.totalMarginProfit} />

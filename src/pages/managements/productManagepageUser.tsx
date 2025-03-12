@@ -2,9 +2,10 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Tag,Checkbox, Image, Input } from 'antd';
-import { useEffect, useState } from 'react';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table,Select,Empty, Tag, Checkbox, Image, Input, Radio, Space } from 'antd';
+import React, { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
+import {useUpdatePurchaseMutation} from '../../redux/features/management/purchaseApi'
 import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
 import {
   useAddStockMutation,
@@ -33,6 +34,7 @@ interface SaleDataType {
   buyerName: string;
   date: string;
   originalPrice: number;
+  paymentMode: string;
   profitLoss: {
     perUnit: number;
     total: number;
@@ -52,18 +54,21 @@ const ProductManagePageuser = () => {
   });
 
   const { data: products, isFetching } = useGetAllProductsQuery(query);
-
-  const onChange: PaginationProps['onChange'] = (page) => {
+  const [pageSize, setPageSize] = useState(10);
+  const handlePageChange: PaginationProps['onChange'] = (page, pageSize) => {
     setCurrent(page);
-    setQuery((prevQuery) => ({
+    setPageSize(pageSize);
+    setQuery(prevQuery => ({
       ...prevQuery,
-      page, 
+      page,
+      limit: pageSize
     }));
   };
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
- 
-  const tableData = products?.data?.map((product: IProduct) => ({
+
+  const tableData = products?.data?.map((product: IProduct,index: number) => ({
     key: product._id,
+    serialNumber: (query.page - 1) * query.limit + index + 1,
     name: product.name,
     category: product.category,
     categoryName: product.category.name,
@@ -80,6 +85,13 @@ const ProductManagePageuser = () => {
   }));
 
   const columns: TableColumnsType<IProduct> = [
+     {
+    title: '#',
+    key: 'serialNumber',
+    dataIndex: 'serialNumber',
+    align: 'center',
+    width: '50px',
+  },
     {
       title: 'Image',
       key: 'image',
@@ -90,13 +102,12 @@ const ProductManagePageuser = () => {
         <Image
           src={images[0] || '/placeholder-image.png'}
           alt="Product"
-          style={{ width: 50, height: 50, objectFit: 'cover' }}
+          style={{ width: 50, height: 50, objectFit: 'contain'}}
           fallback="/placeholder-image.png"
           preview={images.length > 0}
         />
       ),
     },
-    
     {
       title: 'Product Name',
       key: 'name',
@@ -159,10 +170,9 @@ const ProductManagePageuser = () => {
       width: '1%',
     },
   ];
-  
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow-md h-[90vh]">
+    <div className='p-6 bg-white rounded-lg shadow h-[90vh]'>
       <ProductManagementFilter query={query} setQuery={setQuery} />
       <Table
         size='small'
@@ -175,12 +185,16 @@ const ProductManagePageuser = () => {
         scroll={{ x: true }}
       />
       <Flex justify='center' style={{ marginTop: '1rem' }}>
-        <Pagination
-          current={current}
-          onChange={onChange}
-          defaultPageSize={query.limit}
-          total={products?.meta?.total}
-        />
+      <Pagination
+  current={current}
+  pageSize={pageSize}
+  onChange={handlePageChange}
+  onShowSizeChange={handlePageChange}
+  total={products?.meta?.total}
+  showSizeChanger
+  showQuickJumper
+  showTotal={(total) => `Total ${total} items`}
+/>
       </Flex>
       <Flex justify="end" className="mt-4 pr-4">
         <Typography.Title level={4}>
@@ -190,36 +204,37 @@ const ProductManagePageuser = () => {
     </div>
   );
 };
+
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
-  const [saleData, setSaleData] = useState<SaleDataType | null>(null);
+  const [saleData, setSaleData] = useState<SaleDataType[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDebit, setIsDebit] = useState(false);
   const [debitData, setDebitData] = useState<any>(null);
-
-  const [profitLoss, setProfitLoss] = useState({
-    perUnit: 0,
-    total: 0,
-    isProfit: true
-  });
-
+  const [paymentMode, setPaymentMode] = useState('cash');
+  const [selectedProducts, setSelectedProducts] = useState<(IProduct & { key: string, selectedQuantity: number, sellingPrice: number })[]>([]);
+  const [totalAmount, setTotalAmount] = useState(0);
+  const [totalProfitLoss, setTotalProfitLoss] = useState({ amount: 0, isProfit: true });
+  
+  const { data: allProducts } = useGetAllProductsQuery({ limit: 100 });
+  
   const {
     handleSubmit,
     register,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm({
     defaultValues: {
-      quantity: 1,
-      pricePerUnit: product.price,
       buyerName: '',
       date: new Date().toISOString().split('T')[0],
       isDebit: false,
       amountPaid: 0,
       dueDate: '',
-      description: ''
+      description: '',
+     
     }
   });
 
@@ -227,67 +242,173 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const [createDebit] = useCreateDebitMutation();
   const today = new Date().toISOString().split('T')[0];
 
-  const watchQuantity = watch("quantity");
-  const watchPricePerUnit = watch("pricePerUnit");
   const watchAmountPaid = watch("amountPaid");
-
-  const totalAmount = watchQuantity * watchPricePerUnit;
   const remainingAmount = isDebit ? totalAmount - (watchAmountPaid || 0) : 0;
 
+  // Initialize with the initially provided product
   useEffect(() => {
-    if (watchQuantity && watchPricePerUnit) {
-      const originalPricePerUnit = product.price;
-      const currentPricePerUnit = Number(watchPricePerUnit);
-      const currentQuantity = Number(watchQuantity);
-      
-      const profitPerUnit = currentPricePerUnit - originalPricePerUnit;
-      const totalProfitLoss = profitPerUnit * currentQuantity;
-      
-      setProfitLoss({
-        perUnit: Math.abs(profitPerUnit),
-        total: Math.abs(totalProfitLoss),
-        isProfit: profitPerUnit >= 0
-      });
+    if (product && isModalOpen) {
+      addProduct(product);
     }
-  }, [watchQuantity, watchPricePerUnit, product.price]);
+  }, [isModalOpen]);
+
+  // Update total amount and profit/loss calculations
+  useEffect(() => {
+    let calculatedTotal = 0;
+    let calculatedProfit = 0;
+    
+    selectedProducts.forEach(prod => {
+      const itemTotal = prod.selectedQuantity * prod.sellingPrice;
+      calculatedTotal += itemTotal;
+      
+      const itemProfit = (prod.sellingPrice - prod.price) * prod.selectedQuantity;
+      calculatedProfit += itemProfit;
+    });
+    
+    setTotalAmount(calculatedTotal);
+    setTotalProfitLoss({
+      amount: Math.abs(calculatedProfit),
+      isProfit: calculatedProfit >= 0
+    });
+  }, [selectedProducts]);
+
+  const addProduct = (product: IProduct & { key: string }) => {
+    // Check if product already exists in selected products
+    const existingProductIndex = selectedProducts.findIndex(p => p.key === product.key);
+    
+    if (existingProductIndex >= 0) {
+      // Product already exists, update the quantity
+      const updatedProducts = [...selectedProducts];
+      updatedProducts[existingProductIndex].selectedQuantity += 1;
+      setSelectedProducts(updatedProducts);
+    } else {
+      // Add new product
+      setSelectedProducts(prevProducts => [
+        ...prevProducts,
+        {
+          ...product,
+          selectedQuantity: 1,
+          sellingPrice: product.price
+        }
+      ]);
+    }
+  };
+
+  const removeProduct = (productKey: string) => {
+    setSelectedProducts(prevProducts => prevProducts.filter(p => p.key !== productKey));
+  };
+
+  const updateProductQuantity = (productKey: string, quantity: number) => {
+    setSelectedProducts(prevProducts => 
+      prevProducts.map(p => {
+        if (p.key === productKey) {
+          return { ...p, selectedQuantity: quantity };
+        }
+        return p;
+      })
+    );
+  };
+
+  const updateProductPrice = (productKey: string, price: number) => {
+    setSelectedProducts(prevProducts => 
+      prevProducts.map(p => {
+        if (p.key === productKey) {
+          return { ...p, sellingPrice: price };
+        }
+        return p;
+      })
+    );
+  };
 
   const onSubmit = async (data: FieldValues) => {
     try {
       setLoading(true);
-
-      const salePayload = {
-        product: product.key,
-        productName: product.name,
-        SellingPrice: Number(data.pricePerUnit),
-        productPrice: product.price,
-        quantity: Number(data.quantity),
+  
+      // Check if any products are selected
+      if (selectedProducts.length === 0) {
+        toastMessage({ 
+          icon: 'error', 
+          text: 'Please select at least one product to sell'
+        });
+        return;
+      }
+  
+      // Check if any product has invalid quantity
+      const invalidProduct = selectedProducts.find(p => 
+        p.selectedQuantity <= 0 || p.selectedQuantity > p.stock
+      );
+      
+      if (invalidProduct) {
+        toastMessage({ 
+          icon: 'error', 
+          text: `Invalid quantity for product: ${invalidProduct.name}`
+        });
+        return;
+      }
+  
+      // Create common sale details object
+      const saleDetails = {
         buyerName: data.buyerName,
         date: data.date,
-        originalPrice: product.price,
-        profitLoss: {
-          perUnit: profitLoss.perUnit,
-          total: profitLoss.total,
-          isProfit: profitLoss.isProfit
-        },
-        totalPrice: totalAmount
+        paymentMode: paymentMode,
+        paymentDetails: {
+          mode: paymentMode,
+          ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
+          ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
+          ...(paymentMode === 'transfer' && { 
+    
+          }),
+        }
       };
-
-      const saleResponse = await saleProduct(salePayload).unwrap();
-
+  
+      // Create products array with only product-specific information
+      const productsPayload = selectedProducts.map(prod => {
+        const profitPerUnit = prod.sellingPrice - prod.price;
+        const totalProductProfit = profitPerUnit * prod.selectedQuantity;
+        
+        return {
+          product: prod.key,
+          productName: prod.name,
+          SellingPrice: prod.sellingPrice,
+          productPrice: prod.price,
+          quantity: prod.selectedQuantity,
+          originalPrice: prod.price,
+          profitLoss: {
+            perUnit: Math.abs(profitPerUnit),
+            total: Math.abs(totalProductProfit),
+            isProfit: profitPerUnit >= 0
+          },
+          totalPrice: prod.selectedQuantity * prod.sellingPrice
+        };
+      });
+  
+      // Combine into final payload
+      const salesPayload = {
+        ...saleDetails,
+        products: productsPayload
+      };
+  
+      // Send the combined payload in a single API call
+      const saleResponse = await saleProduct(salesPayload).unwrap();
+      
+      // Check if sale was successful
       if (saleResponse.success) {
         if (isDebit) {
+          // Create debit record
           const debitPayload = {
-            productName: product.name,
+            productName: `Multiple Products (${selectedProducts.length})`,
             totalAmount: totalAmount,
             paidAmount: Number(data.amountPaid) || 0,
             remainingAmount: remainingAmount,
+            buyerEmail: data.email,
+            buyerPhoneNumber: data.phoneNumber,
             dueDate: data.dueDate,
             buyerName: data.buyerName,
-            saleId: saleResponse.data.sale._id,
+            saleId: saleResponse.data.sales[0]._id,
             status: 'PENDING',
-            description: data.description || `Debit for ${product.name} - Quantity: ${data.quantity}`
+            description: data.description || `Debit for multiple products - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
           };
-
+  
           const debitResponse = await createDebit(debitPayload).unwrap();
           if (debitResponse.status === 'success') {
             setDebitData(debitResponse.data);
@@ -299,15 +420,35 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         } else {
           toastMessage({ 
             icon: 'success', 
-            text: 'Sale created successfully'
+            text: `Successfully sold ${selectedProducts.length} products`
           });
         }
         
-        setSaleData({
-          ...salePayload,
-          _id: saleResponse.data.sale._id 
-        });
-
+        const processedSaleData = {
+          _id: saleResponse.data.transaction._id,
+          products: saleResponse.data.transaction.products.map((product: any) => ({
+            _id: product._id,
+            productName: product.productName,
+            productPrice: product.productPrice,
+            SellingPrice: product.SellingPrice,
+            quantity: product.quantity,
+            profitLoss: {
+              perUnit: Math.abs(product.SellingPrice - product.productPrice),
+              total: Math.abs((product.SellingPrice - product.productPrice) * product.quantity),
+              isProfit: product.SellingPrice > product.productPrice
+            }
+          })),
+          buyerName: saleResponse.data.transaction.buyerName,
+          date: saleResponse.data.transaction.date,
+          paymentMode: saleResponse.data.transaction.paymentMode,
+          totalAmount: saleResponse.data.transaction.totalAmount,
+          profitLoss: {
+            total: totalProfitLoss.amount,
+            isProfit: totalProfitLoss.isProfit
+          }
+        };
+        
+        setSaleData([processedSaleData]);
         setShowReceipt(true);
       }
       
@@ -325,34 +466,38 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   const showModal = () => {
     setIsModalOpen(true);
     setShowReceipt(false);
-    setSaleData(null);
+    setSaleData([]);
     setDebitData(null);
     setIsDebit(false);
+    setPaymentMode('cash');
+    setSelectedProducts([]);
     reset({
-      quantity: 1,
-      pricePerUnit: product.price,
       buyerName: '',
       date: today,
       isDebit: false,
       amountPaid: 0,
       dueDate: '',
-      description: ''
+      description: '',
+     
+     
     });
   };
 
   const handleCancel = () => {
     setIsModalOpen(false);
     setShowReceipt(false);
-    setSaleData(null);
+    setSaleData([]);
     setDebitData(null);
     setIsDebit(false);
-    setProfitLoss({ perUnit: 0, total: 0, isProfit: true });
+    setPaymentMode('cash');
+    setSelectedProducts([]);
     reset();
   };
 
-  const validateQuantity = (value: number) => {
-    return value > 0 && value <= product.stock;
-  };
+  // Filter out already selected products from the dropdown options
+  const availableProducts = allProducts?.data?.filter(p => 
+    !selectedProducts.some(sp => sp.key === p._id)
+  ) || [];
 
   return (
     <>
@@ -365,33 +510,171 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         Sell
       </Button>
       <Modal 
-        title={showReceipt ? 'Sale Receipt' : 'Sell Product'}
+        title={showReceipt ? 'Sale Receipt' : 'Sell Products'}
         open={isModalOpen} 
         onCancel={handleCancel} 
         footer={null}
-        width={showReceipt ? 600 : 400}
+        width={showReceipt ? 600 : 700}
         maskClosable={false}
       >
-        {showReceipt && saleData ? (
-          <div>
-            <SaleReceipt saleData={saleData} debitData={debitData} />
-            <Flex justify='center' style={{ marginTop: '1rem' }}>
-              <Button onClick={handleCancel} type='primary'>
-                Close
-              </Button>
-            </Flex>
-          </div>
+        {showReceipt && saleData.length > 0 ? (
+        <div>
+      <SaleReceipt 
+      saleData={{
+        _id: saleData[0]._id,
+        products: saleData[0].products,
+        buyerName: saleData[0].buyerName,
+        date: saleData[0].date,
+        paymentMode: saleData[0].paymentMode,
+        totalAmount: saleData[0].totalAmount,
+        profitLoss: {
+          total: totalProfitLoss.amount,
+          isProfit: totalProfitLoss.isProfit
+        }
+      }}
+      debitData={debitData}
+      multipleProducts={saleData[0].products && saleData[0].products.length > 1}
+    />
+        <Flex justify='center' style={{ marginTop: '1rem' }}>
+          <Button onClick={handleCancel} type='primary'>
+            Close
+          </Button>
+        </Flex>
+      </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-            <div className="mb-4  flex flex-col items-center justify-center">
-              <Image
-                src={product.images?.[0] || '/placeholder-image.png'}
-                alt={product.name}
-                style={{ width: '100%', height: 200, objectFit: 'contain' }}
-                fallback="/placeholder-image.png"
-              />
+            {/* Form content remains the same */}
+            {/* Product Selection Section */}
+            <div className="mb-4 border p-4 rounded-md bg-gray-50">
+              <Typography.Title level={5}>Select Products</Typography.Title>
+              
+              {/* Product Dropdown */}
+              <div className="mb-4">
+                <Select
+                  showSearch
+                  style={{ width: '100%' }}
+                  placeholder="Search and select products"
+                  optionFilterProp="children"
+                  filterOption={(input, option) =>
+                    (option?.label?.toString().toLowerCase() || '').includes(input.toLowerCase())
+                  }
+                  onChange={(value) => {
+                    const selectedProduct = allProducts?.data?.find(p => p._id === value);
+                    if (selectedProduct) {
+                      addProduct({
+                        ...selectedProduct,
+                        key: selectedProduct._id
+                      });
+                    }
+                  }}
+                  value={undefined}
+                  options={availableProducts.map(p => ({
+                    value: p._id,
+                    label: `${p.name} - ${p.stock} in stock - ${p.price} frw`
+                  }))}
+                />
+              </div>
+              
+              {/* Rest of the form remains the same */}
+              {/* Selected Products Table */}
+              {selectedProducts.length > 0 && (
+                <Table
+                  size="small"
+                  dataSource={selectedProducts}
+                  pagination={false}
+                  rowKey="key"
+                  className="mb-4"
+                >
+                  <Table.Column 
+                    title="Product" 
+                    dataIndex="name" 
+                    key="name"
+                    render={(text, record: any) => (
+                      <Flex align="center" gap="small">
+                        <Image
+                          src={record.images?.[0] || '/placeholder-image.png'}
+                          alt={record.name}
+                          style={{ width: 40, height: 40, objectFit: 'contain' }}
+                          fallback="/placeholder-image.png"
+                        />
+                        <span>{text}</span>
+                      </Flex>
+                    )}
+                  />
+                  <Table.Column 
+                    title="Original Price" 
+                    dataIndex="price" 
+                    key="price"
+                    render={(price) => `${price} frw`}
+                  />
+                  <Table.Column 
+                    title="Selling Price" 
+                    key="sellingPrice"
+                    render={(record: any) => (
+                      <Input
+                        type="number"
+                        value={record.sellingPrice}
+                        onChange={(e) => updateProductPrice(record.key, Number(e.target.value))}
+                        style={{ width: 100 }}
+                      />
+                    )}
+                  />
+                  <Table.Column 
+                    title={`Quantity`} 
+                    key="quantity"
+                    render={(record: any) => (
+                      <Input
+                        type="number"
+                        min={1}
+                        max={record.stock}
+                        value={record.selectedQuantity}
+                        onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
+                        style={{ width: 80 }}
+                        suffix={<span>/ {record.stock}</span>}
+                      />
+                    )}
+                  />
+                  <Table.Column 
+                    title="Subtotal" 
+                    key="subtotal"
+                    render={(record: any) => `${(record.selectedQuantity * record.sellingPrice).toFixed(2)} frw`}
+                  />
+                  <Table.Column 
+                    title="Action" 
+                    key="action"
+                    render={(record: any) => (
+                      <Button 
+                        danger 
+                        type="text" 
+                        icon={<DeleteFilled />} 
+                        onClick={() => removeProduct(record.key)}
+                      />
+                    )}
+                  />
+                </Table>
+              )}
+              
+              {selectedProducts.length === 0 && (
+                <Empty description="No products selected" />
+              )}
+              
+              {selectedProducts.length > 0 && (
+                <div className="mb-4 mt-2 text-right">
+                  <Typography.Text strong className="text-lg">
+                    Total: {totalAmount.toFixed(2)} frw
+                  </Typography.Text>
+                  <br />
+                  <Typography.Text 
+                    className="text-md"
+                    type={totalProfitLoss.isProfit ? "success" : "danger"}
+                  >
+                    {totalProfitLoss.isProfit ? "Profit" : "Loss"}: {totalProfitLoss.amount.toFixed(2)} frw
+                  </Typography.Text>
+                </div>
+              )}
             </div>
             
+            {/* Customer Information Section */}
             <CustomInput
               name='buyerName'
               label='Buyer Name'
@@ -418,35 +701,29 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
               rules={{ required: 'Date is required' }}
             />
             
-            <CustomInput
-              name='pricePerUnit'
-              label='Selling Price Per Unit'
-              errors={errors}
-              required={true}
-              register={register}
-              type='number'
-              defaultValue={product.price}
-              rules={{
-                required: 'Price is required',
-                min: { value: 0.01, message: 'Price must be greater than 0' }
-              }}
-            />
-
-            <CustomInput
-              name='quantity'
-              label={`Quantity (Available: ${product.stock})`}
-              errors={errors}
-              required={true}
-              register={register}
-              type='number'
-              rules={{
-                required: 'Quantity is required',
-                validate: {
-                  positive: (value) => value > 0 || 'Quantity must be greater than 0',
-                  inStock: (value) => value <= product.stock || 'Not enough stock available',
-                }
-              }}
-            />
+            <div className="mt-4">
+              <Typography.Text strong className="block mb-2">Payment Method</Typography.Text>
+              <Radio.Group 
+                value={paymentMode} 
+                onChange={(e) => setPaymentMode(e.target.value)}
+                className="w-full"
+              >
+                <Space direction="vertical" className="w-full">
+                  <Radio value="cash" className="w-full h-10 flex items-center pl-4">
+                    Cash Payment
+                  </Radio>
+                  <Radio value="momo" className="w-full h-10 flex items-center pl-4">
+                    Mobile Money
+                  </Radio>
+                  <Radio value="cheque" className="w-full h-10 flex items-center pl-4">
+                    Cheque
+                  </Radio>
+                  <Radio value="transfer" className="w-full h-10 flex items-center pl-4">
+                    Bank Transfer
+                  </Radio>
+                </Space>
+              </Radio.Group>
+            </div>
 
             <div className="mt-4 mb-2">
               <Checkbox 
@@ -459,7 +736,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 
             {isDebit && (
               <div className="border p-4 rounded-md bg-gray-50 mb-4">
-                <Typography.Text strong>Total Amount: {totalAmount} frw</Typography.Text>
+                <Typography.Text strong>Total Amount: {totalAmount.toFixed(2)} frw</Typography.Text>
                 
                 <CustomInput
                   name='amountPaid'
@@ -499,10 +776,40 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                       'Due date must be in the future'
                   }}
                 />
+                <CustomInput
+                  name='phoneNumber'
+                  label='Phone Number'
+                  errors={errors}
+                  required={true}
+                  register={register}
+                  type='tel'
+                  rules={{
+                    required: 'Phone number is required',
+                    pattern: {
+                      value: /^[0-9]{10}$/,
+                      message: 'Enter a valid 10-digit phone number'
+                    }
+                  }}
+                />
 
                 <CustomInput
+                  name='email'
+                  label='Email Address'
+                  errors={errors}
+                  required={true}
+                  register={register}
+                  type='email'
+                  rules={{
+                    required: 'Email address is required',
+                    pattern: {
+                      value: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+                      message: 'Enter a valid email address'
+                    }
+                  }}
+                />
+                <CustomInput
                   name='description'
-                  label='Description (Required)'
+                  label='Description (Optional)'
                   errors={errors}
                   required={false}
                   register={register}
@@ -511,7 +818,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
 
                 <div className="mt-2">
                   <Typography.Text type={remainingAmount > 0 ? "warning" : "error"}>
-                    Remaining Amount: {remainingAmount} frw
+                    Remaining Amount: {remainingAmount.toFixed(2)} frw
                   </Typography.Text>
                 </div>
 
@@ -524,18 +831,6 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 )}
               </div>
             )}
-            
-            <div style={{ margin: '1rem 0', padding: '1rem', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-              <h4>Calculation Summary:</h4>
-              <p>Original Price: {product.price}frw /unit</p>
-              <p>Selling Price: {watchPricePerUnit || product.price}frw /unit</p>
-              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.perUnit}frw /unit
-              </p>
-              <p style={{ color: profitLoss.isProfit ? 'green' : 'red' }}>
-                Total {profitLoss.isProfit ? 'Profit' : 'Loss'}: {profitLoss.total} frw
-              </p>
-            </div>
 
             <Flex justify='center' style={{ marginTop: '1rem' }} gap="small">
               <Button onClick={handleCancel} type='default'>
@@ -545,9 +840,14 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 htmlType='submit' 
                 type='primary'
                 loading={loading}
-                disabled={loading || !validateQuantity(watchQuantity) || (isDebit && remainingAmount <= 0)}
+                disabled={
+                  loading || 
+                  selectedProducts.length === 0 ||
+                  selectedProducts.some(p => p.selectedQuantity <= 0 || p.selectedQuantity > p.stock) ||
+                  (isDebit && remainingAmount <= 0)
+                }
               >
-                {loading ? 'Processing...' : 'Sell Product'}
+                {loading ? 'Processing...' : 'Complete Sale'}
               </Button>
             </Flex>
           </form>

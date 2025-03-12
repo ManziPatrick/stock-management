@@ -1,11 +1,13 @@
+
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Flex, Modal, Pagination, Table } from 'antd';
+import { Button, Flex, Form, Input, Modal, Pagination, Table } from 'antd';
 import { useState } from 'react';
-import { FieldValues, useForm } from 'react-hook-form';
+import { Controller, FieldValues, useForm } from 'react-hook-form';
 import {
   useDeleteSellerMutation,
   useGetAllSellerQuery,
+  useUpdateSellerMutation,
 } from '../../redux/features/management/sellerApi';
 import { IProduct, ISeller } from '../../types/product.types';
 import toastMessage from '../../lib/toastMessage';
@@ -49,20 +51,20 @@ const SellerManagementPage = () => {
       dataIndex: 'contactNo',
       align: 'center',
     },
-    // {
-    //   title: 'Action',
-    //   key: 'x',
-    //   align: 'center',
-    //   render: (item) => {
-    //     return (
-    //       <div style={{ display: 'flex' }}>
-    //         <UpdateModal product={item} />
-    //         <DeleteModal id={item.key} />
-    //       </div>
-    //     );
-    //   },
-    //   width: '1%',
-    // },
+    {
+      title: 'Action',
+      key: 'x',
+      align: 'center',
+      render: (item) => {
+        return (
+          <div style={{ display: 'flex' }}>
+            <UpdateModal seller={item} />
+            <DeleteModal id={item.key} />
+          </div>
+        );
+      },
+      width: '1%',
+    },
   ];
 
   return (
@@ -93,15 +95,42 @@ const SellerManagementPage = () => {
 /**
  * Update Modal
  */
-const UpdateModal = ({ product }: { product: IProduct }) => {
+const UpdateModal = ({ seller }: { seller: ISeller }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { handleSubmit } = useForm();
+  const { control, handleSubmit, reset } = useForm({
+    defaultValues: {
+      name: seller.name,
+      email: seller.email,
+      contactNo: seller.contactNo,
+    },
+  });
+  
+  const [updateSeller, { isLoading }] = useUpdateSellerMutation();
 
-  const onSubmit = (data: FieldValues) => {
-    console.log({ data, product });
+  const onSubmit = async (data: FieldValues) => {
+    try {
+      const res = await updateSeller({
+      //@ts-ignore
+        id: seller.key,
+        updateData: data
+      }).unwrap();
+      
+      if (res.statusCode === 200) {
+        toastMessage({ icon: 'success', text: res.message || 'Seller updated successfully' });
+        handleCancel();
+      }
+    } catch (error: any) {
+      toastMessage({ icon: 'error', text: error.data?.message || 'Failed to update seller' });
+    }
   };
 
   const showModal = () => {
+    // Reset form with current seller data
+    reset({
+      name: seller.name,
+      email: seller.email,
+      contactNo: seller.contactNo,
+    });
     setIsModalOpen(true);
   };
 
@@ -109,22 +138,81 @@ const UpdateModal = ({ product }: { product: IProduct }) => {
     setIsModalOpen(false);
   };
 
-  // ! Remove this early return to work with this component
-  return;
   return (
     <>
       <Button
         onClick={showModal}
         type='primary'
         className='table-btn-small'
-        style={{ backgroundColor: 'green' }}
+        style={{ backgroundColor: 'green', marginRight: '8px' }}
       >
         <EditFilled />
       </Button>
-      <Modal title='Update Product Info' open={isModalOpen} onCancel={handleCancel} footer={null}>
+      <Modal title='Update Seller Info' open={isModalOpen} onCancel={handleCancel} footer={null}>
         <form onSubmit={handleSubmit(onSubmit)}>
-          <h1>Working on it...!!!</h1>
-          <Button htmlType='submit'>Submit</Button>
+          <div style={{ marginBottom: '16px' }}>
+            <label>Name</label>
+            <Controller
+              name="name"
+              control={control}
+              rules={{ required: 'Name is required' }}
+              render={({ field, fieldState }) => (
+                <Input 
+                  {...field} 
+                  placeholder="Enter seller name" 
+                  status={fieldState.error ? 'error' : undefined}
+                />
+              )}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <label>Email</label>
+            <Controller
+              name="email"
+              control={control}
+              rules={{ 
+                required: 'Email is required',
+                pattern: {
+                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                  message: 'Invalid email address'
+                }
+              }}
+              render={({ field, fieldState }) => (
+                <Input 
+                  {...field} 
+                  placeholder="Enter email address" 
+                  type="email"
+                  status={fieldState.error ? 'error' : undefined}
+                />
+              )}
+            />
+          </div>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <label>Contact Number</label>
+            <Controller
+              name="contactNo"
+              control={control}
+              rules={{ required: 'Contact number is required' }}
+              render={({ field, fieldState }) => (
+                <Input 
+                  {...field} 
+                  placeholder="Enter contact number" 
+                  status={fieldState.error ? 'error' : undefined}
+                />
+              )}
+            />
+          </div>
+          
+          <Flex justify="end" gap="small">
+            <Button onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button type="primary" htmlType="submit" loading={isLoading}>
+              Update Seller
+            </Button>
+          </Flex>
         </form>
       </Modal>
     </>
@@ -161,17 +249,17 @@ const DeleteModal = ({ id }: { id: string }) => {
 
   return (
     <>
-      {/* <Button
+      <Button
         onClick={showModal}
         type='primary'
         className='table-btn-small'
         style={{ backgroundColor: 'red' }}
       >
         <DeleteFilled />
-      </Button> */}
-      <Modal title='Delete Product' open={isModalOpen} onCancel={handleCancel} footer={null}>
+      </Button>
+      <Modal title='Delete Seller' open={isModalOpen} onCancel={handleCancel} footer={null}>
         <div style={{ textAlign: 'center', padding: '2rem' }}>
-          <h2>Are you want to delete this product?</h2>
+          <h2>Are you want to delete this seller?</h2>
           <h4>You won't be able to revert it.</h4>
           <div
             style={{ display: 'flex', gap: '1rem', justifyContent: 'center', marginTop: '1rem' }}

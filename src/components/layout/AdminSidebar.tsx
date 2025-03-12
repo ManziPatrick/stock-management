@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Layout, Menu } from 'antd';
 import { MenuOutlined, LogoutOutlined } from '@ant-design/icons';
 import { sidebarItems } from '../../constant/sidebarItemsAdmin';
@@ -10,14 +10,38 @@ import log from '../../../public/color-spectrum-1192509_1280.png';
 const { Content, Sider } = Layout;
 
 const AdminSidebar = () => {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState(window.innerWidth <= 768);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
+  // Get the active key based on the current path
+  const getActiveKey = () => {
+    const path = location.pathname;
+    
+    // Handle root admin path
+    if (path === '/admin') {
+      return 'Dashboard';
+    }
+    
+    // For other paths, find the matching sidebar item
+    const matchingItem = sidebarItems.find(item => {
+      // Extract path from NavLink's to prop
+      const navLinkElement = item.label.props;
+      const itemPath = navLinkElement.to;
+      return path === itemPath;
+    });
+    
+    return matchingItem ? matchingItem.key : 'Dashboard';
+  };
+
   useEffect(() => {
     const handleResize = () => {
       setMobileView(window.innerWidth <= 768);
+      if (window.innerWidth > 768) {
+        setCollapsed(false);
+      }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -52,9 +76,9 @@ const AdminSidebar = () => {
         breakpoint="lg"
         collapsedWidth={mobileView ? 0 : 80}
         collapsed={collapsed}
-        onCollapse={(collapsed, type) => {
+        onCollapse={(value, type) => {
           if (type === 'responsive') {
-            setCollapsed(collapsed);
+            setCollapsed(value);
           }
         }}
         width={220}
@@ -67,6 +91,7 @@ const AdminSidebar = () => {
           top: 0,
           transition: 'all 0.2s ease-in-out',
           transform: mobileView && collapsed ? 'translateX(-100%)' : 'translateX(0)',
+          overflow: 'auto'
         }}
       >
         <div className="demo-logo-vertical ml-8 md:ml-0 flex items-center p-4 space-x-2 md:relative">
@@ -78,39 +103,47 @@ const AdminSidebar = () => {
           )}
         </div>
 
-        <Menu
-          theme="dark"
-          mode="inline"
-          style={{
-            backgroundColor: '#164863',
-            fontWeight: '700',
-            paddingBottom: '64px',
-          }}
-          defaultSelectedKeys={['Dashboard']}
-          items={sidebarItems}
-        />
+        <div style={{ height: 'calc(100vh - 120px)', overflowY: 'auto', paddingBottom: '60px' }}>
+          <Menu
+            theme="dark"
+            mode="inline"
+            style={{
+              backgroundColor: '#164863',
+              fontWeight: '700',
+            }}
+            selectedKeys={[getActiveKey()]}
+            items={sidebarItems}
+          />
+        </div>
 
-        <Button
-          type="primary"
+        <div
           style={{
-            width: '80%',
-            backgroundColor: 'cyan',
-            color: '#000',
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            position: 'absolute',
-            
+            position: 'fixed',
             bottom: 10,
-            left: 10,
-            borderRadius: 10,
-            height: '32px',
+            left: collapsed ? (mobileView ? -100 : 10) : 10,
+            width: collapsed ? (mobileView ? 0 : 60) : 180,
+            zIndex: 1000,
+            transition: 'all 0.2s ease-in-out',
           }}
-          onClick={handleClick}
-          icon={<LogoutOutlined />}
-          className=' rounded-md'
         >
-          {!collapsed && 'Logout'}
-        </Button>
+          <Button
+            type="primary"
+            style={{
+              width: '100%',
+              backgroundColor: 'cyan',
+              color: '#000',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              borderRadius: 10,
+              height: '32px',
+            }}
+            onClick={handleClick}
+            icon={<LogoutOutlined />}
+            className='rounded-md'
+          >
+            {!collapsed && 'Logout'}
+          </Button>
+        </div>
       </Sider>
 
       <Layout>
