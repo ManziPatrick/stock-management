@@ -234,7 +234,8 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       amountPaid: 0,
       dueDate: '',
       description: '',
-     
+      phoneNumber: '',
+      email: '',
     }
   });
 
@@ -355,9 +356,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           mode: paymentMode,
           ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
           ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
-          ...(paymentMode === 'transfer' && { 
-    
-          }),
+          ...(paymentMode === 'transfer' && {})
         }
       };
   
@@ -385,7 +384,9 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       // Combine into final payload
       const salesPayload = {
         ...saleDetails,
-        products: productsPayload
+        products: productsPayload,
+        // Add a flag to indicate this is a debit sale
+        isDebit: isDebit
       };
   
       // Send the combined payload in a single API call
@@ -393,10 +394,27 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       
       // Check if sale was successful
       if (saleResponse.success) {
+        // Extract the sale ID from response, handling different response structures
+        let saleId;
+        
+        // Safely extract saleId from various possible response structures
+        if (saleResponse.data.transaction && saleResponse.data.transaction._id) {
+          saleId = saleResponse.data.transaction._id;
+        } else if (saleResponse.data.sales && saleResponse.data.sales.length > 0 && saleResponse.data.sales[0]._id) {
+          saleId = saleResponse.data.sales[0]._id;
+        } else if (saleResponse.data._id) {
+          saleId = saleResponse.data._id;
+        } else {
+          console.error('Unable to find sale ID in response:', saleResponse);
+          throw new Error('Sale ID not found in response');
+        }
+        
         if (isDebit) {
           // Create debit record
           const debitPayload = {
-            productName: `Multiple Products (${selectedProducts.length})`,
+            productName: selectedProducts.length > 1 
+              ? `Multiple Products (${selectedProducts.length})` 
+              : selectedProducts[0].name,
             totalAmount: totalAmount,
             paidAmount: Number(data.amountPaid) || 0,
             remainingAmount: remainingAmount,
@@ -404,18 +422,20 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
             buyerPhoneNumber: data.phoneNumber,
             dueDate: data.dueDate,
             buyerName: data.buyerName,
-            saleId: saleResponse.data.sales[0]._id,
+            saleId: saleId,
             status: 'PENDING',
-            description: data.description || `Debit for multiple products - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
+            description: data.description || `Debit for ${selectedProducts.length > 1 ? 'multiple products' : selectedProducts[0].name} - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
           };
   
           const debitResponse = await createDebit(debitPayload).unwrap();
-          if (debitResponse.status === 'success') {
+          if (debitResponse.status === 'success' || debitResponse.success) {
             setDebitData(debitResponse.data);
             toastMessage({ 
               icon: 'success', 
               text: 'Sale and debit record created successfully'
             });
+          } else {
+            throw new Error(debitResponse.message || 'Failed to create debit record');
           }
         } else {
           toastMessage({ 
@@ -424,30 +444,72 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           });
         }
         
-        const processedSaleData = {
-          _id: saleResponse.data.transaction._id,
-          products: saleResponse.data.transaction.products.map((product: any) => ({
-            _id: product._id,
-            productName: product.productName,
-            productPrice: product.productPrice,
-            SellingPrice: product.SellingPrice,
-            quantity: product.quantity,
-            profitLoss: {
-              perUnit: Math.abs(product.SellingPrice - product.productPrice),
-              total: Math.abs((product.SellingPrice - product.productPrice) * product.quantity),
-              isProfit: product.SellingPrice > product.productPrice
-            }
-          })),
-          buyerName: saleResponse.data.transaction.buyerName,
-          date: saleResponse.data.transaction.date,
-          paymentMode: saleResponse.data.transaction.paymentMode,
-          totalAmount: saleResponse.data.transaction.totalAmount,
-          profitLoss: {
-            total: totalProfitLoss.amount,
-            isProfit: totalProfitLoss.isProfit
+        // Prepare sale data for receipt using a more robust approach
+        const processResponseData = () => {
+          let responseProducts = [];
+          let buyerName = '';
+          let date = '';
+          let paymentMode = '';
+          let id = '';
+          
+          // Extract data based on the response structure
+          if (saleResponse.data.transaction) {
+            responseProducts = saleResponse.data.transaction.products || [];
+            buyerName = saleResponse.data.transaction.buyerName;
+            date = saleResponse.data.transaction.date;
+            paymentMode = saleResponse.data.transaction.paymentMode;
+            id = saleResponse.data.transaction._id;
+          } else if (saleResponse.data.sales && saleResponse.data.sales.length > 0) {
+            responseProducts = saleResponse.data.sales[0].products || [];
+            buyerName = saleResponse.data.sales[0].buyerName;
+            date = saleResponse.data.sales[0].date;
+            paymentMode = saleResponse.data.sales[0].paymentMode;
+            id = saleResponse.data.sales[0]._id;
+          } else if (saleResponse.data.products) {
+            responseProducts = saleResponse.data.products;
+            buyerName = saleResponse.data.buyerName;
+            date = saleResponse.data.date;
+            paymentMode = saleResponse.data.paymentMode;
+            id = saleResponse.data._id;
           }
+          
+          // Fall back to form data if response doesn't contain it
+          if (!buyerName) buyerName = data.buyerName;
+          if (!date) date = data.date;
+          if (!paymentMode) paymentMode = paymentMode;
+          if (!id) id = saleId;
+          
+          // If no products were returned in the response, use our original products
+          if (!responseProducts || responseProducts.length === 0) {
+            responseProducts = selectedProducts.map(prod => ({
+              _id: prod.key,
+              productName: prod.name,
+              productPrice: prod.price,
+              SellingPrice: prod.sellingPrice,
+              quantity: prod.selectedQuantity,
+              profitLoss: {
+                perUnit: Math.abs(prod.sellingPrice - prod.price),
+                total: Math.abs((prod.sellingPrice - prod.price) * prod.selectedQuantity),
+                isProfit: prod.sellingPrice > prod.price
+              }
+            }));
+          }
+          
+          return {
+            _id: id,
+            products: responseProducts,
+            buyerName,
+            date,
+            paymentMode,
+            totalAmount: saleResponse.data.transaction?.totalAmount || totalAmount,
+            profitLoss: {
+              total: totalProfitLoss.amount,
+              isProfit: totalProfitLoss.isProfit
+            }
+          };
         };
         
+        const processedSaleData = processResponseData();
         setSaleData([processedSaleData]);
         setShowReceipt(true);
       }
@@ -478,8 +540,8 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       amountPaid: 0,
       dueDate: '',
       description: '',
-     
-     
+      phoneNumber: '',
+      email: ''
     });
   };
 
@@ -518,32 +580,31 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         maskClosable={false}
       >
         {showReceipt && saleData.length > 0 ? (
-        <div>
-      <SaleReceipt 
-      saleData={{
-        _id: saleData[0]._id,
-        products: saleData[0].products,
-        buyerName: saleData[0].buyerName,
-        date: saleData[0].date,
-        paymentMode: saleData[0].paymentMode,
-        totalAmount: saleData[0].totalAmount,
-        profitLoss: {
-          total: totalProfitLoss.amount,
-          isProfit: totalProfitLoss.isProfit
-        }
-      }}
-      debitData={debitData}
-      multipleProducts={saleData[0].products && saleData[0].products.length > 1}
-    />
-        <Flex justify='center' style={{ marginTop: '1rem' }}>
-          <Button onClick={handleCancel} type='primary'>
-            Close
-          </Button>
-        </Flex>
-      </div>
+          <div>
+            <SaleReceipt 
+              saleData={{
+                _id: saleData[0]._id,
+                products: saleData[0].products,
+                buyerName: saleData[0].buyerName,
+                date: saleData[0].date,
+                paymentMode: saleData[0].paymentMode,
+                totalAmount: saleData[0].totalAmount,
+                profitLoss: {
+                  total: totalProfitLoss.amount,
+                  isProfit: totalProfitLoss.isProfit
+                }
+              }}
+              debitData={debitData}
+              multipleProducts={saleData[0].products && saleData[0].products.length > 1}
+            />
+            <Flex justify='center' style={{ marginTop: '1rem' }}>
+              <Button onClick={handleCancel} type='primary'>
+                Close
+              </Button>
+            </Flex>
+          </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-            {/* Form content remains the same */}
             {/* Product Selection Section */}
             <div className="mb-4 border p-4 rounded-md bg-gray-50">
               <Typography.Title level={5}>Select Products</Typography.Title>
@@ -575,7 +636,6 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 />
               </div>
               
-              {/* Rest of the form remains the same */}
               {/* Selected Products Table */}
               {selectedProducts.length > 0 && (
                 <Table
