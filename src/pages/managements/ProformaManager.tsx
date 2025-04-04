@@ -5,7 +5,6 @@ import {
   Form,
   Input,
   Button,
-  DatePicker,
   Space,
   Typography,
   Table,
@@ -15,12 +14,13 @@ import {
   Spin,
   Modal
 } from 'antd';
-import { DeleteOutlined, FileAddOutlined, PlusOutlined, PrinterOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { DeleteOutlined, FileAddOutlined, PlusOutlined, PrinterOutlined, SaveOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useGetAllproformaQuery, useCreateProformaMutation } from '../../redux/features/management/ProformaApi';
 import { useGetAllProductsQuery } from '../../redux/features/management/productApi';
-import moment from 'moment';
 import PrintableInvoice from '../../components/product/PrintableInvoice';
 import ProformaInvoicesList from './ProformaInvoicesList';
+import malublog from '../../assets/Marube_log.png';
+import addresslog from '../../assets/MARUBE.png';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -43,6 +43,9 @@ const ProformaInvoice = () => {
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [currentInvoiceData, setCurrentInvoiceData] = useState<any>(null);
   const [isListView, setIsListView] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  
   // API hooks
   const [createProforma, { isLoading: isCreating }] = useCreateProformaMutation();
   const { 
@@ -62,14 +65,9 @@ const ProformaInvoice = () => {
       return sum + parseFloat(calculateLineTotal(item.quantity, item.price));
     }, 0);
     
-    const salesTax = (subtotal * 0.1).toFixed(2);
-    const total = (parseFloat(subtotal.toFixed(2)) + parseFloat(salesTax)).toFixed(2);
-    
     return {
       subtotal: subtotal.toFixed(2),
-      salesTax,
-      other: '0.00',
-      total
+      total: subtotal.toFixed(2)
     };
   };
 
@@ -121,49 +119,110 @@ const ProformaInvoice = () => {
     form.setFieldsValue({ totals: calculateTotals(newItems) });
   };
 
+  // Enhanced print function with better CSS for printing
   const handlePrint = () => {
-    if (printComponentRef.current) {
-      const printContents = printComponentRef.current;
-      const originalTitle = document.title;
-      
-      const printWindow = window.open('', '_blank');
-      if (printWindow) {
-        printWindow.document.write(`
-          <html>
-            <head>
-              <title>Proforma Invoice</title>
-              <style>
-                body { font-family: Arial, sans-serif; }
-                @media print {
-                  body * { visibility: hidden; }
-                  #printSection, #printSection * { visibility: visible; }
-                  #printSection { 
-                    position: absolute; 
-                    left: 0; 
-                    top: 0; 
+    setIsPrinting(true);
+    
+    setTimeout(() => {
+      if (printComponentRef.current) {
+        const printContents = printComponentRef.current;
+        
+        const printWindow = window.open('', '_blank');
+        if (printWindow) {
+          printWindow.document.write(`
+            <html>
+              <head>
+                <title>Proforma Invoice - ${currentInvoiceData?.invoiceNo || ''}</title>
+                <style>
+                  @page {
+                    size: A4;
+                    margin: 10mm;
                   }
-                }
-              </style>
-            </head>
-            <body>
-              <div id="printSection">
-                ${printContents.innerHTML}
-              </div>
-            </body>
-          </html>
-        `);
-        
-        printWindow.document.close();
-        printWindow.print();
-        printWindow.close();
-        
-        document.title = originalTitle;
-        
-        setIsModalVisible(false);
-        form.resetFields();
-        setItems([{ key: 0, productId: '', description: '', quantity: '', price: '', total: '0.00' }]);
+                  body {
+                    font-family: Arial, sans-serif;
+                    margin: 0;
+                    padding: 0;
+                  }
+                  * {
+                    box-sizing: border-box;
+                  }
+                  img {
+                    max-width: 100%;
+                    height: auto !important;
+                  }
+                  table {
+                    width: 100%;
+                    border-collapse: collapse;
+                  }
+                  table td, table th {
+                    border: 1px solid #ddd;
+                    padding: 8px;
+                  }
+                  table tr:nth-child(even) {
+                    background-color: #f2f2f2;
+                  }
+                  table th {
+                    padding-top: 12px;
+                    padding-bottom: 12px;
+                    text-align: left;
+                    background-color: #f0f0f0;
+                  }
+                  .print-section {
+                    width: 100%;
+                    padding: 20px;
+                    background-color: white;
+                  }
+                  @media print {
+                    .print-section {
+                      width: 100%;
+                      padding: 0;
+                    }
+                    body * {
+                      visibility: visible;
+                    }
+                  }
+                </style>
+              </head>
+              <body>
+                <div class="print-section">
+                  ${printContents.innerHTML}
+                </div>
+                <script>
+                  // Auto print once loaded
+                  window.onload = function() {
+                    window.print();
+                    setTimeout(function() {
+                      window.close();
+                    }, 500);
+                  };
+                </script>
+              </body>
+            </html>
+          `);
+          
+          printWindow.document.close();
+          
+          // If auto print doesn't work, we'll have a fallback
+          setTimeout(() => {
+            setIsPrinting(false);
+          }, 3000);
+        } else {
+          message.error('Unable to open print window');
+          setIsPrinting(false);
+        }
+      } else {
+        message.error('Print reference not found');
+        setIsPrinting(false);
       }
-    }
+    }, 500); // Small delay to ensure components are rendered
+  };
+
+  // Function to save as PDF
+  const handleSaveAsPDF = () => {
+    // We're using the print function to save as PDF
+    // Most browsers allow saving as PDF from the print dialog
+    handlePrint();
+    message.info('Use the browser print dialog to save as PDF');
   };
 
   const handleSubmit = async (values: any) => {
@@ -171,33 +230,47 @@ const ProformaInvoice = () => {
       const formattedItems = items.map(item => ({
         product: item.productId,
         description: item.description,
-        quantity: parseFloat(item.quantity),
-        price: parseFloat(item.price),
-        total: parseFloat(item.total)
+        quantity: parseFloat(item.quantity || '0'),
+        price: parseFloat(item.price || '0'),
+        total: parseFloat(item.total || '0')
       }));
 
+      // Validate items
+      const invalidItems = formattedItems.filter(
+        item => !item.description || isNaN(item.quantity) || isNaN(item.price)
+      );
+      
+      if (invalidItems.length > 0) {
+        message.error('Please fill in all item details correctly');
+        return;
+      }
+
       const payload = {
-        ...values,
+        clientName: values.clientName,
         items: formattedItems,
-        date: values.invoiceDetails.invoiceDate.toISOString(),
-        dueDate: values.invoiceDetails.dueDate.toISOString(),
         totals: calculateTotals(items)
       };
 
       const response = await createProforma(payload).unwrap();
       message.success('Proforma invoice created successfully');
       setCurrentInvoiceData({
-        ...values,
-        invoiceDetails: {
-          ...values.invoiceDetails,
-          invoiceNo: response.invoiceNo 
-        }
+        clientName: values.clientName,
+        invoiceNo: response.invoiceNo || response.data?.invoiceNo || `INV-${Date.now()}`
       });
+      setIsSaved(true);
       setIsModalVisible(true);
     } catch (error) {
       message.error('Failed to create proforma invoice');
       console.error('Error creating proforma:', error);
     }
+  };
+
+  const resetForm = () => {
+    form.resetFields();
+    setItems([{ key: 0, productId: '', description: '', quantity: '', price: '', total: '0.00' }]);
+    setCurrentInvoiceData(null);
+    setIsSaved(false);
+    setIsModalVisible(false);
   };
 
   const columns = [
@@ -240,6 +313,7 @@ const ProformaInvoice = () => {
       render: (text: string, record: Item) => (
         <Input
           type="number"
+          min="0"
           value={text}
           onChange={e => handleItemChange(record.key, 'quantity', e.target.value)}
         />
@@ -253,6 +327,8 @@ const ProformaInvoice = () => {
       render: (text: string, record: Item) => (
         <Input
           type="number"
+          min="0"
+          step="0.01"
           value={text}
           onChange={e => handleItemChange(record.key, 'price', e.target.value)}
         />
@@ -323,66 +399,38 @@ const ProformaInvoice = () => {
           form={form}
           layout="vertical"
           onFinish={handleSubmit}
-          initialValues={{
-            terms: { paymentDays: 30, lateFeePercentage: 5 }
-          }}
         >
-          
-          
-          {/* Bill From/To Section */}
-          <div  className=" flex flex-col md:flex-row gap-8 mb-6"  >
-            <div style={{ flex: 1 }}>
-              <Title level={5}>Bill From</Title>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Form.Item name={['billFrom', 'name']} label="Name" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billFrom', 'companyName']} label="Company Name">
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billFrom', 'streetAddress']} label="Street Address" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billFrom', 'cityStateZip']} label="City, ST ZIP Code" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billFrom', 'phone']} label="Phone">
-                  <Input />
-                </Form.Item>
-              </Space>
+          <div className=''>
+            <div className="flex justify-between items-center mb-4 border-b pb-2">
+              <img src={malublog} alt="Company Logo" className="h-20" />
+              <img src={addresslog} alt="Address Logo" className="h-20" />
             </div>
+            <div className="flex justify-between items-center mb-4">   
+              <div className='w-1/2'>
+                <span className='flex-nowrap w-full'>Dealers in:</span>
+                <p>
+                  Interior Designs, Gypsum works, Aluminium, Stainless steel, Glass & MDF elements, Paint Works, Electrical/ Electronical works, Branding/ Signages, Air Conditioning and Solar installation.
+                </p>
+              </div>
 
-            <div style={{ flex: 1 }}>
-              <Title level={5}>Bill To</Title>
-              <Space direction="vertical" style={{ width: '100%' }}>
-                <Form.Item name={['billTo', 'name']} label="Name" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billTo', 'companyName']} label="Company Name">
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billTo', 'streetAddress']} label="Street Address" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billTo', 'cityStateZip']} label="City, ST ZIP Code" rules={[{ required: true }]}>
-                  <Input />
-                </Form.Item>
-                <Form.Item name={['billTo', 'phone']} label="Phone">
-                  <Input />
-                </Form.Item>
-              </Space>
-            </div>
+              <div className=''>
+                <div className='text-start flex flex-col mb-6'></div>
+                <div className='text-start mt-6 flex flex-col'>
+                  <span>MARUBE TRADERS LTD</span> 
+                  <address>Plot No . 203 nyabugogo-Gatuna Roads</address> 
+                  <span>TEL : 0786530669</span> 
+                  <span>EMAIL : oyileb.ob@gmail.com</span>
+                  <span>TIN: 106949150</span> 
+                  <data value="">2025</data> 
+                </div>
+              </div>
+            </div> 
           </div>
-
-          {/* Invoice Details */}
-          <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}> <Form.Item name={['invoiceDetails', 'invoiceNo']} label="Invoice No." rules={[{ required: true }]}>
-              <Input />
-            </Form.Item> 
-            <Form.Item name={['invoiceDetails', 'invoiceDate']} label="Invoice Date" rules={[{ required: true }]}>
-              <DatePicker style={{ width: '100%' }} />
-            </Form.Item>
-            <Form.Item name={['invoiceDetails', 'dueDate']} label="Due Date" rules={[{ required: true }]}>
-              <DatePicker style={{ width: '100%' }} />
+       
+          <div>
+            <Title level={5}>Client :</Title>
+            <Form.Item name="clientName" rules={[{ required: true, message: 'Please enter client name' }]}>
+              <Input placeholder="Client name" />
             </Form.Item>
           </div>
 
@@ -393,7 +441,7 @@ const ProformaInvoice = () => {
             pagination={false}
             bordered
             className="border rounded-lg"
-        scroll={{ x: true }}
+            scroll={{ x: true }}
             footer={() => (
               <Button type="dashed" onClick={addItem} block icon={<PlusOutlined />}>
                 Add Item
@@ -404,37 +452,18 @@ const ProformaInvoice = () => {
           {/* Totals Section */}
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '16px' }}>
             <div style={{ width: '300px' }}>
-              <Form.Item label="Subtotal" name={['totals', 'subtotal']}>
-                <Input prefix="frw" readOnly />
-              </Form.Item>
-              <Form.Item label="Sales Tax (10%)" name={['totals', 'salesTax']}>
-                <Input prefix="frw" readOnly />
-              </Form.Item>
-              <Form.Item label="Other" name={['totals', 'other']}>
-                <Input prefix="frw" />
-              </Form.Item>
-              <Form.Item label="Total" name={['totals', 'total']}>
-                <Input prefix="frw" readOnly />
+              <Form.Item label="Total" name={['totals', 'subtotal']}>
+                <Input prefix="frw" readOnly value={calculateTotals(items).subtotal} />
               </Form.Item>
             </div>
           </div>
 
           <Divider />
 
-          {/* Terms Section */}
-          <div style={{ marginBottom: '24px' }}>
-            <Title level={5}>Terms and Conditions</Title>
-            <Space>
-              <span>Thank you for your business. Please send payment within</span>
-              <Form.Item name={['terms', 'paymentDays']} noStyle>
-                <Input style={{ width: '60px' }} />
-              </Form.Item>
-              <span>days of receiving this invoice. There will be a</span>
-              <Form.Item name={['terms', 'lateFeePercentage']} noStyle>
-                <Input style={{ width: '60px' }} />
-              </Form.Item>
-              <span>% fee per month on late invoices.</span>
-            </Space>
+          {/* Account Details Section */}
+          <div className="flex flex-col mb-4">
+            <span>Account details</span>
+            <span>BPR/KCB BANK ACCOUNT MARUBE TRADERS :4490897650 – KCB/BPR</span>
           </div>
 
           {/* Action Buttons */}
@@ -443,6 +472,7 @@ const ProformaInvoice = () => {
               type="primary" 
               htmlType="submit" 
               loading={isCreating}
+              icon={<SaveOutlined />}
             >
               Create and Save
             </Button>
@@ -452,22 +482,40 @@ const ProformaInvoice = () => {
       </Card>
 
       {/* Invoice Modal */}
-      <Modal
+      <Modal 
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={[
-          <Button key="print" type="primary" icon={<PrinterOutlined />} onClick={handlePrint}>
-            Print Invoice
+          <Button 
+            key="save" 
+            type="default" 
+            icon={<SaveOutlined />} 
+            onClick={handleSaveAsPDF}
+            loading={isPrinting}
+          >
+            Save as PDF
+          </Button>,
+          // <Button 
+          //   key="print" 
+          //   type="primary" 
+          //   icon={<PrinterOutlined />} 
+          //   onClick={handlePrint}
+          //   loading={isPrinting}
+          // >
+          //   Print Invoice
+          // </Button>,
+          <Button key="new" type="default" onClick={resetForm}>
+            Create New Invoice
           </Button>,
           <Button key="close" onClick={() => setIsModalVisible(false)}>
             Close
           </Button>
         ]}
         width={800}
-        title="Proforma Invoice"
+        title={`Proforma Invoice - ${currentInvoiceData?.invoiceNo || ''}`}
         centered
       >
-        <div ref={printComponentRef}>
+        <div ref={printComponentRef} className="print-container">
           <PrintableInvoice
             data={{
               ...currentInvoiceData,
@@ -475,9 +523,9 @@ const ProformaInvoice = () => {
             }}
             items={items.map(item => ({
               description: item.description,
-              quantity: parseFloat(item.quantity),
-              price: parseFloat(item.price),
-              total: parseFloat(item.total)
+              quantity: parseFloat(item.quantity || '0'),
+              price: parseFloat(item.price || '0'),
+              total: parseFloat(item.total || '0')
             }))}
           />
         </div>

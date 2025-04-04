@@ -24,33 +24,39 @@ const LoginPage = () => {
     const toastId = toast.loading('Logging...');
     try {
       const res = await userLogin(data).unwrap();
-
+  
       if (res.statusCode === 200) {
         const user = decodeToken(res.data.token);
         dispatch(loginUser({ token: res.data.token, user }));
-
+  
         // Navigate based on the user's role
-        if (user.role === 'ADMIN') {
-          navigate('/admin'); // Admin dashboard route
-        } else if (user.role === 'KEEPER') {
-          navigate('/keeper/products'); // Keeper dashboard route
-        } else if (user.role === 'USER') {
-          navigate('/seller/products');
-        } 
-        else if (user.role === 'SUPER_ADMIN'){
-          navigate('/superadmin/');
+        switch (user.role) {
+          case 'SUPER_ADMIN':
+            navigate('/superadmin/');
+            break;
+          case 'ADMIN':
+            navigate('/admin');
+            break;
+          case 'KEEPER':
+            navigate('/keeper/products');
+            break;
+          case 'USER':
+            navigate('/seller/products');
+            break;
+          case 'ACCOUNTANT': // Added Accountant role
+            navigate('/accountant/dashboard');
+            break;
+          default:
+            toastMessage({ icon: 'warning', text: 'No appropriate role found for this user.' });
         }
-        else {
-          toastMessage({ icon: 'warning', text: 'No appropriate role found for this user.' });
-        }
-
+  
         toast.success('Successfully Logged In!', { id: toastId });
       }
     } catch (error: any) {
       toastMessage({ icon: 'error', text: error.data.message });
     }
   };
-
+  
   return (
     <div className="w-3/4 flex justify-center items-center m-auto" style={{ height: '100vh' }}>
       <div className="bg-blue-950 flex justify-center flex-col md:flex-row items-center align-middle shadow-lg rounded-md w-full">

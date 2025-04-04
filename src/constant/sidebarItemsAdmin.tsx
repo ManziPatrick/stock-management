@@ -28,6 +28,11 @@ export const sidebarItems = [
     icon: React.createElement(ProfileFilled),
   },
   {
+    key: 'Manage delivery',
+    label: <NavLink to='/admin/delivery'>MANAGE DELIVERY</NavLink>,
+    icon: React.createElement(AimOutlined),
+  },
+  {
     key: 'New User',
     label: <NavLink to='/admin/register'>NEW USER</NavLink>,
     icon: React.createElement(ProfileFilled),
@@ -76,7 +81,7 @@ export const sidebarItems = [
     icon: React.createElement(AimOutlined),
   },
   // {report
-  //   key: 'users',
+  //   key: 'users',delivery
   //   label: <NavLink to='/admin/users'>ALL USERS</NavLink>,
   //   icon: React.createElement(AimOutlined),
   // },

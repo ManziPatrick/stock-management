@@ -18,18 +18,18 @@ const saleApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['sale', 'product']
     }),
+    updateSaleStatus: builder.mutation({
+      query: ({ saleId, status }) => ({
+        url: `/sales/${saleId}/status`,
+        method: 'PATCH',
+        body: { status }
+      }),
+      invalidatesTags: ['sale']
+    }),
     deleteSale: builder.mutation({
       query: (id) => ({
         url: `/sales/${id}`,
         method: 'DELETE',
-      }),
-      invalidatesTags: ['sale']
-    }),
-    updateSale: builder.mutation({
-      query: ({ id, payload }) => ({
-        url: `/sales/${id}`,
-        method: 'PATCH',
-        body: payload
       }),
       invalidatesTags: ['sale']
     }),
@@ -62,14 +62,15 @@ const saleApi = baseApi.injectEndpoints({
       providesTags: ['sale']
     }),
   })
-})
+});
 
 export const {
   useGetAllSaleQuery,
   useCreateSaleMutation,
   useDeleteSaleMutation,
-  useUpdateSaleMutation,
+  useUpdateSaleStatusMutation,
   useYearlySaleQuery,
   useMonthlySaleQuery,
   useWeeklySaleQuery,
-  useDailySaleQuery } = saleApi
+  useDailySaleQuery 
+} = saleApi;

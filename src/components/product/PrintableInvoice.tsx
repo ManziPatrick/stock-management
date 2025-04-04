@@ -1,204 +1,211 @@
 import React from 'react';
-import moment from 'moment';
-import { CSSProperties } from 'react';
+import { Table, Typography } from 'antd';
+import malublog from '../../assets/Marube_log.png';
+import addresslog from '../../assets/MARUBE.png';
 
-interface BillDetails {
-  name: string;
-  companyName?: string;
-  streetAddress: string;
-  cityStateZip: string;
-  phone?: string;
-}
-
-interface InvoiceDetails {
-  invoiceNo: string;
-  invoiceDate: moment.Moment;
-  dueDate: moment.Moment;
-}
-
-interface Totals {
-  subtotal: number;
-  salesTax: number;
-  other: number;
-  total: number;
-}
-
-interface Terms {
-  paymentDays: number;
-  lateFeePercentage: number;
-}
-
-interface Data {
-  billFrom: BillDetails;
-  billTo: BillDetails;
-  invoiceDetails: InvoiceDetails;
-  totals: Totals;
-  terms: Terms;
-}
-
-interface Item {
-  description: string;
-  quantity: number;
-  price: number;
-  total: number;
-}
+const { Title, Text } = Typography;
 
 interface PrintableInvoiceProps {
-  data: Data;
-  items: Item[];
+  data: {
+    clientName: string;
+    invoiceNo?: string;
+    date?: string;
+    totals: {
+      subtotal: string;
+      total: string;
+    };
+  };
+  items: Array<{
+    description: string;
+    quantity: number;
+    price: number;
+    total: number;
+  }>;
 }
 
-const tableHeaderStyle: CSSProperties = {
-  border: '1px solid #e2e8f0',
-  padding: '0.5rem',
-  textAlign: 'left',
-  backgroundColor: '#f7fafc'
-};
-
-const tableCellStyle: CSSProperties = {
-  border: '1px solid #e2e8f0',
-  padding: '0.5rem',
-  textAlign: 'left'
-};
-
 const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ data, items }) => {
-    const formatNumber = (num?: number | string) => {
-        const parsedNum = typeof num === 'string' ? parseFloat(num) : num;
-        return typeof parsedNum === 'number' && !isNaN(parsedNum) ? parsedNum.toFixed(2) : '0.00';
-      };
+  const columns = [
+    {
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description',
+    },
+    {
+      title: 'Quantity',
+      dataIndex: 'quantity',
+      key: 'quantity',
+      width: 120,
+    },
+    {
+      title: 'Price (frw)',
+      dataIndex: 'price',
+      key: 'price',
+      width: 120,
+      render: (price: number) => price.toFixed(2),
+    },
+    {
+      title: 'Total (frw)',
+      dataIndex: 'total',
+      key: 'total',
+      width: 120,
+      render: (total: number) => total.toFixed(2),
+    },
+  ];
+
+  const dataSource = items.map((item, index) => ({
+    ...item,
+    key: index,
+  }));
+
+  // Format date as DD/MM/YYYY
+  const formatDateToDMY = (date: Date) => {
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  const currentDate = formatDateToDMY(new Date());
+
+  // Add print styles to component
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body, html {
+          margin: 0;
+          padding: 0;
+          width: 100%;
+          height: 100%;
+        }
+        .printable-invoice {
+          width: 100%;
+          height: 100%;
+          page-break-after: always;
+        }
+        .no-print {
+          display: none !important;
+        }
+        .ant-table {
+          font-size: 12px;
+        }
+        @page {
+          size: auto;
+          margin: 10mm;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
 
   return (
-    <div 
-      className="p-8 max-w-4xl mx-auto bg-white font-sans"
-      style={{
-        fontFamily: 'Arial, sans-serif',
-        fontSize: '14px',
-        lineHeight: '1.5',
-        color: '#000',
-        maxWidth: '800px',
-        margin: '0 auto',
-        padding: '2rem'
-      }}
-    >
-      {/* Header */}
-      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-        <h1 style={{
-          fontSize: '24px',
-          fontWeight: 'bold',
-          textTransform: 'uppercase',
-          marginBottom: '1rem'
-        }}>
-          PROFORMA INVOICE
-        </h1>
+    <div className="printable-invoice" style={{ padding: '20px', fontFamily: 'Arial, sans-serif' }}>
+      {/* Logo and Address Header */}
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <img src={malublog} alt="Company Logo" className="h-20" />
+        <img src={addresslog} alt="Address Logo" className="h-20" />
       </div>
 
-      {/* Bill From/To Section */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-        <div style={{ width: '48%' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-            Bill From
-          </h2>
-          <div>
-            <p style={{ margin: '0.25rem 0' }}>{data?.billFrom?.name}</p>
-            {data?.billFrom?.companyName && <p style={{ margin: '0.25rem 0' }}>{data?.billFrom?.companyName}</p>}
-            <p style={{ margin: '0.25rem 0' }}>{data?.billFrom?.streetAddress}</p>
-            <p style={{ margin: '0.25rem 0' }}>{data?.billFrom?.cityStateZip}</p>
-            {data?.billFrom?.phone && <p style={{ margin: '0.25rem 0' }}>{data?.billFrom?.phone}</p>}
-          </div>
+      {/* Sub-header with company description and contact info */}
+      <div className="flex justify-between items-start mb-4">   
+        <div className="w-1/2">
+          <span className="flex-nowrap w-full font-bold">Dealers in:</span>
+          <p>
+            Interior Designs, Gypsum works, Aluminium, Stainless steel, Glass & MDF elements, Paint Works, Electrical/ Electronical works, Branding/ Signages, Air Conditioning and Solar installation.
+          </p>
         </div>
-        <div style={{ width: '48%' }}>
-          <h2 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '0.5rem' }}>
-            Bill To
-          </h2>
-          <div>
-            <p style={{ margin: '0.25rem 0' }}>{data?.billTo?.name}</p>
-            {data?.billTo?.companyName && <p style={{ margin: '0.25rem 0' }}>{data?.billTo?.companyName}</p>}
-            <p style={{ margin: '0.25rem 0' }}>{data?.billTo?.streetAddress}</p>
-            <p style={{ margin: '0.25rem 0' }}>{data?.billTo?.cityStateZip}</p>
-            {data?.billTo?.phone && <p style={{ margin: '0.25rem 0' }}>{data?.billTo?.phone}</p>}
+
+        <div>
+          <div className="text-start flex flex-col mb-6"></div>
+          <div className="text-start mt-6 flex flex-col">
+            <span className="font-bold">MARUBE TRADERS LTD</span> 
+            <address>Plot No . 203 nyabugogo-Gatuna Roads</address> 
+            <span>TEL : 0786530669</span> 
+            <span>EMAIL : oyileb.ob@gmail.com</span>
+            <span>TIN: 106949150</span> 
+            <span>{formatDateToDMY(new Date()).split('/')[2]}</span> 
           </div>
         </div>
       </div>
 
-      {/* Invoice Details */}
-      <div style={{ marginBottom: '2rem' }}>
-        <p style={{ margin: '0.5rem 0' }}>
-          <strong>Invoice No:</strong> {data?.invoiceDetails?.invoiceNo}
-        </p>
-        <p style={{ margin: '0.5rem 0' }}>
-          <strong>Invoice Date:</strong> {data?.invoiceDetails?.invoiceDate?.format('YYYY-MM-DD')}
-        </p>
-        <p style={{ margin: '0.5rem 0' }}>
-          <strong>Due Date:</strong> {data?.invoiceDetails?.dueDate?.format('YYYY-MM-DD')}
-        </p>
+      {/* Invoice Title and Details */}
+      <div className="text-center mb-4">
+        <Title level={3} style={{ margin: 0 }}>PROFORMA INVOICE</Title>
+        <div className="flex justify-between mt-2">
+          <div>
+            <Text strong>Invoice No: </Text>
+            <Text>{data.invoiceNo || 'N/A'}</Text>
+          </div>
+          <div>
+            <Text strong>Date: </Text>
+            <Text>{data.date ? formatDateToDMY(new Date(data.date)) : currentDate}</Text>
+          </div>
+        </div>
+      </div>
+
+      {/* Client Information */}
+      <div className="mb-4">
+        <Text strong>CLIENT: </Text>
+        <Text>{data.clientName}</Text>
       </div>
 
       {/* Items Table */}
-      <table style={{
-        width: '100%',
-        borderCollapse: 'collapse',
-        marginBottom: '2rem'
-      }}>
-        <thead>
-          <tr>
-            <th style={tableHeaderStyle}>Description</th>
-            <th style={tableHeaderStyle}>Quantity</th>
-            <th style={tableHeaderStyle}>Price (frw)</th>
-            <th style={tableHeaderStyle}>Total (frw)</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, index) => (
-            <tr key={index}>
-              <td style={tableCellStyle}>{item.description}</td>
-              <td style={tableCellStyle}>{item.quantity}</td>
-              <td style={tableCellStyle}>{item.price.toFixed(2)}</td>
-              <td style={tableCellStyle}>{item.total.toFixed(2)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <Table
+        dataSource={dataSource}
+        columns={columns}
+        pagination={false}
+        bordered
+        className="mb-4"
+        size="middle"
+        summary={() => (
+          <Table.Summary fixed>
+            <Table.Summary.Row>
+              <Table.Summary.Cell index={0} colSpan={3} className="text-right">
+                <Text strong>Total:</Text>
+              </Table.Summary.Cell>
+              <Table.Summary.Cell index={1}>
+                <Text strong>frw {data.totals.total}</Text>
+              </Table.Summary.Cell>
+            </Table.Summary.Row>
+          </Table.Summary>
+        )}
+      />
 
-      {/* Totals */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <div style={{ width: '250px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span>Subtotal:</span>
-            <span>{formatNumber(data?.totals?.subtotal)} frw</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span>Sales Tax (10%):</span>
-            <span>{formatNumber(data?.totals?.salesTax)} frw</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-            <span>Other:</span>
-            <span>{formatNumber(data?.totals?.other)} frw</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 'bold' }}>
-            <span>Total:</span>
-            <span>{formatNumber(data?.totals?.total)} frw</span>
-          </div>
-        </div>
-        </div>
+      {/* Account Details */}
+      <div className="mt-6 mb-4">
+        <Text strong>Account details:</Text>
+        <div>BPR/KCB BANK ACCOUNT MARUBE TRADERS :4490897650 – KCB/BPR</div>
+      </div>
 
-      {/* Terms */}
-      <div style={{
-        marginTop: '2rem',
-        paddingTop: '1rem',
-        borderTop: '1px solid #e2e8f0'
-      }}>
-        <h2 style={{ 
-          fontSize: '16px', 
-          fontWeight: 'bold', 
-          marginBottom: '0.5rem' 
-        }}>
-          Terms and Conditions
-        </h2>
-        <p>
-          Thank you for your business. Please send payment within {data?.terms?.paymentDays} days 
-          of receiving this invoice. There will be a {data?.terms?.lateFeePercentage}% fee per 
-          month on late invoices.
-        </p>
+      {/* Signature Section */}
+      <div className="flex justify-between mt-10">
+        <div>
+          <div className="border-t border-black w-32 pt-1">Client Signature</div>
+        </div>
+        <div>
+          <div className="border-t border-black w-32 pt-1">Company Signature & Stamp</div>
+        </div>
+      </div>
+
+      {/* Print Button - will be hidden when printing */}
+      <div className="mt-8 text-center no-print">
+        <button 
+          onClick={() => window.print()} 
+          style={{
+            padding: '8px 16px',
+            backgroundColor: '#1890ff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          Print Invoice
+        </button>
       </div>
     </div>
   );

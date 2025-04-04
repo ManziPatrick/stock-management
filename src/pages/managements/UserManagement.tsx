@@ -2,12 +2,12 @@
 
 import { DeleteFilled, EditFilled } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Flex, Modal, Pagination, Table } from 'antd';
+import { Button, Flex, Modal, Pagination, Table, Tag } from 'antd';
 import { useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
 import {
-    useGetAllUserQuery,
-    useDeleteUserMutation
+  useGetAllUserQuery,
+  useDeleteUserMutation
 } from '../../redux/features/authApi';
 import { IUser } from '../../types/product.types';
 import toastMessage from '../../lib/toastMessage';
@@ -21,7 +21,7 @@ const UserManagementPage = () => {
   });
 
   const { data, isFetching } = useGetAllUserQuery(query);
-  
+
   const onChange: PaginationProps['onChange'] = (page) => {
     setQuery((prev) => ({ ...prev, page: page }));
   };
@@ -30,8 +30,24 @@ const UserManagementPage = () => {
     key: user._id,
     name: user.name,
     email: user.email,
+    role: user.role,
     contactNo: user.contactNo,
   }));
+
+  const roleTag = (role: string) => {
+    switch (role) {
+      case 'ADMIN':
+        return <Tag color="blue">{role}</Tag>;
+      case 'USER':
+        return <Tag color="green">{role}</Tag>;
+      case 'KEEPER':
+        return <Tag color="orange">{role}</Tag>;
+      case 'ACCOUNTANT':
+        return <Tag color="purple">{role}</Tag>;
+      default:
+        return <Tag color="default">{role}</Tag>;
+    }
+  };
 
   const columns: TableColumnsType<any> = [
     {
@@ -46,6 +62,13 @@ const UserManagementPage = () => {
       align: 'center',
     },
     {
+      title: 'Role',
+      key: 'role',
+      dataIndex: 'role',
+      align: 'center',
+      render: (role: string) => roleTag(role),
+    },
+    {
       title: 'Contact Number',
       key: 'contactNo',
       dataIndex: 'contactNo',
@@ -58,7 +81,7 @@ const UserManagementPage = () => {
       render: (item) => {
         return (
           <div style={{ display: 'flex' }}>
-            {/* <UpdateModal user={item} /> */}
+            <UpdateModal user={item} />
             <DeleteModal id={item.key} />
           </div>
         );
@@ -77,14 +100,14 @@ const UserManagementPage = () => {
         loading={isFetching}
         columns={columns}
         dataSource={tableData}
-         className='border shadow'
+        className='border shadow'
         pagination={false}
+        scroll={{ x: 'max-content' }} // Makes the table horizontally scrollable
       />
       <Flex justify='center' style={{ marginTop: '1rem' }}>
         <Pagination
           current={query.page}
           onChange={onChange}
-         
           defaultPageSize={query.limit}
           total={data?.meta?.total}
         />

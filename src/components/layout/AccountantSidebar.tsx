@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Layout, Menu } from 'antd';
 import { MenuOutlined, LogoutOutlined } from '@ant-design/icons';
-import { sidebarItems } from '../../constant/sidebarItemsAdmin';
+import { sidebarItems } from '../../constant/sidebarItemsAccountant';
 import { useAppDispatch } from '../../redux/hooks';
 import { logoutUser } from '../../redux/services/authSlice';
 import log from '../../assets/Marube_log.PNG';
 
 const { Content, Sider } = Layout;
 
-const AdminSidebar = () => {
+const AccountantDashboard = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState(window.innerWidth <= 768);
@@ -21,7 +21,7 @@ const AdminSidebar = () => {
     const path = location.pathname;
     
     // Handle root admin path
-    if (path === '/admin') {
+    if (path === '/accountant') {
       return 'Dashboard';
     }
     
@@ -98,7 +98,7 @@ const AdminSidebar = () => {
           <img src={log} className="w-[28px] h-[28px]" alt="Logo" />
           {!collapsed && !mobileView && (
             <h1 className="text-white font-extrabold text-[1.2rem]">
-              MARUBE
+              STOCKXI
             </h1>
           )}
         </div>
@@ -169,4 +169,4 @@ const AdminSidebar = () => {
   );
 };
 
-export default AdminSidebar;
+export default AccountantDashboard;

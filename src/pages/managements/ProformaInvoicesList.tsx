@@ -46,9 +46,9 @@ const ProformaInvoicesList = () => {
       key: 'invoiceNo',
     },
     {
-      title: 'Bill To',
-      dataIndex: ['billTo', 'name'],
-      key: 'billToName',
+      title: 'Client Name',
+      dataIndex: 'clientName',
+      key: 'clientName',
     },
     {
       title: 'Invoice Date',
@@ -100,11 +100,10 @@ const ProformaInvoicesList = () => {
 
   const formattedInvoiceData = (invoice) => ({
     ...invoice,
-    invoiceDetails: {
-      ...invoice.invoiceDetails,
-      invoiceDate: moment(invoice.invoiceDetails.invoiceDate),
-      dueDate: moment(invoice.invoiceDetails.dueDate)
-    },
+    invoiceNo: invoice.invoiceNumber, 
+    name: invoice.clientName,
+    invoiceDate: moment(invoice.invoiceDetails?.invoiceDate),
+    dueDate: invoice.invoiceDetails?.dueDate ? moment(invoice.invoiceDetails.dueDate) : null,
     items: invoice.items.map(item => ({
       description: item.description,
       quantity: parseFloat(item.quantity),
@@ -169,14 +168,7 @@ const ProformaInvoicesList = () => {
         open={isPrintModalVisible}
         onCancel={() => setIsPrintModalVisible(false)}
         footer={[
-          <Button 
-            key="print" 
-            type="primary" 
-            icon={<PrinterOutlined />}
-            onClick={handlePrint}
-          >
-            Print Invoice
-          </Button>
+        
         ]}
         width={800}
         title="Print Proforma Invoice"

@@ -1,7 +1,7 @@
 //@ts-nocheck
 import { useState } from 'react';
 import { Form, Input, Select, Button, Modal, message } from 'antd';
-import { UserOutlined, MailOutlined, LockOutlined, IdcardOutlined, FileTextOutlined, CheckCircleOutlined, FileAddOutlined, UnorderedListOutlined } from '@ant-design/icons';
+import { UserOutlined, MailOutlined, LockOutlined, IdcardOutlined, CheckCircleOutlined, FileAddOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { useRegisterMutation } from '../../redux/features/authApi';
 import { useAppDispatch } from '../../redux/hooks';
@@ -52,9 +52,6 @@ const SuccessModal = ({ visible, onClose, userData }) => {
             <span className="font-semibold">{userData?.role}</span>.
           </p>
           <p className="text-sm text-gray-500">Account Status: {userData?.status}</p>
-          <p className="text-sm text-gray-500 mt-4">
-            You will be redirected to the dashboard in a few seconds.
-          </p>
         </div>
       </div>
     </Modal>
@@ -66,212 +63,96 @@ const RegisterPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [userRegistration] = useRegisterMutation();
-  
   const [loading, setLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [registeredUser, setRegisteredUser] = useState(null);
   const [role, setRole] = useState('');
-
   const [isListView, setIsListView] = useState(false);
+  
   const toggleView = () => {
     setIsListView(!isListView);
   };
 
   const onFinish = async (values) => {
     setLoading(true);
-    const toastId = message.loading('Registering new account...', 0);
-  
     try {
       const { confirmPassword, ...registrationData } = values;
       const response = await userRegistration(registrationData).unwrap() as RegistrationResponse;
-  
-      message.destroy(); // Clear all messages
-  
+
       if (response.statusCode === 201 && response.success) {
-        message.success({
-          content: response.message,
-          duration: 2,
-        });
-  
+        message.success(response.message, 2);
         setRegisteredUser(response.data);
         setShowSuccessModal(true);
-  
         setTimeout(() => {
           setShowSuccessModal(false);
           navigate('/admin/');
         }, 3000);
       }
-    } catch (error: any) {
-      message.destroy(); // Ensure the loading message disappears on failure
-      message.error({
-        content: error.data?.message || 'Registration failed',
-        duration: 2,
-      });
+    } catch (error) {
+      message.error(error.data?.message || 'Registration failed', 2);
     } finally {
       setLoading(false);
     }
   };
-  
 
   return (
-    <div className="min-h-screen  bg-gray-50/30 py-8 px-4">
+    <div className="min-h-screen bg-gray-50/30 py-8 px-4">
       <Button 
-            onClick={toggleView} 
-            type="primary" 
-            icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined  />}
-          >
-            {isListView ? 'Regist user':'View all user'}
-          </Button>
-          {isListView ? (
-          <UserManagementPage/>
-        ) : (
-      <div className="max-w-2xl mx-auto items-center">
-        <div className="bg-white rounded-xl shadow-lg overflow-hidden">
-
-          {/* Header */}
-          <div className="px-8 py-6 border-b border-gray-200">
-            <h2 className="text-2xl font-bold text-center text-gray-800">Create New Account</h2>
-            <p className="text-center text-gray-500 text-sm mt-1">Register a new user in the system</p>
-          </div>
-
-          {/* Form */}
-          <div className="p-8">
-            <Form
-              form={form}
-              layout="vertical"
-              onFinish={onFinish}
-              className="space-y-6"
-            >
-              {/* Name and Email */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Form.Item
-                  name="name"
-                  rules={[{ required: true, message: 'Please input your name!' }]}
-                >
-                  <Input 
-                    prefix={<UserOutlined className="text-gray-400" />}
-                    placeholder="Full Name"
-                    className="h-11 rounded-lg"
-                  />
+        onClick={toggleView} 
+        type="primary" 
+        icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined />}
+      >
+        {isListView ? 'Register User' : 'View All Users'}
+      </Button>
+      {isListView ? (
+        <UserManagementPage />
+      ) : (
+        <div className="max-w-2xl mx-auto items-center">
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="px-8 py-6 border-b border-gray-200">
+              <h2 className="text-2xl font-bold text-center text-gray-800">Create New Account</h2>
+            </div>
+            <div className="p-8">
+              <Form form={form} layout="vertical" onFinish={onFinish} className="space-y-6">
+                <Form.Item name="name" rules={[{ required: true, message: 'Please input your name!' }]}> 
+                  <Input prefix={<UserOutlined className="text-gray-400" />} placeholder="Full Name" />
                 </Form.Item>
-
-                <Form.Item
-                  name="email"
-                  rules={[
-                    { required: true, message: 'Please input your email!' },
-                    { type: 'email', message: 'Please enter a valid email!' }
-                  ]}
-                >
-                  <Input 
-                    prefix={<MailOutlined className="text-gray-400" />}
-                    placeholder="Email Address"
-                    className="h-11 rounded-lg"
-                  />
+                <Form.Item name="email" rules={[{ required: true, type: 'email', message: 'Please enter a valid email!' }]}> 
+                  <Input prefix={<MailOutlined className="text-gray-400" />} placeholder="Email Address" />
                 </Form.Item>
-              </div>
-
-              {/* Role Selection */}
-              <Form.Item
-                name="role"
-                rules={[{ required: true, message: 'Please select a role!' }]}
-              >
-                <Select
-                  placeholder="Select Role"
-                  className="h-11 rounded-lg"
-                  onChange={(value) => setRole(value)}
-                  options={[
+                <Form.Item name="role" rules={[{ required: true, message: 'Please select a role!' }]}> 
+                  <Select placeholder="Select Role" onChange={setRole} options={[
                     { value: 'USER', label: 'User' },
                     { value: 'ADMIN', label: 'Admin' },
-                    { value: 'KEEPER', label: 'Keeper' }
-                  ]}
-                />
-              </Form.Item>
-
-              {/* Conditional Fields */}
-              {(role === 'ADMIN' || role === 'KEEPER') && (
-                <div className="space-y-6">
-                  <Form.Item name="title">
-                    <Input 
-                      prefix={<IdcardOutlined className="text-gray-400" />}
-                      placeholder="Title (Optional)"
-                      className="h-11 rounded-lg"
-                    />
-                  </Form.Item>
-
-                  <Form.Item name="description">
-                    <Input.TextArea 
-                      placeholder="Description (Required)"
-                      className="rounded-lg py-2 px-3 min-h-[120px]"
-                      rows={4}
-                    />
-                  </Form.Item>
-                </div>
-              )}
-
-              {/* Password Fields */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Form.Item
-                  name="password"
-                  rules={[
-                    { required: true, message: 'Please input your password!' },
-                    { min: 6, message: 'Password must be at least 6 characters!' }
-                  ]}
-                >
-                  <Input.Password 
-                    prefix={<LockOutlined className="text-gray-400" />}
-                    placeholder="Password"
-                    className="h-11 rounded-lg"
-                  />
+                    { value: 'KEEPER', label: 'Keeper' },
+                    { value: 'ACCOUNTANT', label: 'Accountant' },
+                  ]} />
                 </Form.Item>
-
-                <Form.Item
-                  name="confirmPassword"
-                  dependencies={['password']}
-                  rules={[
-                    { required: true, message: 'Please confirm your password!' },
-                    ({ getFieldValue }) => ({
-                      validator(_, value) {
-                        if (!value || getFieldValue('password') === value) {
-                          return Promise.resolve();
-                        }
-                        return Promise.reject(new Error('Passwords do not match!'));
-                      },
-                    }),
-                  ]}
-                >
-                  <Input.Password 
-                    prefix={<LockOutlined className="text-gray-400" />}
-                    placeholder="Confirm Password"
-                    className="h-11 rounded-lg"
-                  />
+                <Form.Item name="password" rules={[{ required: true, min: 6, message: 'Password must be at least 6 characters!' }]}> 
+                  <Input.Password prefix={<LockOutlined className="text-gray-400" />} placeholder="Password" />
                 </Form.Item>
-              </div>
-
-              {/* Submit Button */}
-              <Form.Item>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  className="w-full h-11 bg-blue-600 hover:bg-blue-700 rounded-lg text-white font-semibold border-none"
-                >
-                  Register Account
-                </Button>
-              </Form.Item>
-            </Form>
+                <Form.Item name="confirmPassword" dependencies={['password']} rules={[
+                  { required: true, message: 'Please confirm your password!' },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || getFieldValue('password') === value) return Promise.resolve();
+                      return Promise.reject(new Error('Passwords do not match!'));
+                    },
+                  }),
+                ]}> 
+                  <Input.Password prefix={<LockOutlined className="text-gray-400" />} placeholder="Confirm Password" />
+                </Form.Item>
+                <Form.Item>
+                  <Button type="primary" htmlType="submit" loading={loading} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold">
+                    Register Account
+                  </Button>
+                </Form.Item>
+              </Form>
+            </div>
           </div>
         </div>
-      </div>
- )}
-      {/* Success Modal */}
-      <SuccessModal
-        visible={showSuccessModal}
-        onClose={() => {
-          setShowSuccessModal(false);
-          navigate('/admin/');
-        }}
-        userData={registeredUser}
-      />
+      )}
+      <SuccessModal visible={showSuccessModal} onClose={() => navigate('/admin/')} userData={registeredUser} />
     </div>
   );
 };

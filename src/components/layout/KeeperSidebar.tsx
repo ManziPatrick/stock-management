@@ -5,6 +5,7 @@ import { MenuOutlined, LogoutOutlined } from '@ant-design/icons';
 import { sidebarItems } from '../../constant/sidebarItemskeeper';
 import { useAppDispatch } from '../../redux/hooks';
 import { logoutUser } from '../../redux/services/authSlice';
+import log from '../../assets/Marube_log.PNG';
 
 const { Content, Sider } = Layout;
 
@@ -81,7 +82,7 @@ const KeeperSidebar = () => {
               textAlign: 'center'
             }}
           >
-            WELCOME
+            MARUBE
           </h1>
         </div>
 

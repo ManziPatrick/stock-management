@@ -81,7 +81,7 @@ const Sidebar = () => {
               textAlign: 'center'
             }}
           >
-            WELCOME
+           MARUBE
           </h1>
         </div>
 

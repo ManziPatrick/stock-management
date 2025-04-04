@@ -22,11 +22,14 @@ import GetExpensesManagePage from '../pages/managements/getexpenseManagePage';
 import ExpensesManagePage from '../pages/managements/expensesManagePage';
 import ProductManagePageKeeper from '../pages/managements/productManagePageKeeper';
 import SaleManagementPageKepper from '../pages/managements/SaleManagementPageKeeper';
+import SaleAccountantPage from '../pages/managements/SaleManagementAccountant';
 import GetDebitManagementPage from '../pages/managements/debitsManagementPage';
 import DashboardCase from '../pages/DashboardCases';
 import ProformaManager from '../pages/managements/ProformaManager';
 import DailyFinancialReport from '../pages/managements/DailyReport';
 import SuperAdminSidebar from '../components/layout/SuperSidebar';
+import AccountantSidebar from '../components/layout/AccountantSidebar';
+import DeliveryNoteSystem from '../pages/managements/DeliveryNote';
 export const router = createBrowserRouter([
   {
     path: '/seller',
@@ -136,6 +139,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'delivery',
+        element: (
+          <ProtectRoute>
+            <DeliveryNoteSystem/>
+          </ProtectRoute>
+        ),
+      },
+      {
         path: 'dashboard',  
         element: (
           <ProtectRoute>
@@ -177,7 +188,7 @@ export const router = createBrowserRouter([
       },
    
       {
-        path: 'create-product',  // This will be /admin/create-product
+        path: 'create-product', 
         element: (
           <ProtectRoute>
             <CreateProduct />
@@ -193,7 +204,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'profile',  // This will be /admin/profile
+        path: 'profile', 
         element: (
           <ProtectRoute>
             <ProfilePage />
@@ -216,14 +227,7 @@ export const router = createBrowserRouter([
           </ProtectRoute>
         ),
       },
-      {
-        path: 'sellers',  // This will be /admin/sellers
-        element: (
-          <ProtectRoute>
-            <SellerManagementPage />
-          </ProtectRoute>
-        ),
-      },
+      
       { 
         path: 'register',  // This will be /admin/register
         element: (
@@ -275,6 +279,116 @@ export const router = createBrowserRouter([
       
     ],
   },
+  {
+    path: '/accountant',
+    element: <AccountantSidebar />,  // Use an accountant-specific sidebar
+    children: [
+      {
+        path: '',  // This will be /accountant
+        element: (
+          <ProtectRoute>
+            <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'sellers',  // This will be /admin/sellers
+        element: (
+          <ProtectRoute>
+            <SellerManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'cases',
+        element: (
+          <ProtectRoute>
+            <DashboardCase/>
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'dashboard',  
+        element: (
+          <ProtectRoute>
+            <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'report',
+        element: (
+          <ProtectRoute>
+            <DailyFinancialReport />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'debits',  
+        element: (
+          <ProtectRoute>
+            <GetDebitManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'create-expense',  
+        element: (
+          <ProtectRoute>
+            <ExpensesManagePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'expense',  
+        element: (
+          <ProtectRoute>
+            <GetExpensesManagePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'profile', 
+        element: (
+          <ProtectRoute>
+            <ProfilePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'sales-history',  
+        element: (
+          <ProtectRoute>
+            <SaleHistoryPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'sales',  // This will be /admin/sales
+        element: (
+          <ProtectRoute>
+            <SaleAccountantPage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'edit-profile',  
+        element: (
+          <ProtectRoute>
+            <EditProfilePage />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'change-password',  
+        element: (
+          <ProtectRoute>
+            <ChangePasswordPage />
+          </ProtectRoute>
+        ),
+      },
+    ],
+  },  
   {
     path: '/superadmin',
     element: <SuperAdminSidebar />,
