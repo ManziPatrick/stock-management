@@ -5,7 +5,7 @@ import { MenuOutlined, LogoutOutlined } from '@ant-design/icons';
 import { sidebarItems } from '../../constant/sidebarItemsAdmin';
 import { useAppDispatch } from '../../redux/hooks';
 import { logoutUser } from '../../redux/services/authSlice';
-import log from '../../assets/Marube_log.PNG';
+import log from '../../assets/Marube_log.png';
 
 const { Content, Sider } = Layout;
 
