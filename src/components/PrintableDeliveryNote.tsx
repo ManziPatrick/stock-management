@@ -156,7 +156,7 @@ const PrintableDeliveryNote: React.FC<PrintableDeliveryNoteProps> = ({ data }) =
           <div>
             <div className="text-start flex flex-col mb-6"></div>
             <div className="text-start mt-6 flex flex-col">
-              <span className="font-bold">MARUBE TRADERS LTD</span> 
+              <span className="font-semibold">MARUBE TRADERS LTD</span> 
               <address>Plot No . 203 nyabugogo-Gatuna Roads</address> 
               <span>TEL : 0786530669</span> 
               <span>EMAIL : oyileb.ob@gmail.com</span>

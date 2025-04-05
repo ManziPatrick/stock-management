@@ -163,9 +163,10 @@ const Receipt = ({ saleData }: ReceiptProps) => {
       </div>
  
       <div className="text-center mb-6">
-        <h2 className="text-lg font-semibold text-gray-700">Your Store Name</h2>
-        <p className="text-sm text-gray-500">123 Business Street</p>
-        <p className="text-sm text-gray-500">City, State 12345</p>
+        <h2 className="text-lg font-semibold text-gray-700">MARUBE TRADERS LTD</h2>
+        <p className="text-sm text-gray-500">Plot No . 203 nyabugogo-Gatuna Roads</p>
+        <p className="text-sm text-gray-500">TEL : 0786530669</p>
+        <p className="text-sm text-gray-500">EMAIL : oyileb.ob@gmail.com</p>
       </div>
 
       <div className="border-t border-b border-gray-200 py-4 mb-4">

@@ -98,7 +98,7 @@ const AccountantDashboard = () => {
           <img src={log} className="w-[28px] h-[28px]" alt="Logo" />
           {!collapsed && !mobileView && (
             <h1 className="text-white font-extrabold text-[1.2rem]">
-              STOCKXI
+              MARUBE
             </h1>
           )}
         </div>

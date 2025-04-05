@@ -131,6 +131,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'sellers',  // This will be /admin/sellers
+        element: (
+          <ProtectRoute>
+            <SellerManagementPage />
+          </ProtectRoute>
+        ),
+      },
+      {
         path: 'Proforma',
         element: (
           <ProtectRoute>
@@ -288,6 +296,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectRoute>
             <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'purchases',  // This will be /admin/purchases
+        element: (
+          <ProtectRoute>
+            <PurchaseManagementPage />
           </ProtectRoute>
         ),
       },
