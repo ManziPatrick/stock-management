@@ -13,6 +13,7 @@ const AdminSidebar = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState(window.innerWidth <= 768);
+  const [openKeys, setOpenKeys] = useState([]);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
@@ -25,15 +26,44 @@ const AdminSidebar = () => {
       return 'Dashboard';
     }
     
-    // For other paths, find the matching sidebar item
+    // For other paths, first check top-level items
     const matchingItem = sidebarItems.find(item => {
-      // Extract path from NavLink's to prop
-      const navLinkElement = item.label.props;
-      const itemPath = navLinkElement.to;
-      return path === itemPath;
+      // Handle items with direct NavLink
+      if (item.label?.props?.to) {
+        return path === item.label.props.to;
+      }
+      return false;
     });
     
-    return matchingItem ? matchingItem.key : 'Dashboard';
+    if (matchingItem) {
+      return matchingItem.key;
+    }
+    
+    // If no top-level match, check for children
+    const itemWithMatchingChild = sidebarItems.find(item => {
+      if (!item.children) return false;
+      
+      return item.children.some(child => {
+        return child.label?.props?.to === path;
+      });
+    });
+    
+    // If we found a parent with matching child
+    if (itemWithMatchingChild) {
+      // Find the actual child for its key
+      const matchingChild = itemWithMatchingChild.children.find(
+        child => child.label?.props?.to === path
+      );
+      
+      // Open the parent menu automatically
+      if (!openKeys.includes(itemWithMatchingChild.key)) {
+        setOpenKeys([...openKeys, itemWithMatchingChild.key]);
+      }
+      
+      return matchingChild ? matchingChild.key : 'Dashboard';
+    }
+    
+    return 'Dashboard'; // Default
   };
 
   useEffect(() => {
@@ -54,6 +84,10 @@ const AdminSidebar = () => {
 
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
+  };
+
+  const handleOpenChange = (keys) => {
+    setOpenKeys(keys);
   };
 
   return (
@@ -112,6 +146,8 @@ const AdminSidebar = () => {
               fontWeight: '700',
             }}
             selectedKeys={[getActiveKey()]}
+            openKeys={openKeys}
+            onOpenChange={handleOpenChange}
             items={sidebarItems}
           />
         </div>
