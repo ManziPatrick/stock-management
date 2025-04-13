@@ -2,7 +2,7 @@ import type { PaginationProps, TableColumnsType } from 'antd';
 import { Flex, Pagination, Table, Button, Input, Select, message } from 'antd';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { 
+import {
   useGetAllExpensesQuery,
   useCreateExpenseMutation,
 } from '../../redux/features/management/expenseApi';
@@ -16,12 +16,18 @@ interface ExpenseFormData {
   description?: string;
   category: 'FOOD' | 'TRANSPORT' | 'UTILITIES' | 'ENTERTAINMENT' | 'OTHER';
   status?: 'ACTIVE' | 'ARCHIVED';
+  paymentMethod: 'CASH' | 'CHECK' | 'MOMO' | 'PETTY_CASH';
 }
 
 interface Expense extends ExpenseFormData {
   _id: string;
   date: string;
-  createdBy: string;
+  createdBy: {
+    _id: string;
+    name: string;
+    email: string;
+    role: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +40,13 @@ const CATEGORY_OPTIONS = [
   { value: 'OTHER', label: 'Other' }
 ];
 
+const PAYMENT_METHOD_OPTIONS = [
+  { value: 'CASH', label: 'Cash' },
+  { value: 'CHECK', label: 'Check' },
+  { value: 'MOMO', label: 'Mobile Money' },
+  { value: 'PETTY_CASH', label: 'Petty Cash' }
+];
+
 const GetExpenseManagementPage = () => {
   const [query, setQuery] = useState({
     page: 1,
@@ -41,16 +54,23 @@ const GetExpenseManagementPage = () => {
     search: '',
     status: 'ACTIVE'
   });
- 
+
   const { data, isFetching, refetch } = useGetAllExpensesQuery(query);
   const [createExpense, { isLoading: isCreating }] = useCreateExpenseMutation();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
+  const [pettyCash, setPettyCash] = useState({
+    balance: 150000,
+    lastTopup: '2025-04-10',
+    recentTransactions: []
+  });
+
   const {
     control,
     handleSubmit,
     reset,
+    watch,
     formState: { errors }
   } = useForm<ExpenseFormData>({
     defaultValues: {
@@ -58,19 +78,40 @@ const GetExpenseManagementPage = () => {
       amount: 0,
       description: '',
       category: 'OTHER',
-      status: 'ACTIVE'
+      status: 'ACTIVE',
+      paymentMethod: 'CASH'
     }
   });
 
   const userId = getUserFromPersistedAuth();
-  
+  const selectedPaymentMethod = watch('paymentMethod');
+
   const onSubmit = async (formData: ExpenseFormData) => {
     try {
+      if (formData.paymentMethod === 'PETTY_CASH') {
+        if (pettyCash.balance < formData.amount) {
+          return messageApi.error('Insufficient petty cash balance');
+        }
+
+        setPettyCash(prev => ({
+          ...prev,
+          balance: prev.balance - formData.amount,
+          recentTransactions: [
+            {
+              date: new Date().toISOString().split('T')[0],
+              amount: -formData.amount,
+              description: formData.title
+            },
+            ...prev.recentTransactions
+          ]
+        }));
+      }
+
       const expensePayload = {
         ...formData,
         date: new Date().toISOString(),
         status: formData.status || 'ACTIVE',
-        createdBy: userId,
+        createdBy: userId
       };
 
       await createExpense(expensePayload).unwrap();
@@ -94,26 +135,49 @@ const GetExpenseManagementPage = () => {
     {
       title: 'Title',
       dataIndex: 'title',
-      key: 'title',
+      key: 'title'
     },
     {
       title: 'Description',
       dataIndex: 'description',
-      key: 'description',
+      key: 'description'
     },
     {
       title: 'Amount',
       dataIndex: 'amount',
       key: 'amount',
       align: 'right',
-      render: (amount: number) => `${amount.toFixed(2)}frw`
+      render: (amount: number) => `${amount.toFixed(2)} frw`
     },
+    {
+      title: 'Payment Method',
+      dataIndex: 'paymentMethod',
+      key: 'paymentMethod',
+      render: (method: string) => {
+        const methodMap: Record<string, string> = {
+          'CASH': 'Cash',
+          'CHECK': 'Check',
+          'MOMO': 'Mobile Money',
+          'PETTY_CASH': 'Petty Cash'
+        };
+        return methodMap[method] || method;
+      }
+    },
+    {
+      title: 'By',
+      dataIndex: 'createdBy',
+      key: 'createdBy',
+      render: (createdBy) => (
+        <div>
+          <div>{createdBy?.name}</div>
+          <div style={{ fontSize: '0.8em', color: 'gray' }}>{createdBy?.email}</div>
+        </div>
+      )
+    }
   ];
 
-  const expenses = data?.data.data || [];
-  console.log("ggggggg",expenses);
-  const totalExpenses = data?.data?.totalExpenses || 0;
-  console.log("ggggggg",totalExpenses);
+  const expenses = data?.data || [];
+  const totalExpenses = data?.total || 0;
   const currentPage = data?.pagination?.currentPage || 1;
   const totalPages = data?.pagination?.totalPages || 1;
 
@@ -121,8 +185,8 @@ const GetExpenseManagementPage = () => {
     <div className="p-6 bg-white rounded-lg shadow-md h-[90vh]">
       {contextHolder}
       <Flex justify="end" style={{ margin: '16px', gap: 8 }}>
-        <Input.Search 
-          placeholder="Search expenses..." 
+        <Input.Search
+          placeholder="Search expenses..."
           onSearch={(value) => setQuery(prev => ({ ...prev, search: value, page: 1 }))}
           style={{ width: 200 }}
         />
@@ -155,9 +219,9 @@ const GetExpenseManagementPage = () => {
         />
       </Flex>
 
-      <Modal 
+      <Modal
         title="Add New Expense"
-        open={isModalOpen} 
+        open={isModalOpen}
         onCancel={() => {
           setIsModalOpen(false);
           reset();
@@ -170,22 +234,16 @@ const GetExpenseManagementPage = () => {
             <Controller
               name="title"
               control={control}
-              rules={{ 
+              rules={{
                 required: "Title is required",
                 minLength: { value: 3, message: "Title must be at least 3 characters" },
                 maxLength: { value: 100, message: "Title cannot exceed 100 characters" }
               }}
               render={({ field }) => (
-                <Input
-                  {...field}
-                  id="title"
-                  placeholder="Enter expense title"
-                />
+                <Input {...field} id="title" placeholder="Enter expense title" />
               )}
             />
-            {errors.title && (
-              <span className="text-red-500 text-sm">{errors.title.message}</span>
-            )}
+            {errors.title && <span className="text-red-500 text-sm">{errors.title.message}</span>}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -195,17 +253,10 @@ const GetExpenseManagementPage = () => {
               control={control}
               rules={{ required: "Category is required" }}
               render={({ field }) => (
-                <Select
-                  {...field}
-                  id="category"
-                  placeholder="Select category"
-                  options={CATEGORY_OPTIONS}
-                />
+                <Select {...field} id="category" placeholder="Select category" options={CATEGORY_OPTIONS} />
               )}
             />
-            {errors.category && (
-              <span className="text-red-500 text-sm">{errors.category.message}</span>
-            )}
+            {errors.category && <span className="text-red-500 text-sm">{errors.category.message}</span>}
           </div>
 
           <div className="flex flex-col gap-2">
@@ -213,7 +264,7 @@ const GetExpenseManagementPage = () => {
             <Controller
               name="amount"
               control={control}
-              rules={{ 
+              rules={{
                 required: "Amount is required",
                 min: { value: 0, message: "Amount must be positive" },
                 max: { value: 1000000, message: "Amount cannot exceed 1,000,000" }
@@ -231,31 +282,49 @@ const GetExpenseManagementPage = () => {
                 />
               )}
             />
-            {errors.amount && (
-              <span className="text-red-500 text-sm">{errors.amount.message}</span>
-            )}
+            {errors.amount && <span className="text-red-500 text-sm">{errors.amount.message}</span>}
           </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="paymentMethod">Payment Method</label>
+            <Controller
+              name="paymentMethod"
+              control={control}
+              rules={{ required: "Payment method is required" }}
+              render={({ field }) => (
+                <Select {...field} id="paymentMethod" placeholder="Select payment method" options={PAYMENT_METHOD_OPTIONS} />
+              )}
+            />
+            {errors.paymentMethod && <span className="text-red-500 text-sm">{errors.paymentMethod.message}</span>}
+          </div>
+
+          {selectedPaymentMethod === 'PETTY_CASH' && (
+            <div className="bg-blue-50 p-3 rounded-md">
+              <div className="flex justify-between text-sm mb-2">
+                <span>Current Petty Cash Balance:</span>
+                <span className="font-semibold">{pettyCash.balance.toLocaleString()} frw</span>
+              </div>
+              <div className="text-xs text-gray-600">
+                {watch('amount') > pettyCash.balance ? (
+                  <p className="text-red-500">Warning: Expense amount exceeds available petty cash balance!</p>
+                ) : (
+                  <p>Projected Balance After Transaction: {(pettyCash.balance - (watch('amount') || 0)).toLocaleString()} frw</p>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="flex flex-col gap-2">
             <label htmlFor="description">Description</label>
             <Controller
               name="description"
               control={control}
-              rules={{
-                maxLength: { value: 500, message: "Description cannot exceed 500 characters" }
-              }}
+              rules={{ maxLength: { value: 500, message: "Description cannot exceed 500 characters" } }}
               render={({ field }) => (
-                <Input.TextArea
-                  {...field}
-                  id="description"
-                  placeholder="Enter Description (Required)"
-                  rows={4}
-                />
+                <Input.TextArea {...field} id="description" placeholder="Enter description" rows={4} />
               )}
             />
-            {errors.description && (
-              <span className="text-red-500 text-sm">{errors.description.message}</span>
-            )}
+            {errors.description && <span className="text-red-500 text-sm">{errors.description.message}</span>}
           </div>
 
           <Flex justify="end" gap="small" style={{ marginTop: '8px' }}>
@@ -270,6 +339,7 @@ const GetExpenseManagementPage = () => {
               htmlType="submit"
               loading={isCreating}
               className="bg-blue-600"
+              disabled={selectedPaymentMethod === 'PETTY_CASH' && watch('amount') > pettyCash.balance}
             >
               Create Expense
             </Button>

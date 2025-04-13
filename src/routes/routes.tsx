@@ -3,6 +3,7 @@ import ProtectRoute from '../components/layout/ProtectRoute';
 import Sidebar from '../components/layout/Sidebar';
 import CreateProduct from '../pages/CreateProduct';
 import Dashboard from '../pages/Dashboard';
+import AccountantDashboard from '../pages/AccDashboard';
 import NotFound from '../pages/NotFound';
 import ProfilePage from '../pages/ProfilePage';
 import SaleHistoryPage from '../pages/SaleHistoryPage';
@@ -327,7 +328,7 @@ export const router = createBrowserRouter([
         path: 'dashboard',  
         element: (
           <ProtectRoute>
-            <Dashboard />
+            <AccountantDashboard />
           </ProtectRoute>
         ),
       },

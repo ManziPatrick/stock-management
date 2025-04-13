@@ -68,6 +68,7 @@ const LoginPage = () => {
             >
               Login to your account
             </h1>
+            
             <p className="text-white p-5 font-extralight text-sm text-center">
               Login to your account, and if you do not have an account, contact your admin.
             </p>
