@@ -39,21 +39,21 @@ export const sidebarItems = [
   //   icon: React.createElement(AntDesignOutlined),
   // },
 
-  // {
-  //   key: 'Manage Products',
-  //   label: <NavLink to='/accountant/products'>MANAGE PRODUCTS</NavLink>,
-  //   icon: React.createElement(MoneyCollectFilled),
-  // },
+  {
+    key: 'Manage Pettycash',
+    label: <NavLink to='/accountant/pettycash'>MANAGE PETTYCASH</NavLink>,
+    icon: React.createElement(MoneyCollectFilled),
+  },
   {
     key: 'Manage Sales',
     label: <NavLink to='/accountant/sales'>MANAGE SALES</NavLink>,
     icon: React.createElement(AreaChartOutlined),
   },
-  {
-    key: 'Manage Seller',
-    label: <NavLink to='/accountant/sellers'>MANAGE SUPPIERS</NavLink>,
-    icon: React.createElement(ApartmentOutlined),
-  },
+  // {
+  //   key: 'Manage Seller',
+  //   label: <NavLink to='/accountant/sellers'>MANAGE SUPPIERS</NavLink>,
+  //   icon: React.createElement(ApartmentOutlined),
+  // },
   {
     key: 'Manage Purchase',
     label: <NavLink to='/accountant/purchases'>MANAGE PURCHASES</NavLink>,

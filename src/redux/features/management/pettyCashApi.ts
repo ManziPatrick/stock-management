@@ -1,8 +1,7 @@
-
 import { baseApi } from "../baseApi";
+
 export const pettyCashApi = baseApi.injectEndpoints({
   endpoints: (builder) => ({
-    
     getPettyCash: builder.query({
       query: () => ({
         url: '/expenses/petty-cash',
@@ -27,6 +26,16 @@ export const pettyCashApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['PettyCash'],
     }),
+
+    // New endpoint for getting all transactions
+    getAllTransactions: builder.query({
+      query: (params) => ({
+        url: '/expenses/petty-cash/transactions',
+        method: 'GET',
+        params,
+      }),
+      providesTags: ['PettyCash'],
+    }),
   }),
 });
 
@@ -35,4 +44,6 @@ export const {
   useLazyGetPettyCashQuery,
   useInitializePettyCashMutation,
   useTopUpPettyCashMutation,
+  useGetAllTransactionsQuery,
+  useLazyGetAllTransactionsQuery,
 } = pettyCashApi;

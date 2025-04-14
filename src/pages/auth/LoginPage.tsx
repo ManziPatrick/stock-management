@@ -8,6 +8,7 @@ import { useAppDispatch } from '../../redux/hooks';
 import { loginUser } from '../../redux/services/authSlice';
 import decodeToken from '../../utils/decodeToken';
 import stock from '../../assets/loginstock.webp';
+import log from '../../assets/Marube_log.png'
 
 const LoginPage = () => {
   const [userLogin] = useLoginMutation();
@@ -44,7 +45,7 @@ const LoginPage = () => {
             navigate('/seller/products');
             break;
           case 'ACCOUNTANT': // Added Accountant role
-            navigate('/accountant/dashboard');
+            navigate('/accountant/adashboard');
             break;
           default:
             toastMessage({ icon: 'warning', text: 'No appropriate role found for this user.' });
@@ -55,20 +56,22 @@ const LoginPage = () => {
     } catch (error: any) {
       toastMessage({ icon: 'error', text: error.data.message });
     }
-  };
+  }; 
   
   return (
     <div className="w-3/4 flex justify-center items-center m-auto" style={{ height: '100vh' }}>
       <div className="bg-blue-950 flex justify-center flex-col md:flex-row items-center align-middle shadow-lg rounded-md w-full">
         <div className="w-full flex flex-col justify-center items-center" style={{ padding: '1rem', height: '440px' }}>
           <div className="w-full md:w-3/4">
+          <div className='flex justify-center  flex-col items-center'>
             <h1
               className="font-bold md:font-extrabold text-teal-50 text-center p-2 md:p-5 text-sm md:text-xl"
               style={{ marginBottom: '.7rem', textTransform: 'uppercase' }}
             >
-              Login to your account
+              Welcome to Marube's Stock
             </h1>
-            
+              <img src={log} alt="" className='w-[64px]' />
+              </div>
             <p className="text-white p-5 font-extralight text-sm text-center">
               Login to your account, and if you do not have an account, contact your admin.
             </p>

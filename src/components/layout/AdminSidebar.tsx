@@ -29,7 +29,9 @@ const AdminSidebar = () => {
     // For other paths, first check top-level items
     const matchingItem = sidebarItems.find(item => {
       // Handle items with direct NavLink
+      //@ts-ignore
       if (item.label?.props?.to) {
+        //@ts-ignore
         return path === item.label.props.to;
       }
       return false;

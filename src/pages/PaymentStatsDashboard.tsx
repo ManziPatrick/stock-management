@@ -29,8 +29,8 @@ const SalesStatisticsDashboard = () => {
   const COLORS = ["#64748b", "#3b82f6", "#22c55e", "#6366f1"];
   const formatCurrency = (value) => `${value.toLocaleString()}`;
 
-  const StatCard = ({ title, value }) => (
-    <div className="bg-white rounded-lg shadow p-6">
+  const StatCard = ({ title, value, color }) => (
+    <div className={`bg-white rounded-lg shadow p-6 border-t-4 ${color}`}>
       <div className="text-sm text-gray-600 mb-2">{title}</div>
       <div className="text-2xl font-semibold">{formatCurrency(value)}</div>
     </div>
@@ -128,13 +128,28 @@ const SalesStatisticsDashboard = () => {
 
   const { stats, dailyStats, monthlyStats, yearlyStats } = salesData.meta.totalSales;
 
+  // Calculate total amounts for each payment method across all time periods
+  // We'll use the current view's data to display the relevant totals
+  let viewData;
+  if (activeView === "daily") {
+    viewData = dailyStats;
+  } else if (activeView === "monthly") {
+    viewData = monthlyStats;
+  } else {
+    viewData = yearlyStats;
+  }
+
+  // Get the most recent data point for the current view
+  const currentData = viewData[0] || {};
+
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Replaced cards section with payment method totals */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Total Sales Amount" value={stats.totalSellingPrice} />
-        <StatCard title="Total Quantity Sold" value={stats.totalQuantitySold} />
-        <StatCard title="Average Sale Amount" value={Math.round(stats.averageSaleAmount)} />
-        <StatCard title="Total Margin Profit" value={stats.totalMarginProfit} />
+        <StatCard title="Cash Total" value={currentData.cashTotal || 0} color="border-gray-500" />
+        <StatCard title="Mobile Money Total" value={currentData.momoTotal || 0} color="border-blue-500" />
+        <StatCard title="Cheque Total" value={currentData.chequeTotal || 0} color="border-green-500" />
+        <StatCard title="Transfer Total" value={currentData.transferTotal || 0} color="border-indigo-500" />
       </div>
 
       <div className="flex space-x-4 mb-6">

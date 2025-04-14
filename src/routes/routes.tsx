@@ -31,6 +31,7 @@ import DailyFinancialReport from '../pages/managements/DailyReport';
 import SuperAdminSidebar from '../components/layout/SuperSidebar';
 import AccountantSidebar from '../components/layout/AccountantSidebar';
 import DeliveryNoteSystem from '../pages/managements/DeliveryNote';
+import PettyCashTransactionsPage from '../pages/CashTransactionsPage';
 export const router = createBrowserRouter([
   {
     path: '/seller',
@@ -296,7 +297,7 @@ export const router = createBrowserRouter([
         path: '',  // This will be /accountant
         element: (
           <ProtectRoute>
-            <Dashboard />
+            <AccountantDashboard />
           </ProtectRoute>
         ),
       },
@@ -325,7 +326,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'dashboard',  
+        path: 'adashboard',  
         element: (
           <ProtectRoute>
             <AccountantDashboard />
@@ -337,6 +338,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectRoute>
             <DailyFinancialReport />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'pettycash',
+        element: (
+          <ProtectRoute>
+            <PettyCashTransactionsPage />
           </ProtectRoute>
         ),
       },
