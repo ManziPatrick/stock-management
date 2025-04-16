@@ -680,20 +680,24 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     )}
                   />
                   <Table.Column 
-                    title={`Quantity`} 
-                    key="quantity"
-                    render={(record: any) => (
-                      <Input
-                        type="number"
-                        min={1}
-                        max={record.stock}
-                        value={record.selectedQuantity}
-                        onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
-                        style={{ width: 80 }}
-                        suffix={<span>/ {record.stock}</span>}
-                      />
-                    )}
-                  />
+  title="Quantity" 
+  key="quantity"
+  render={(record: any) => (
+    <div className="flex items-center gap-1">
+      <Input
+        type="number"
+        min={1}
+        max={record.stock}
+        value={record.selectedQuantity}
+        onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
+        className="w-[80px] text-right"
+        style={{ fontWeight: 500 }}
+      />
+      <span className="text-[10px] text-gray-500">/ {record.stock}</span>
+    </div>
+  )}
+/>
+
                   <Table.Column 
                     title="Subtotal" 
                     key="subtotal"

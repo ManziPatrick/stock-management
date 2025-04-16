@@ -38,16 +38,26 @@ const DailySalesChart: React.FC<ChartProps> = () => {
   }
 
   // Correctly extract expense data
-  const expenseDailyStats = expensesData?.data?.meta?.totalExpenses?.dailyStats || [];
-  console.log("expensesData", expenseDailyStats);
-  
-  // Create a map of date strings to expense values for easy lookup
-  const expenseMap = {};
-  expenseDailyStats.forEach(stat => {
-    const dateKey = `${stat._id.day}/${stat._id.month}`;
-    expenseMap[dateKey] = stat.dailyTotal || 0;
-  });
-  console.log("expenseMap", expenseMap);
+  const expenseDailyStats = expensesData?.data ?? [];
+
+const expenseMap = {};
+
+expenseDailyStats.forEach(stat => {
+  const dateObj = new Date(stat.date);
+  const day = dateObj.getUTCDate();
+  const month = dateObj.getUTCMonth() + 1;
+  const dateKey = `${day}/${month}`;
+
+  // Sum up the amounts per day
+  if (!expenseMap[dateKey]) {
+    expenseMap[dateKey] = 0;
+  }
+
+  expenseMap[dateKey] += stat.amount;
+});
+
+console.log("expensesMap", expenseMap);
+
   
   // Similarly for purchases
   const purchaseDailyStats = purchaseData?.meta?.totalExpenses?.dailyStats || [];
@@ -57,41 +67,50 @@ const DailySalesChart: React.FC<ChartProps> = () => {
     purchaseMap[dateKey] = stat.dailyTotal || 0;
   });
 
-  const processedData = salesData?.data?.map(dailyData => {
+  const processedData = salesData?.data?.map((dailyData: any) => {
     const day = dailyData._id?.day;
     const month = dailyData._id?.month;
     const year = dailyData._id?.year;
-    
-    // Create a date object and add one day to fix the date issue
+  
+    // Step 1: Create UTC date and fix the day offset issue
     const utcDate = new Date(year, month - 1, day);
-    utcDate.setDate(utcDate.getDate() + 1);
-    
-    // Convert to Rwanda Time (UTC+2)
+    utcDate.setDate(utcDate.getDate() + 1); // Fix timezone-related bug
+  
+    // Step 2: Convert to Rwanda Time (UTC+2)
     const rwandaTime = new Date(utcDate.getTime() + (2 * 60 * 60 * 1000));
-    
-    // Create date key using the corrected date
+  
+    // Step 3: Build date key (e.g., "15/4") for matching expenses/purchases
     const correctedDay = rwandaTime.getDate();
     const correctedMonth = rwandaTime.getMonth() + 1;
     const dateKey = `${correctedDay}/${correctedMonth}`;
   
+    // Step 4: Return all relevant stats for the chart + cards
     return {
-      name: dateKey,
-      date: rwandaTime.getTime(), // Use this in charts
+      name: dateKey, // For x-axis in charts
+      date: rwandaTime.getTime(), // Optional: for advanced date sorting
       formattedDate: rwandaTime.toLocaleString("en-US", { timeZone: "Africa/Kigali" }),
+  
+      // Sales-related
       revenue: dailyData.totalSaleAmount || 0,
       sellingPrice: dailyData.totalSellingPrice || 0,
       productCost: dailyData.totalProductPrice || 0,
       profit: dailyData.netProfit || 0,
       margin: dailyData.totalMarginProfit || 0,
       quantity: dailyData.totalQuantitySold || 0,
+  
+      // Payment methods
       cash: dailyData.cashTotal || 0,
       momo: dailyData.momoTotal || 0,
       cheque: dailyData.chequeTotal || 0,
       transfer: dailyData.transferTotal || 0,
+  
+      // External maps (match by date)
       expenses: expenseMap[dateKey] || 0,
-      purchases: purchaseMap[dateKey] || 0
+      purchases: purchaseMap[dateKey] || 0,
     };
   }) || [];
+  // console.log("Total expenses sum:", Object.values(expenseMap).reduce((acc, val) => acc + val, 0));
+
 
   // Sort data by date
   const sortedData = processedData.sort((a, b) => a.date - b.date);
@@ -113,6 +132,7 @@ const DailySalesChart: React.FC<ChartProps> = () => {
     revenue: 0, profit: 0, expenses: 0, quantity: 0,
     cash: 0, momo: 0, cheque: 0, transfer: 0, productCost: 0
   });
+  
 
   const renderChart = () => {
     const commonProps = {
@@ -168,24 +188,14 @@ const DailySalesChart: React.FC<ChartProps> = () => {
           </BarChart>
         );
 
-      case 'line':
-        return (
-          <LineChart {...commonProps}>
-            {commonChildren}
-            <Line type="monotone" dataKey="sellingPrice" stroke="#8884d8" name="Selling Price" dot={false} />
-            <Line type="monotone" dataKey="revenue" stroke="#82ca9d" name="Revenue" dot={false} />
-            <Line type="monotone" dataKey="profit" stroke="#ffc658" name="Profit" dot={false} />
-            <Line type="monotone" dataKey="quantity" stroke="#ff8042" name="Quantity" yAxisId="right" dot={false} />
-          </LineChart>
-        );
-
+     
       case 'composed':
         return (
           <ComposedChart {...commonProps}>
             {commonChildren}
             <Bar dataKey="revenue" fill="#82ca9d" name="Revenue" />
             <Bar dataKey="expenses" fill="#ff8042" name="Expenses" />
-            <Line type="monotone" dataKey="profit" stroke="#ffc658" name="Profit" dot={false} />
+            {/* <Line type="monotone" dataKey="profit" stroke="#ffc658" name="Profit" dot={false} /> */}
             <Area type="monotone" dataKey="margin" fill="#8884d8" stroke="#8884d8" name="Margin" />
           </ComposedChart>
         );
@@ -235,7 +245,7 @@ const DailySalesChart: React.FC<ChartProps> = () => {
           >
             <option value="area">Area Chart</option>
             <option value="bar">Bar Chart</option>
-            <option value="line">Line Chart</option>
+       
             <option value="composed">Composed Chart</option>
             <option value="pie">Pie Chart</option>
           </select>

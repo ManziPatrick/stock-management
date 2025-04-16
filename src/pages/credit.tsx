@@ -76,6 +76,7 @@ const CreditManagementPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCredit, setEditingCredit] = useState<Credit | null>(null);
   const [messageApi, contextHolder] = message.useMessage();
+  const [originalDownPayment, setOriginalDownPayment] = useState(0);
 
   const { data, isFetching } = useGetAllCreditsQuery(query);
   const [createCredit, { isLoading: isCreating }] = useCreateCreditMutation();
@@ -83,6 +84,18 @@ const CreditManagementPage: React.FC = () => {
   const { data: productsData } = useGetAllProductsQuery({});
 
   const userId = getUserFromPersistedAuth();
+
+  useEffect(() => {
+    if (editingCredit) {
+      const formattedCredit = {
+        ...editingCredit,
+        paymentDueDate: dayjs(editingCredit.paymentDueDate),
+      };
+      setOriginalDownPayment(editingCredit.downPayment); 
+      form.setFieldsValue({ ...formattedCredit, topUpAmount: 0 }); 
+    }
+  }, [editingCredit, form]);
+  
 
   useEffect(() => {
     if (editingCredit) {
@@ -385,22 +398,45 @@ const CreditManagementPage: React.FC = () => {
                   <Input type="number" min={0} placeholder="Enter total amount"   disabled/>
                 </Form.Item>
                 <Form.Item
+  name="topUpAmount"
+  label="Top-Up Amount"
+>
+  <Input
+    type="number"
+    min={0}
+    placeholder="Enter top-up amount"
+    onChange={(e) => {
+      const topUp = parseFloat(e.target.value || '0');
+      form.setFieldsValue({
+        downPayment: originalDownPayment + topUp,
+      });
+    }}
+  />
+</Form.Item>
+
+<Form.Item
   name="downPayment"
   label="Down Payment"
   rules={[
-    { required: true, message: 'Please enter down payment' },
+    {
+      required: true,
+      message: 'Down payment is required',
+    },
     ({ getFieldValue }) => ({
       validator(_, value) {
         if (!value || value <= getFieldValue('totalAmount')) {
           return Promise.resolve();
         }
-        return Promise.reject(new Error('Down payment must be less than or equal to the total amount'));
+        return Promise.reject(
+          new Error('Down payment must be less than or equal to the total amount'),
+        );
       },
     }),
   ]}
 >
-  <Input type="number" min={0} placeholder="Enter down payment" />
+  <Input type="number" disabled />
 </Form.Item>
+
 
 
                 <Form.Item

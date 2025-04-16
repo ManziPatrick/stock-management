@@ -11,7 +11,10 @@ import {
   Spin,    
   Empty,
   notification,
-  Collapse
+  Collapse,
+  Space,
+  Row,
+  Col
 } from 'antd';
 import { DownloadOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
@@ -295,13 +298,15 @@ const DailyFinancialReport = () => {
       {
         title: 'Product Name',
         dataIndex: 'productName',
-        key: 'productName'
+        key: 'productName',
+        ellipsis: true
       },
       {
         title: 'Product Price',
         dataIndex: 'productPrice',
         key: 'productPrice',
-        render: (value) => formatCurrency(value)
+        render: (value) => formatCurrency(value),
+        responsive: ['md']
       },
       {
         title: 'Selling Price',
@@ -310,7 +315,7 @@ const DailyFinancialReport = () => {
         render: (value) => formatCurrency(value)
       },
       {
-        title: 'Quantity',
+        title: 'Qty',
         dataIndex: 'quantity',
         key: 'quantity'
       },
@@ -330,40 +335,45 @@ const DailyFinancialReport = () => {
         }))}
         pagination={false}
         size="small"
+        scroll={{ x: 'max-content' }}
       />
     );
   };
 
-  // Table columns configuration
+  // Table columns configuration with responsiveness
   const salesColumns = [
     {
-      title: 'Buyer Name',
+      title: 'Buyer',
       dataIndex: 'buyer',
-      key: 'buyer'
+      key: 'buyer',
+      ellipsis: true
     },
     {
-      title: 'Total Items',
+      title: 'Items',
       dataIndex: 'totalItems',
       key: 'totalItems',
-      sorter: (a, b) => a.totalItems - b.totalItems
+      sorter: (a, b) => a.totalItems - b.totalItems,
+      responsive: ['sm']
     },
     {
-      title: 'Total Amount',
+      title: 'Amount',
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       render: (value) => formatCurrency(value),
       sorter: (a, b) => a.totalAmount - b.totalAmount
     },
     {
-      title: 'Payment Mode',
+      title: 'Payment',
       dataIndex: 'payment',
-      key: 'payment'
+      key: 'payment',
+      responsive: ['md']
     },
     {
       title: 'Time',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (value) => formatTime(value)
+      render: (value) => formatTime(value),
+      responsive: ['lg']
     },
     {
       title: 'Profit',
@@ -376,28 +386,32 @@ const DailyFinancialReport = () => {
 
   const purchasesColumns = [
     {
-      title: 'Seller Name',
+      title: 'Seller',
       dataIndex: 'sellerName',
-      key: 'sellerName'
+      key: 'sellerName',
+      ellipsis: true,
+      responsive: ['md']
     },
     {
-      title: 'Product Name',
+      title: 'Product',
       dataIndex: 'productName',
-      key: 'productName'
+      key: 'productName',
+      ellipsis: true
     },
     {
-      title: 'Price (per unit)',
+      title: 'Unit Price',
       dataIndex: 'unitPrice',
       key: 'unitPrice',
-      render: (value) => formatCurrency(value)
+      render: (value) => formatCurrency(value),
+      responsive: ['lg']
     },
     {
-      title: 'Quantity',
+      title: 'Qty',
       dataIndex: 'quantity',
       key: 'quantity'
     },
     {
-      title: 'Total Price',
+      title: 'Total',
       dataIndex: 'totalPrice',
       key: 'totalPrice',
       render: (value) => formatCurrency(value),
@@ -406,7 +420,8 @@ const DailyFinancialReport = () => {
     {
       title: 'Time',
       dataIndex: 'time',
-      key: 'time'
+      key: 'time',
+      responsive: ['xl']
     }
   ];
 
@@ -414,17 +429,21 @@ const DailyFinancialReport = () => {
     {
       title: 'Date',
       dataIndex: 'formattedDate',
-      key: 'formattedDate'
+      key: 'formattedDate',
+      responsive: ['md']
     },
     {
       title: 'Title',
       dataIndex: 'title',
-      key: 'title'
+      key: 'title',
+      ellipsis: true
     },
     {
       title: 'Description',
       dataIndex: 'description',
-      key: 'description'
+      key: 'description',
+      ellipsis: true,
+      responsive: ['lg']
     },
     {
       title: 'Amount',
@@ -445,11 +464,13 @@ const DailyFinancialReport = () => {
         { text: 'Purchase', value: 'Purchase' },
         { text: 'Expense', value: 'Expense' }
       ],
-      onFilter: (value, record) => record.type === value
+      onFilter: (value, record) => record.type === value,
+      responsive: ['sm']
     },
     {
       title: 'Description',
       key: 'description',
+      ellipsis: true,
       render: (text, record) => {
         if (record.type === 'Sale') {
           return `${record.buyer} - ${record.totalItems} items`;
@@ -484,7 +505,8 @@ const DailyFinancialReport = () => {
       render: (text, record) => {
         const timestamp = record.type === 'Expense' ? record.date : record.createdAt;
         return formatTime(timestamp);
-      }
+      },
+      responsive: ['md']
     }
   ];
 
@@ -493,75 +515,71 @@ const DailyFinancialReport = () => {
     ...todaySalesData,
     ...todayPurchasesData,
     ...todayExpensesData
-
   ].sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));  // Sort by time descending
 
+  // Handle mobile summary display
+  const renderSummaryCards = () => {
+    const cardItems = [
+      { title: "Today's Sales", value: summaryData.totalSales, color: '#3f8600' },
+      { title: "Today's Profit", value: summaryData.totalProfit, color: '#3f8600' },
+      { title: "Today's Purchases", value: summaryData.totalPurchases, color: '#cf1322' },
+      { title: "Today's Expenses", value: summaryData.totalExpenses, color: '#cf1322' },
+      { title: "Today's Net Cashflow", value: summaryData.netCashflow, color: summaryData.netCashflow >= 0 ? '#3f8600' : '#cf1322' }
+    ];
+
+    return (
+      <Row gutter={[16, 16]}>
+        {cardItems.map((item, index) => (
+          <Col xs={24} sm={12} md={8} lg={6} xl={4.8} key={index}>
+            <Card className="text-center h-full">
+              <Statistic 
+                title={item.title} 
+                value={item.value} 
+                formatter={(value) => formatCurrency(value)} 
+                valueStyle={{ color: item.color }}
+              />
+            </Card>
+          </Col>
+        ))}
+      </Row>
+    );
+  };
+
   return (
-    <div className="p-6 bg-white rounded-lg shadow min-h-[90vh] flex flex-col">
-      <Flex justify="space-between" align="center" className="mb-6">
-        <Title level={2}>Today's Financial Report</Title>
+    <div className="p-2 md:p-6 bg-white rounded-lg shadow min-h-[90vh] flex flex-col">
+      <Flex 
+        vertical={window.innerWidth < 576} 
+        justify="space-between" 
+        align={window.innerWidth < 576 ? "start" : "center"} 
+        className="mb-6"
+      >
+        <Title level={window.innerWidth < 576 ? 3 : 2} className="mb-4 md:mb-0">Today's Financial Report</Title>
         
         <Button 
           type="primary" 
           icon={<DownloadOutlined />} 
           onClick={exportToExcel}
           disabled={salesLoading || purchasesLoading || expensesLoading}
+          size={window.innerWidth < 576 ? "middle" : "large"}
+          className="w-full sm:w-auto"
         >
-          Export Complete Report
+          Export Report
         </Button>
       </Flex>
       
-      {/* Financial Summary Cards */}
-      <div className="grid grid-cols-5 gap-4 mb-6">
-        <Card className="text-center">
-          <Statistic 
-            title="Today's Sales" 
-            value={summaryData.totalSales} 
-            formatter={(value) => formatCurrency(value)} 
-            valueStyle={{ color: '#3f8600' }}
-          />
-        </Card>
-        
-        <Card className="text-center">
-          <Statistic 
-            title="Today's Profit" 
-            value={summaryData.totalProfit} 
-            formatter={(value) => formatCurrency(value)} 
-            valueStyle={{ color: '#3f8600' }}
-          />
-        </Card>
-        
-        <Card className="text-center">
-          <Statistic 
-            title="Today's Purchases" 
-            value={summaryData.totalPurchases} 
-            formatter={(value) => formatCurrency(value)} 
-            valueStyle={{ color: '#cf1322' }}
-          />
-        </Card>
-        
-        <Card className="text-center">
-          <Statistic 
-            title="Today's Expenses" 
-            value={summaryData.totalExpenses} 
-            formatter={(value) => formatCurrency(value)} 
-            valueStyle={{ color: '#cf1322' }}
-          />
-        </Card>
-        
-        <Card className="text-center">
-          <Statistic 
-            title="Today's Net Cashflow" 
-            value={summaryData.netCashflow} 
-            formatter={(value) => formatCurrency(value)} 
-            valueStyle={{ color: summaryData.netCashflow >= 0 ? '#3f8600' : '#cf1322' }}
-          />
-        </Card>
+      {/* Financial Summary Cards - Responsive Grid */}
+      <div className="mb-6">
+        {renderSummaryCards()}
       </div>
       
       {/* Tabs for different reports */}
-      <Tabs defaultActiveKey="combined" className="mb-4">
-        <TabPane tab="Combined Report" key="combined">
+      <Tabs 
+        defaultActiveKey="combined" 
+        className="mb-4"
+        size={window.innerWidth < 576 ? "small" : "middle"}
+        tabPosition={window.innerWidth < 576 ? "top" : "top"}
+      >
+        <TabPane tab="Combined" key="combined">
           {salesLoading || purchasesLoading || expensesLoading ? (
             <div className="flex justify-center items-center h-64">
               <Spin size="large" />
@@ -569,22 +587,29 @@ const DailyFinancialReport = () => {
           ) : combinedData.length === 0 ? (
             <Empty description="No data available for today" />
           ) : (
-            <Table 
-              columns={combinedColumns} 
-              dataSource={combinedData}
-              size="small"
-              pagination={false}
-              rowClassName={(record) => {
-                if (record.type === 'Sale') return 'bg-green-50';
-                if (record.type === 'Purchase') return 'bg-blue-50';
-                if (record.type === 'Expense') return 'bg-red-50';
-                return '';
-              }}
-              expandable={{
-                expandedRowRender: record => record.type === 'Sale' ? expandedRowRender(record) : null,
-                rowExpandable: record => record.type === 'Sale' && record.products && record.products.length > 0,
-              }}
-            />
+            <div className="overflow-x-auto">
+              <Table 
+                columns={combinedColumns} 
+                dataSource={combinedData}
+                size="small"
+                pagination={{ 
+                  responsive: true,
+                  pageSize: window.innerWidth < 768 ? 5 : 10,
+                  showSizeChanger: window.innerWidth >= 768
+                }}
+                rowClassName={(record) => {
+                  if (record.type === 'Sale') return 'bg-green-50';
+                  if (record.type === 'Purchase') return 'bg-blue-50';
+                  if (record.type === 'Expense') return 'bg-red-50';
+                  return '';
+                }}
+                expandable={{
+                  expandedRowRender: record => record.type === 'Sale' ? expandedRowRender(record) : null,
+                  rowExpandable: record => record.type === 'Sale' && record.products && record.products.length > 0,
+                }}
+                scroll={{ x: 'max-content' }}
+              />
+            </div>
           )}
         </TabPane>
         
@@ -596,16 +621,23 @@ const DailyFinancialReport = () => {
           ) : todaySalesData.length === 0 ? (
             <Empty description="No sales data available for today" />
           ) : (
-            <Table 
-              columns={salesColumns} 
-              dataSource={todaySalesData} 
-              size="small"
-              pagination={false}
-              expandable={{
-                expandedRowRender: expandedRowRender,
-                rowExpandable: record => record.products && record.products.length > 0,
-              }}
-            />
+            <div className="overflow-x-auto">
+              <Table 
+                columns={salesColumns} 
+                dataSource={todaySalesData} 
+                size="small"
+                pagination={{ 
+                  responsive: true,
+                  pageSize: window.innerWidth < 768 ? 5 : 10,
+                  showSizeChanger: window.innerWidth >= 768
+                }}
+                expandable={{
+                  expandedRowRender: expandedRowRender,
+                  rowExpandable: record => record.products && record.products.length > 0,
+                }}
+                scroll={{ x: 'max-content' }}
+              />
+            </div>
           )}
         </TabPane>
         
@@ -617,12 +649,19 @@ const DailyFinancialReport = () => {
           ) : todayPurchasesData.length === 0 ? (
             <Empty description="No purchases data available for today" />
           ) : (
-            <Table 
-              columns={purchasesColumns} 
-              dataSource={todayPurchasesData} 
-              size="small"
-              pagination={false}
-            />
+            <div className="overflow-x-auto">
+              <Table 
+                columns={purchasesColumns} 
+                dataSource={todayPurchasesData} 
+                size="small"
+                pagination={{ 
+                  responsive: true,
+                  pageSize: window.innerWidth < 768 ? 5 : 10,
+                  showSizeChanger: window.innerWidth >= 768
+                }}
+                scroll={{ x: 'max-content' }}
+              />
+            </div>
           )}
         </TabPane>
         
@@ -634,15 +673,49 @@ const DailyFinancialReport = () => {
           ) : todayExpensesData.length === 0 ? (
             <Empty description="No expenses data available for today" />
           ) : (
-            <Table 
-              columns={expensesColumns} 
-              dataSource={todayExpensesData} 
-              size="small"
-              pagination={false}
-            />
+            <div className="overflow-x-auto">
+              <Table 
+                columns={expensesColumns} 
+                dataSource={todayExpensesData} 
+                size="small"
+                pagination={{ 
+                  responsive: true,
+                  pageSize: window.innerWidth < 768 ? 5 : 10,
+                  showSizeChanger: window.innerWidth >= 768
+                }}
+                scroll={{ x: 'max-content' }}
+              />
+            </div>
           )}
         </TabPane>
       </Tabs>
+      
+      {/* Mobile Summary Collapse - shown only on xs screens */}
+      <div className="block md:hidden mt-4">
+        <Collapse>
+          <Panel header="View Financial Summary" key="1">
+            <Space direction="vertical" className="w-full">
+              {Object.entries(summaryData).map(([key, value], index) => {
+                const formattedKey = key
+                  .replace(/([A-Z])/g, ' $1')
+                  .replace(/^./, str => str.toUpperCase());
+                
+                const isPositive = key === 'netCashflow' ? value >= 0 : 
+                  ['totalSales', 'totalProfit'].includes(key);
+                
+                return (
+                  <Flex key={index} justify="space-between" align="center">
+                    <Text>{`Today's ${formattedKey}`}:</Text>
+                    <Text strong style={{ color: isPositive ? '#3f8600' : '#cf1322' }}>
+                      {formatCurrency(value)}
+                    </Text>
+                  </Flex>
+                );
+              })}
+            </Space>
+          </Panel>
+        </Collapse>
+      </div>
     </div>
   );
 };
@@ -651,9 +724,9 @@ const DailyFinancialReport = () => {
 const Statistic = ({ title, value, valueStyle, formatter }) => {
   return (
     <div>
-      <Text className="text-gray-600">{title}</Text>
+      <Text className="text-gray-600 text-xs sm:text-sm">{title}</Text>
       <div className="mt-2">
-        <Text strong style={valueStyle}>
+        <Text strong style={valueStyle} className="text-sm sm:text-base">
           {formatter ? formatter(value) : value}
         </Text>
       </div>
