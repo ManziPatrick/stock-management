@@ -49,7 +49,7 @@ console.log("hhhbhhhiuk",TotalMagrinProfit)
 
   const MetricCard = ({ title, value, color = 'black' }) => (
     
-      <div className=" rounded-lg shadow p-6 bg-gradient-to-tr from-white via-slate-200 justify-center items-center bg-white">
+      <div className=" rounded-lg shadow p-6 bg-gradient-to-tr from-white via-slate-200 justify-center items-center bg-white relative">
         <h3 className="text-sm text-gray-600 mb-2">{title}</h3>
         <h1 className="text-lg font-extrabold" style={{ color }}>
           {value.toLocaleString()} 

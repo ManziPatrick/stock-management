@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Outlet, useNavigate } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { Button, Layout, Menu } from 'antd';
 import { MenuOutlined, LogoutOutlined } from '@ant-design/icons';
 import { sidebarItems } from '../../constant/sidebarItemskeeper';
@@ -10,28 +10,43 @@ import log from '../../assets/Marube_log.png';
 const { Content, Sider } = Layout;
 
 const KeeperSidebar = () => {
+  const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileView, setMobileView] = useState(window.innerWidth <= 768);
-  const [showLogoutBtn, setShowLogoutBtn] = useState(true);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+
+  const getActiveKey = () => {
+    const path = location.pathname;
+    if (path === '/keeper') return 'Dashboard';
+
+    const matchingItem = sidebarItems.find(item => {
+      const navLinkElement = item.label.props;
+      const itemPath = navLinkElement.to;
+      return path === itemPath;
+    });
+
+    return matchingItem ? matchingItem.key : 'Dashboard';
+  };
 
   useEffect(() => {
     const handleResize = () => {
       setMobileView(window.innerWidth <= 768);
+      if (window.innerWidth > 768) {
+        setCollapsed(false);
+      }
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleClick = () => {
+  const handleLogout = () => {
     dispatch(logoutUser());
     navigate('/');
   };
 
   const toggleCollapsed = () => {
     setCollapsed(!collapsed);
-    setShowLogoutBtn(!collapsed);
   };
 
   return (
@@ -55,11 +70,8 @@ const KeeperSidebar = () => {
         breakpoint="lg"
         collapsedWidth={mobileView ? 0 : 80}
         collapsed={collapsed}
-        onCollapse={(collapsed, type) => {
-          if (type === 'responsive') {
-            setCollapsed(collapsed);
-            setShowLogoutBtn(!collapsed);
-          }
+        onCollapse={(value, type) => {
+          if (type === 'responsive') setCollapsed(value);
         }}
         width={220}
         style={{
@@ -70,73 +82,71 @@ const KeeperSidebar = () => {
           left: 0,
           top: 0,
           transition: 'all 0.2s ease-in-out',
-          transform: mobileView && collapsed ? 'translateX(-100%)' : 'translateX(0)'
+          transform: mobileView && collapsed ? 'translateX(-100%)' : 'translateX(0)',
+          overflow: 'auto'
         }}
       >
-        <div className="demo-logo-vertical">
-          <h1
-            style={{
-              color: '#fff',
-              padding: '1rem',
-              fontSize: '1.8rem',
-              textAlign: 'center'
-            }}
-          >
-            MARUBE
-          </h1>
+        <div className="demo-logo-vertical ml-8 md:ml-0 flex items-center p-4 space-x-2 md:relative">
+          <img src={log} className="w-[28px] h-[28px]" alt="Logo" />
+          {!collapsed && !mobileView && (
+            <h1 className="text-white font-extrabold text-[1.2rem]">
+              MARUBE
+            </h1>
+          )}
         </div>
 
-        <Menu
-          theme="dark"
-          mode="inline"
-          style={{
-            backgroundColor: '#164863',
-            fontWeight: '700'
-          }}
-          defaultSelectedKeys={['Dashboard']}
-          items={sidebarItems}
-        />
-
-        {showLogoutBtn && (
-          <div
+        <div style={{ height: 'calc(100vh - 120px)', overflowY: 'auto', paddingBottom: '60px' }}>
+          <Menu
+            theme="dark"
+            mode="inline"
             style={{
-              margin: 'auto',
-              position: 'absolute',
-              bottom: 0,
-              padding: '1rem',
-              display: 'flex',
-              width: '100%',
-              justifyContent: 'center'
+              backgroundColor: '#164863',
+              fontWeight: '700',
             }}
+            selectedKeys={[getActiveKey()]}
+            items={sidebarItems}
+          />
+        </div>
+
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 10,
+            left: collapsed ? (mobileView ? -100 : 10) : 10,
+            width: collapsed ? (mobileView ? 0 : 60) : 180,
+            zIndex: 1000,
+            transition: 'all 0.2s ease-in-out',
+          }}
+        >
+          <Button
+            type="primary"
+            style={{
+              width: '100%',
+              backgroundColor: 'cyan',
+              color: '#000',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              borderRadius: 10,
+              height: '32px',
+            }}
+            onClick={handleLogout}
+            icon={<LogoutOutlined />}
+            className='rounded-md'
           >
-            <Button
-              type="primary"
-              style={{
-                width: '100%',
-                backgroundColor: 'cyan',
-                color: '#000',
-                fontWeight: 600,
-                textTransform: 'uppercase'
-              }}
-              onClick={handleClick}
-              icon={<LogoutOutlined />}
-            >
-              Logout
-            </Button>
-          </div>
-        )}
+            {!collapsed && 'Logout'}
+          </Button>
+        </div>
       </Sider>
 
       <Layout>
-        <Content style={{ padding: '2rem', background: '#BBE1FA' }}>
+        <Content style={{ backgroundColor: 'white' }}>
           <div
             style={{
               padding: '1rem',
-              maxHeight: 'calc(100vh - 4rem)',
-              minHeight: 'calc(100vh - 4rem)',
+              maxHeight: 'calc(100vh - 2rem)',
+              minHeight: 'calc(100vh - 16rem)',
               background: '#fff',
-              borderRadius: '1rem',
-              overflow: 'auto'
+              overflow: 'auto',
             }}
           >
             <Outlet />

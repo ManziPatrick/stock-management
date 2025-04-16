@@ -44,19 +44,25 @@ const LoginPage = () => {
           case 'USER':
             navigate('/seller/products');
             break;
-          case 'ACCOUNTANT': // Added Accountant role
+          case 'ACCOUNTANT':
             navigate('/accountant/adashboard');
             break;
           default:
-            toastMessage({ icon: 'warning', text: 'No appropriate role found for this user.' });
+            toast.dismiss(toastId);
+            return toastMessage({ icon: 'warning', text: 'No appropriate role found for this user.' });
         }
   
         toast.success('Successfully Logged In!', { id: toastId });
+      } else {
+        toast.dismiss(toastId);
+        toastMessage({ icon: 'error', text: res.message || 'Login failed.' });
       }
     } catch (error: any) {
-      toastMessage({ icon: 'error', text: error.data.message });
+      toast.dismiss(toastId);
+      toastMessage({ icon: 'error', text: error?.data?.message || 'Something went wrong.' });
     }
-  }; 
+  };
+  
   
   return (
     <div className="w-3/4 flex justify-center items-center m-auto" style={{ height: '100vh' }}>
