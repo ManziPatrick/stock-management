@@ -3,6 +3,9 @@ import { Table, Typography } from 'antd';
 import malublog from '../../assets/Marube_log.png';
 import addresslog from '../../assets/MARUBE.png';
 import { DeliveryNote } from '../types/interfaces';
+// Import stamp and signature images
+import companyStamp from '../../assets/stamp.png';
+import directorSignature from '../../assets/signature.png';
 
 const { Title, Text } = Typography;
 
@@ -126,6 +129,26 @@ const PrintableDeliveryNote: React.FC<PrintableDeliveryNoteProps> = ({ data }) =
           print-color-adjust: exact !important;
           background-color: transparent !important;
         }
+        
+        /* Stamp and signature styles */
+        .company-stamp {
+          height: 160px !important; /* Approximately 42mm at standard resolution */
+          width: 160px !important;  /* Maintaining square ratio for 42x42mm */
+          object-fit: contain !important;
+          opacity: 0.9 !important;
+        }
+        
+        .director-signature {
+          height: 70px !important;
+          width: auto !important;
+          max-width: 150px !important;
+          object-fit: contain !important;
+        }
+        
+        .signature-area {
+          position: relative !important;
+          min-height: 120px !important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -139,24 +162,24 @@ const PrintableDeliveryNote: React.FC<PrintableDeliveryNoteProps> = ({ data }) =
     <div className="printable-note-container" style={{ fontFamily: 'Arial, sans-serif' }}>
       <div className="printable-note" style={{ padding: '20px' }}>
         {/* Logo and Address Header */}
-        <div className="flex justify-between items-center mb-4 border-b pb-2">
-          <img src={malublog} alt="Company Logo" className="h-20" />
-          <img src={addresslog} alt="Address Logo" className="h-20" />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e8e8e8', paddingBottom: '8px' }}>
+          <img src={malublog} alt="Company Logo" style={{ height: '80px' }} />
+          <img src={addresslog} alt="Address Logo" style={{ height: '80px' }} />
         </div>
 
         {/* Sub-header with company description and contact info */}
-        <div className="flex justify-between items-start mb-4">   
-          <div className="w-1/2">
-            <span className="flex-nowrap w-full font-bold">Dealers in:</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>   
+          <div style={{ width: '50%' }}>
+            <span style={{ fontWeight: 'bold', display: 'block' }}>Dealers in:</span>
             <p>
               Interior Designs, Gypsum works, Aluminium, Stainless steel, Glass & MDF elements, Paint Works, Electrical/ Electronical works, Branding/ Signages, Air Conditioning and Solar installation.
             </p>
           </div>
 
           <div>
-            <div className="text-start flex flex-col mb-6"></div>
-            <div className="text-start mt-6 flex flex-col">
-              <span className="font-semibold">MARUBE TRADERS LTD</span> 
+            <div style={{ marginBottom: '24px' }}></div>
+            <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: 'bold' }}>MARUBE TRADERS LTD</span> 
               <address>Plot No . 203 nyabugogo-Gatuna Roads</address> 
               <span>TEL : 0786530669</span> 
               <span>EMAIL : oyileb.ob@gmail.com</span>
@@ -167,9 +190,9 @@ const PrintableDeliveryNote: React.FC<PrintableDeliveryNoteProps> = ({ data }) =
         </div>
 
         {/* Delivery Note Title and Details */}
-        <div className="text-center mb-4">
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
           <Title level={3} style={{ margin: 0 }}>DELIVERY NOTE</Title>
-          <div className="flex justify-between mt-2">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
             <div>
               <Text strong>Note No: </Text>
               <Text>{data.id}</Text>
@@ -182,7 +205,7 @@ const PrintableDeliveryNote: React.FC<PrintableDeliveryNoteProps> = ({ data }) =
         </div>
 
         {/* Client Information */}
-        <div className="mb-4">
+        <div style={{ marginBottom: '16px' }}>
           <Text strong>CLIENT: </Text>
           <Text>{data.customerName}</Text>
         </div>
@@ -193,41 +216,94 @@ const PrintableDeliveryNote: React.FC<PrintableDeliveryNoteProps> = ({ data }) =
           columns={columns}
           pagination={false}
           bordered
-          className="mb-4"
+          style={{ marginBottom: '16px' }}
           size="middle"
         />
 
         {/* Notice */}
-        <div className="my-6">
+        <div style={{ marginTop: '24px', marginBottom: '24px' }}>
           <Text>Goods once sold will not be returned back.</Text>
         </div>
 
-        {/* Signature Section */}
-        <div className="flex justify-between mt-10">
-          <div>
-            <div className="mb-4">
+        {/* Signature Section with Company Stamp */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          marginTop: '40px'
+        }}>
+          {/* Left side - Delivered By with Stamp and Signature */}
+          <div style={{ width: '45%', position: 'relative' }}>
+            <div style={{ marginBottom: '16px' }}>
               <Text strong>Delivered By: </Text>
-              <span className="border-b border-black inline-block w-32"></span>
+              <span style={{ borderBottom: '1px solid black', display: 'inline-block', width: '120px' }}></span>
             </div>
-            <div>
-              <Text strong>Signature: </Text>
-              <span className="border-b border-black inline-block w-32"></span>
+            
+            {/* Signature area with stamp overlay */}
+            <div className="signature-area" style={{ 
+              position: 'relative', 
+              minHeight: '120px',
+              marginBottom: '10px'
+            }}>
+              <Text strong style={{ position: 'absolute', top: 0, left: 0 }}>Signature: </Text>
+              
+              {/* Director signature */}
+              <img 
+                src={directorSignature} 
+                alt="Director Signature" 
+                className="director-signature"
+                style={{
+                  position: 'absolute',
+                  top: '0px',
+                  left: '80px',
+                  height: '70px',
+                  width: 'auto',
+                  maxWidth: '150px',
+                  objectFit: 'contain',
+                  zIndex: 2
+                }}
+              />
+              
+              {/* Company stamp overlapping signature */}
+              <img 
+                src={companyStamp} 
+                alt="Company Stamp" 
+                className="company-stamp"
+                style={{
+                  position: 'absolute',
+                  top: '-30px',
+                  left: '100px',
+                  height: '160px',
+                  width: '160px',
+                  objectFit: 'contain',
+                  opacity: 0.9,
+                  zIndex: 1
+                }}
+              />
+            </div>
+            
+            <div style={{ marginTop: '80px', paddingTop: '4px', borderTop: '1px solid black', width: '230px', textAlign: 'center' }}>
+              Company Signature & Stamp
             </div>
           </div>
-          <div>
-            <div className="mb-4">
+
+          {/* Right side - Received By */}
+          <div style={{ width: '45%' }}>
+            <div style={{ marginBottom: '16px' }}>
               <Text strong>Received By: </Text>
-              <span className="border-b border-black inline-block w-32"></span>
+              <span style={{ borderBottom: '1px solid black', display: 'inline-block', width: '120px' }}></span>
             </div>
-            <div>
+            <div style={{ marginBottom: '16px' }}>
               <Text strong>Signature: </Text>
-              <span className="border-b border-black inline-block w-32"></span>
+              <span style={{ borderBottom: '1px solid black', display: 'inline-block', width: '120px' }}></span>
+            </div>
+            <div style={{ marginTop: '80px', paddingTop: '4px', borderTop: '1px solid black', width: '230px', textAlign: 'center' }}>
+              Client Signature
             </div>
           </div>
         </div>
 
         {/* Print Button - will be hidden when printing */}
-        <div className="mt-8 text-center print-button-container">
+        <div style={{ marginTop: '32px', textAlign: 'center' }} className="print-button-container">
           <button 
             onClick={() => window.print()} 
             style={{

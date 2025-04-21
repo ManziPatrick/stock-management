@@ -1,3 +1,4 @@
+//@ts-nocheck
 import React, { useState, useEffect } from 'react';
 import { 
   Tabs, 
@@ -28,6 +29,7 @@ import {
 } from '../../redux/features/management/deliveryNoteApi';
 import malublog from '../../assets/Marube_log.png';
 import addresslog from '../../assets/MARUBE.png';
+import stampImg from '../../assets/stamp.png'; 
 
 const { TabPane } = Tabs;
 const { Option } = Select;
@@ -162,18 +164,20 @@ const DeliveryNoteSystem = () => {
             .company-info { margin-bottom: 10px; }
             .note-details { text-align: right; border: 1px solid #ddd; padding: 10px; }
             .customer-info { margin-bottom: 20px;}
-            table { width: 100%; border-collapse: collap se; margin: 20px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
             th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
             th { background-color: #f2f2f2; }
             .signatures { display: flex; justify-content: space-between; margin-top: 50px; }
             .signature-line { margin-top: 40px; border-top: 1px solid #000; width: 200px; }
+            .stamp-area { position: relative; width: 120px; height: 120px; }
+            .stamp-img { position: absolute; width: 180px; height: 180px; opacity: 1.5; top: -100px; left: 20px; }
           </style>
         </head>
         <body>
           <div class="header">
             <div class="logo-container">
              
-              <img src="${(document.querySelector('img[src*="Marube_log"]') as HTMLImageElement)?.src || ""}" class="logo" alt="Company Logo">
+              <img src="${(document.querySelector('img[src*="Marube_log"]')?.src || "")}" class="logo" alt="Company Logo">
               <div>
                 <h2>MarubeTraders Ltd</h2>
                 <p>Phone: 0788308463</p>
@@ -218,10 +222,13 @@ const DeliveryNoteSystem = () => {
           <p><strong>Goods once sold will not be returned back.</strong></p>
           
           <div class="signatures">
-            <div>
+            <div style="position: relative;">
               <p><strong>Delivered By:</strong> ${noteToprint.deliveredBy || '________________'}</p>
               <div class="signature-line"></div>
               <p><strong>Signature</strong></p>
+              <div class="stamp-area">
+                <img src="${(document.querySelector(`img[src*="${stampImg}"]`)?.src || stampImg)}" class="stamp-img" alt="Stamp">
+              </div>
             </div>
             <div>
               <p><strong>Received By:</strong> ${noteToprint.receivedBy || '________________'}</p>
@@ -521,7 +528,7 @@ const DeliveryNoteSystem = () => {
               </div>
 
               <div className="flex justify-between">
-                <div>
+                <div className="relative">
                   <Form.Item 
                     name="deliveredBy" 
                     label="Delivered By"
@@ -529,6 +536,15 @@ const DeliveryNoteSystem = () => {
                     <Input placeholder="Enter name" />
                   </Form.Item>
                   <p className="font-semibold mt-4">Signature: _________________</p>
+                  {/* Stamp preview for form */}
+                  <div style={{ position: 'absolute', right: 0, bottom: 0, width: '100px', height: '100px', opacity: 0.7 }}>
+                    <img 
+                      src={stampImg} // Placeholder for stamp preview
+                      alt="Stamp" 
+                      className="w-full h-full object-contain"
+                      style={{ transform: 'rotate(-15deg)' }}
+                    />
+                  </div>
                 </div>
                 <div>
                   <Form.Item 
@@ -641,9 +657,18 @@ const DeliveryNoteSystem = () => {
               </div>
 
               <div className="flex justify-between">
-                <div>
+                <div className="relative">
                   <p className="font-semibold">Delivered By: <span className="font-normal">{viewNoteData?.deliveredBy || '_________________'}</span></p>
                   <p className="font-semibold mt-4">Signature: _________________</p>
+                  {/* Stamp in modal view */}
+                  <div style={{ position: 'absolute', right: 0, bottom: 0, width: '160px', height: '160px', opacity: 0.9 }}>
+                    <img 
+                      src="stampImg" 
+                      alt={stampImg} 
+                      className="w-full h-full object-contain"
+                      style={{ transform: 'rotate(-15deg)' }}
+                    />
+                  </div>
                 </div>
                 <div>
                   <p className="font-semibold">Received By: <span className="font-normal">{viewNoteData?.receivedBy || '_________________'}</span></p>

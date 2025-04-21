@@ -167,12 +167,12 @@ const GetExpenseManagementPage: React.FC = () => {
     // Add title column on small screens and up
     if (screens.sm) {
       baseColumns.splice(2, 0, {
-        title: 'Title',
-        dataIndex: 'title',
-        key: 'title',
-        render: (title: string, record: Expense) => (
+        title: 'category',
+        dataIndex: 'Category',
+        key: 'category',
+        render: (category: string, record: Expense) => (
           <Flex vertical gap="small">
-            <Text strong>{title}</Text>
+            
             <Tag color={categoryColors[record.category]}>
               {CATEGORY_OPTIONS.find(cat => cat.value === record.category)?.label || record.category}
             </Tag>
@@ -180,6 +180,20 @@ const GetExpenseManagementPage: React.FC = () => {
         )
       });
     }
+    if (screens.sm) {
+      baseColumns.splice(2, 0, {
+        title: 'Title / by',
+        dataIndex: 'title',
+        key: 'title',
+        render: (title: string, record: Expense) => (
+          <Flex vertical gap="small">
+            <Text strong>{title}</Text>
+            <Text style={{ fontSize: '0.8em', color: 'gray' }}>{record.createdBy.name}</Text>
+          </Flex>
+        )
+      });
+    }
+    
     
     // Add payment method on medium screens and up
     if (screens.md) {
@@ -201,13 +215,12 @@ const GetExpenseManagementPage: React.FC = () => {
     // Add created by on large screens and up
     if (screens.lg) {
       baseColumns.push({
-        title: 'By',
-        dataIndex: 'createdBy',
-        key: 'createdBy',
-        render: (createdBy) => (
+        title: 'Description',
+        dataIndex: 'description',
+        key: 'description',
+        render: (description) => (
           <div>
-            <div>{createdBy?.name}</div>
-            <div style={{ fontSize: '0.8em', color: 'gray' }}>{createdBy?.email}</div>
+            <span>{description || 'N/A'}</span> 
           </div>
         )
       });

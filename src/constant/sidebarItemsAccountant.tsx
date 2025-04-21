@@ -66,7 +66,7 @@ export const sidebarItems = [
   },
   {
     key: 'Manage report',
-    label: <NavLink to='/accountant/report'>MANAGE REPORT</NavLink>,
+    label: <NavLink to='/accountant/accreport'>MANAGE REPORT</NavLink>,
     icon: React.createElement(AimOutlined),
   },
   

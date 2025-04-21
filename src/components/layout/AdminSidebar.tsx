@@ -57,16 +57,32 @@ const AdminSidebar = () => {
         child => child.label?.props?.to === path
       );
       
-      // Open the parent menu automatically
-      if (!openKeys.includes(itemWithMatchingChild.key)) {
-        setOpenKeys([...openKeys, itemWithMatchingChild.key]);
-      }
+      // REMOVED the automatic opening of parent menu
+      // This was causing the issue with not being able to collapse
       
       return matchingChild ? matchingChild.key : 'Dashboard';
     }
     
     return 'Dashboard'; // Default
   };
+
+  // Set initial openKeys on component mount
+  useEffect(() => {
+    const path = location.pathname;
+    
+    // Check if current path matches any child route
+    sidebarItems.forEach(item => {
+      if (item.children) {
+        const hasMatchingChild = item.children.some(child => 
+          child.label?.props?.to === path
+        );
+        
+        if (hasMatchingChild && !openKeys.includes(item.key)) {
+          setOpenKeys([item.key]);
+        }
+      }
+    });
+  }, []); // Only run once on mount
 
   useEffect(() => {
     const handleResize = () => {

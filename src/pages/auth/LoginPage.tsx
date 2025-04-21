@@ -63,20 +63,20 @@ const LoginPage = () => {
     }
   };
   
-  
+   
   return (
-    <div className="w-3/4 flex justify-center items-center m-auto" style={{ height: '100vh' }}>
-      <div className="bg-blue-950 flex justify-center flex-col md:flex-row items-center align-middle shadow-lg rounded-md w-full">
-        <div className="w-full flex flex-col justify-center items-center" style={{ padding: '1rem', height: '440px' }}>
+    <div className="w-3/4 flex justify-center  items-center m-auto" style={{ height: '100vh' }}>
+      <div className=" flex justify-center flex-col md:flex-row items-center align-middle shadow-lg rounded-md w-full">
+        <div className=" bg-blue-950 w-full flex flex-col justify-center items-center" style={{ padding: '1rem', height: '440px' }}>
           <div className="w-full md:w-3/4">
           <div className='flex justify-center  flex-col items-center'>
             <h1
               className="font-bold md:font-extrabold text-teal-50 text-center p-2 md:p-5 text-sm md:text-xl"
               style={{ marginBottom: '.7rem', textTransform: 'uppercase' }}
             >
-              Welcome to Marube's Stock
-            </h1>
-              <img src={log} alt="" className='w-[64px]' />
+              Welcome to Marube Traders LTD
+            </h1> 
+             
               </div>
             <p className="text-white p-5 font-extralight text-sm text-center">
               Login to your account, and if you do not have an account, contact your admin.
@@ -128,8 +128,8 @@ const LoginPage = () => {
             </Form>
           </div>
         </div>
-        <div className="w-full md:block hidden">
-          <img src={stock} alt="Login Stock" className="" />
+        <div className="w-full md:flex  w-100 hidden justify-center">
+          <img src={log} alt="Login Stock" className="w-1/2" />
         </div>
       </div>
     </div>

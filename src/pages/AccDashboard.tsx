@@ -1,3 +1,4 @@
+//@ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
 import Loader from '../components/Loader';
 import DailyChart from '../components/Charts/DailyChart';
@@ -367,50 +368,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Responsive tab container and charts */}
-      <div className="w-full mt-6 sm:mt-8">
-        <div className="flex overflow-x-auto scrollbar-hide pb-1 gap-1 sm:gap-2">
-          <TabButton label="Daily View" id="daily" />
-          <TabButton label="Monthly View" id="monthly" />
-          <TabButton label="Yearly View" id="yearly" />
-        </div>
-
-        <div className="border bg-white shadow-sm border-slate-200 w-full p-3 sm:p-4 rounded-lg rounded-tl-none">
-          {activeTab === 'daily' && (
-            <>
-              <h1 className="text-center text-base sm:text-lg md:text-xl font-semibold mb-2 sm:mb-4">Daily Sale and Purchases</h1>
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px] md:min-w-full">
-                  <DailyChart data={yearlyData?.data || []} />
-                </div>
-              </div>
-            </>
-          )}
-          {activeTab === 'monthly' && (
-            <>
-              <h1 className="text-center text-base sm:text-lg md:text-xl font-semibold mb-2 sm:mb-4">Monthly Sale and Purchases</h1>
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px] md:min-w-full">
-                  <MonthlyChart data={yearlyData?.data || []} />
-                </div>
-              </div>
-            </>
-          )}
-          {activeTab === 'yearly' && (
-            <>
-              <h1 className="text-center text-base sm:text-lg md:text-xl font-semibold mb-2 sm:mb-4">Yearly Sale and Purchases</h1>
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px] md:min-w-full">
-                  <YearlySalesChart data={yearlyData?.data || []} />
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Optional Petty Cash Card for Mobile */}
-      <div className="mt-6 sm:mt-8 lg:hidden">
+      <div className="mt-6 sm:mt-8  lg:hidden">
         <PettyCashCard />
       </div>
 

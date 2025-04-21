@@ -74,13 +74,12 @@ console.log("hhhbhhhiuk",TotalMagrinProfit)
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen ">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 justify-center items-center gap-4 py-4 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 justify-center items-center gap-8 p-6 mb-6">
         <MetricCard title="Total Sales Revenue" value={aggregateMetrics.totalSalesRevenue} color="blue" />
         <MetricCard title="Total Margin Profit" value={totalMarginProfit} color="green" />
         <MetricCard title="Total Expenses" value={aggregateMetrics.totalExpenses} color="red" />
         <MetricCard title="Total Purchase" value={yearlyTotalPurchases} color="purple" />
-      </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 py-4 lg:grid-cols-4 justify-center items-center gap-4 mb-6">
+
         
         <MetricCard
           title="Total Net Profit"

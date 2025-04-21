@@ -28,6 +28,7 @@ import GetDebitManagementPage from '../pages/managements/debitsManagementPage';
 import DashboardCase from '../pages/DashboardCases';
 import ProformaManager from '../pages/managements/ProformaManager';
 import DailyFinancialReport from '../pages/managements/DailyReport';
+import ADailyFinancialReport from '../pages/managements/AccDailyReport';
 import SuperAdminSidebar from '../components/layout/SuperSidebar';
 import AccountantSidebar from '../components/layout/AccountantSidebar';
 import DeliveryNoteSystem from '../pages/managements/DeliveryNote';
@@ -37,22 +38,7 @@ export const router = createBrowserRouter([
     path: '/seller',
     element: <Sidebar />,
     children: [
-      // {
-      //   path: '',
-      //   element: (
-      //     <ProtectRoute>
-      //       <Dashboard />
-      //     </ProtectRoute>
-      //   ),
-      // },
-      // {
-      //   path: 'create-product',
-      //   element: (
-      //     <ProtectRoute>
-      //       <CreateProduct />
-      //     </ProtectRoute>
-      //   ),
-      // },
+    
       {
         path: 'profile',
         element: (
@@ -334,10 +320,10 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'report',
+        path: 'accreport',
         element: (
           <ProtectRoute>
-            <DailyFinancialReport />
+            <ADailyFinancialReport />
           </ProtectRoute>
         ),
       },

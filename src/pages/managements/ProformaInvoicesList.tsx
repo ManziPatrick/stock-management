@@ -1,3 +1,4 @@
+//@ts-nocheck
 import React, { useState } from 'react';
 import { Card, Table, Typography, Space, Button, Modal, message } from 'antd';
 import { EyeOutlined, PrinterOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -23,6 +24,11 @@ const ProformaInvoicesList = () => {
   const handlePrintInvoice = (record) => {
     setCurrentInvoice(record);
     setIsPrintModalVisible(true);
+    
+    // Give a small delay to allow the modal content to render before printing
+    setTimeout(() => {
+      window.print();
+    }, 300);
   };
 
   const handleDeleteInvoice = async (id) => {
@@ -33,10 +39,6 @@ const ProformaInvoicesList = () => {
       message.error('Failed to delete proforma invoice');
       console.error('Delete error:', error);
     }
-  };
-
-  const handlePrint = () => {
-    window.print();
   };
 
   const columns = [
@@ -112,6 +114,61 @@ const ProformaInvoicesList = () => {
     }))
   });
 
+  // Add print styles to hide UI elements except invoice content
+  React.useEffect(() => {
+    const style = document.createElement('style');
+    style.innerHTML = `
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        .printable-invoice,
+        .printable-invoice * {
+          visibility: visible;
+        }
+        .printable-invoice {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          height: 100%;
+          margin: 0;
+          padding: 20px;
+        }
+        .ant-modal-mask,
+        .ant-modal-wrap,
+        .ant-modal,
+        .ant-modal-content {
+          position: static;
+          background: none;
+          box-shadow: none;
+          width: 100% !important;
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        .ant-modal-header,
+        .ant-modal-footer,
+        .ant-modal-close,
+        .no-print {
+          display: none !important;
+        }
+        .ant-modal-body {
+          padding: 0 !important;
+          margin: 0 !important;
+        }
+        @page {
+          size: auto;
+          margin: 10mm;
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   if (isLoading) {
     return (
       <Card>
@@ -134,21 +191,19 @@ const ProformaInvoicesList = () => {
 
   return (
     <>
-    
-       
-        <Table 
-          columns={columns}
-          dataSource={proformaResponse?.data || []}
-          rowKey="_id"
-          className=" rounded-lg"
-          scroll={{ x: true }}
-          pagination={{ 
-            pageSize: 10, 
-            showSizeChanger: true 
-          }}
-        />
-     
+      <Table 
+        columns={columns}
+        dataSource={proformaResponse?.data || []}
+        rowKey="_id"
+        className="rounded-lg"
+        scroll={{ x: true }}
+        pagination={{ 
+          pageSize: 10, 
+          showSizeChanger: true 
+        }}
+      />
 
+      {/* Regular view modal */}
       <Modal
         open={isViewModalVisible}
         onCancel={() => setIsViewModalVisible(false)}
@@ -164,22 +219,45 @@ const ProformaInvoicesList = () => {
         )}
       </Modal>
 
+      {/* Print modal with custom styling */}
       <Modal
         open={isPrintModalVisible}
         onCancel={() => setIsPrintModalVisible(false)}
-        footer={[
-        
-        ]}
+        footer={null}
         width={800}
         title="Print Proforma Invoice"
+        className="print-modal"
+        maskClosable={true}
+        mask={true}
+        style={{ top: 20 }}
+        bodyStyle={{ padding: 0 }}
       >
         {currentInvoice && (
-          <PrintableInvoice 
-            data={formattedInvoiceData(currentInvoice)}
-            items={currentInvoice.items}
-            //@ts-ignore
-            isPrint={true}
-          />
+          <div className="print-container">
+            <PrintableInvoice 
+              data={formattedInvoiceData(currentInvoice)}
+              items={currentInvoice.items}
+              isPrint={true}
+            />
+            <div className="no-print" style={{ 
+              textAlign: 'center', 
+              padding: '20px', 
+              backgroundColor: '#f0f2f5', 
+              marginTop: '20px' 
+            }}>
+              <Button 
+                type="primary" 
+                onClick={() => window.print()}
+                icon={<PrinterOutlined />}
+                style={{ marginRight: '10px' }}
+              >
+                Print Now
+              </Button>
+              <Button onClick={() => setIsPrintModalVisible(false)}>
+                Close
+              </Button>
+            </div>
+          </div>
         )}
       </Modal>
     </>

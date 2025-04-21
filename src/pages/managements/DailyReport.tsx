@@ -524,7 +524,7 @@ const DailyFinancialReport = () => {
       { title: "Today's Profit", value: summaryData.totalProfit, color: '#3f8600' },
       { title: "Today's Purchases", value: summaryData.totalPurchases, color: '#cf1322' },
       { title: "Today's Expenses", value: summaryData.totalExpenses, color: '#cf1322' },
-      { title: "Today's Net Cashflow", value: summaryData.netCashflow, color: summaryData.netCashflow >= 0 ? '#3f8600' : '#cf1322' }
+      // { title: "Today's Net Cashflow", value: summaryData.netCashflow, color: summaryData.netCashflow >= 0 ? '#3f8600' : '#cf1322' }
     ];
 
     return (

@@ -27,6 +27,7 @@ export const sidebarItems = [
     key: 'BusinessDocuments',
     label: 'BUSINESS DOCUMENTS',
     icon: <FileTextOutlined />,
+    // Use regular string instead of NavLink component to make it clickable for collapse
     children: [
       {
         key: 'proforma',
@@ -38,7 +39,9 @@ export const sidebarItems = [
         label: <NavLink to='/admin/delivery'>DELIVERY NOTE</NavLink>,
         icon: <AimOutlined />,
       },
-    ]
+    ],
+    // Properties to ensure it can collapse even when children are active
+    popupClassName: 'business-documents-submenu'
   },
   {
     key: 'New User',
