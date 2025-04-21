@@ -29,9 +29,10 @@ const authApi = baseApi.injectEndpoints({
     }),
 
     getAllUser: builder.query({
-      query: () => ({
+      query: (query) => ({
         url: '/users/all',
         method: 'GET',
+        params: query
       }),
       providesTags: ['user']
     }),
@@ -62,6 +63,33 @@ const authApi = baseApi.injectEndpoints({
       invalidatesTags: ['user']
     }),
 
+    // New endpoints for admin user management
+    adminUpdateUser: builder.mutation({
+      query: ({ userId, data }) => ({
+        url: `/users/admin/user/${userId}`,
+        method: 'PATCH',
+        body: data
+      }),
+      invalidatesTags: ['user']
+    }),
+
+    adminUpdatePassword: builder.mutation({
+      query: ({ userId, password }) => ({
+        url: `/users/admin/password/${userId}`,
+        method: 'PATCH',
+        body: { password }
+      }),
+      invalidatesTags: ['user']
+    }),
+
+    updateUserRole: builder.mutation({
+      query: ({ userId, role }) => ({
+        url: `/users/role/${userId}`,
+        method: 'PATCH',
+        body: { role }
+      }),
+      invalidatesTags: ['user']
+    })
   })
 })
 
@@ -72,5 +100,8 @@ export const {
   useGetAllUserQuery,
   useDeleteUserMutation,
   useChangePasswordMutation,
-  useUpdateProfileMutation
+  useUpdateProfileMutation,
+  useAdminUpdateUserMutation,
+  useAdminUpdatePasswordMutation,
+  useUpdateUserRoleMutation
 } = authApi
