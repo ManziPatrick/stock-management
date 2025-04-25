@@ -825,21 +825,25 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                   }}
                 />
 
-                <CustomInput
-                  name='dueDate'
-                  label='Payment Due Date'
-                  errors={errors}
-                  required={true}
-                  register={register}
-                  type='date'
-                  min={today}
-                  rules={{
-                    required: 'Due date is required',
-                    validate: (value) => 
-                      new Date(value) > new Date(today) || 
-                      'Due date must be in the future'
-                  }}
-                />
+<CustomInput 
+  name='dueDate' 
+  label='Payment Due Date' 
+  errors={errors} 
+  required={true} 
+  register={register} 
+  type='datetime-local'
+  includeTime={true}
+  locale="en-US" // Or dynamically: userLocale from your app's context/state
+  timeZone="America/New_York" // Or dynamically: userTimeZone from your app's context
+  rules={{ 
+    required: 'Due date is required', 
+    validate: (value) => {
+      const selectedDateTime = new Date(value);
+      const now = new Date();
+      return selectedDateTime > now || 'Due date and time must be in the future';
+    }
+  }} 
+/>
                 <CustomInput
                   name='phoneNumber'
                   label='Phone Number'

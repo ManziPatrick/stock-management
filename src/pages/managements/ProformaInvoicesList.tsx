@@ -1,20 +1,68 @@
 //@ts-nocheck
-import React, { useState } from 'react';
-import { Card, Table, Typography, Space, Button, Modal, message } from 'antd';
-import { EyeOutlined, PrinterOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState, useEffect } from 'react';
+import { Card, Table, Typography, Space, Button, Modal, message, Input, Row, Col, Select, DatePicker } from 'antd';
+import { EyeOutlined, PrinterOutlined, DeleteOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useGetAllproformaQuery, useDeleteProformaMutation } from '../../redux/features/management/ProformaApi';
 import PrintableInvoice from '../../components/product/PrintableInvoice';
 import moment from 'moment';
 
 const { Title } = Typography;
+const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 const ProformaInvoicesList = () => {
   const [isViewModalVisible, setIsViewModalVisible] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState(null);
   const [isPrintModalVisible, setIsPrintModalVisible] = useState(false);
+  
+  // Search states
+  const [searchText, setSearchText] = useState('');
+  const [searchField, setSearchField] = useState('clientName');
+  const [dateRange, setDateRange] = useState(null);
+  const [filteredData, setFilteredData] = useState([]);
 
-  const { data: proformaResponse, isLoading, error } = useGetAllproformaQuery({});
+  const { data: proformaResponse, isLoading, error, refetch } = useGetAllproformaQuery({});
   const [deleteProforma, { isLoading: isDeleting }] = useDeleteProformaMutation();
+
+  // Update filtered data when the original data or search parameters change
+  useEffect(() => {
+    if (proformaResponse?.data) {
+      filterData();
+    }
+  }, [proformaResponse?.data, searchText, searchField, dateRange]);
+
+  const filterData = () => {
+    if (!proformaResponse?.data) return;
+    
+    let filtered = [...proformaResponse.data];
+    
+    // Text search
+    if (searchText) {
+      filtered = filtered.filter(invoice => {
+        if (searchField === 'clientName') {
+          return invoice.clientName?.toLowerCase().includes(searchText.toLowerCase());
+        } else if (searchField === 'invoiceNo') {
+          return invoice.invoiceDetails?.invoiceNo?.toLowerCase().includes(searchText.toLowerCase());
+        } else if (searchField === 'total') {
+          return invoice.totals?.total?.toString().includes(searchText);
+        }
+        return true;
+      });
+    }
+    
+    // Date range filter
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const startDate = dateRange[0].startOf('day');
+      const endDate = dateRange[1].endOf('day');
+      
+      filtered = filtered.filter(invoice => {
+        const invoiceDate = moment(invoice.invoiceDetails?.invoiceDate);
+        return invoiceDate.isBetween(startDate, endDate, null, '[]');
+      });
+    }
+    
+    setFilteredData(filtered);
+  };
 
   const handleViewInvoice = (record) => {
     setCurrentInvoice(record);
@@ -39,6 +87,13 @@ const ProformaInvoicesList = () => {
       message.error('Failed to delete proforma invoice');
       console.error('Delete error:', error);
     }
+  };
+
+  const handleReset = () => {
+    setSearchText('');
+    setSearchField('clientName');
+    setDateRange(null);
+    refetch();
   };
 
   const columns = [
@@ -191,9 +246,56 @@ const ProformaInvoicesList = () => {
 
   return (
     <>
+      <Card className="mb-4">
+        <Title level={4}>Search Proforma Invoices</Title>
+        <Row gutter={[16, 16]} align="middle">
+          <Col xs={24} md={6}>
+            <Select
+              style={{ width: '100%' }}
+              value={searchField}
+              onChange={setSearchField}
+              placeholder="Search by"
+            >
+              <Option value="clientName">Client Name</Option>
+              <Option value="invoiceNo">Invoice Number</Option>
+              <Option value="total">Total Amount</Option>
+            </Select>
+          </Col>
+          <Col xs={24} md={8}>
+            <Input
+              placeholder={`Search by ${searchField}...`}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              prefix={<SearchOutlined />}
+              allowClear
+            />
+          </Col>
+          <Col xs={24} md={8}>
+            <RangePicker
+              style={{ width: '100%' }}
+              value={dateRange}
+              onChange={setDateRange}
+              format="YYYY-MM-DD"
+              placeholder={['Start Date', 'End Date']}
+            />
+          </Col>
+          <Col xs={24} md={2}>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleReset}
+              type="primary"
+              ghost
+              block
+            >
+              Reset
+            </Button>
+          </Col>
+        </Row>
+      </Card>
+
       <Table 
         columns={columns}
-        dataSource={proformaResponse?.data || []}
+        dataSource={filteredData.length > 0 || searchText || dateRange ? filteredData : proformaResponse?.data || []}
         rowKey="_id"
         className="rounded-lg"
         scroll={{ x: true }}

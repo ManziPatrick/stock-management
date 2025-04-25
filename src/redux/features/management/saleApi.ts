@@ -61,6 +61,13 @@ const saleApi = baseApi.injectEndpoints({
       }),
       providesTags: ['sale']
     }),
+    getTotalCredit: builder.query({
+      query: () => ({
+        url: '/sales/credit',
+        method: 'GET'
+      }),
+      providesTags: ['sale']
+    }),
   })
 });
 
@@ -72,5 +79,6 @@ export const {
   useYearlySaleQuery,
   useMonthlySaleQuery,
   useWeeklySaleQuery,
-  useDailySaleQuery 
+  useDailySaleQuery,
+  useGetTotalCreditQuery
 } = saleApi;

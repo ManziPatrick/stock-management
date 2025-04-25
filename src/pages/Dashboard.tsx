@@ -3,13 +3,16 @@ import Loader from '../components/Loader';
 import DailyChart from '../components/Charts/DailyChart';
 import MonthlyChart from '../components/Charts/MonthlyChart';
 import YearlySalesChart from '../components/Charts/YearlyChart';
-import { useYearlySaleQuery } from '../redux/features/management/saleApi';
+import { 
+  useYearlySaleQuery,
+  useGetAllSaleQuery,
+  useGetTotalCreditQuery 
+} from '../redux/features/management/saleApi';
 import {
   useDeletePurchaseMutation,
   useGetAllPurchasesQuery,
 } from '../redux/features/management/purchaseApi';
 import { useGetAllExpensesQuery } from '../redux/features/management/expenseApi';
-import { useGetAllSaleQuery } from '../redux/features/management/saleApi';
 import { useGetAllProductsQuery } from '../redux/features/management/productApi';
 
 const Dashboard = () => {
@@ -19,20 +22,26 @@ const Dashboard = () => {
     limit: 10,
     search: '',
   });
-const { data: products } = useGetAllProductsQuery(query);
+  
+  // Fetch credit data
+  const { data: creditData, isLoading: creditLoading } = useGetTotalCreditQuery();
+  const totalCredit = creditData?.data?.totalCredit || 0;
+  const creditTransactions = creditData?.data?.numberOfTransactions || 0;
+  
+  const { data: products } = useGetAllProductsQuery(query);
   const { data: TotalMagrinProfit, isFetching } = useGetAllSaleQuery(query);
   const totalMarginProfit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalMarginProfit ?? 0;
 
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
-  const totalSellingPrice = TotalMagrinProfit?.meta?.totalSales?.stats?.totalSellingPrice ?? 0 ;
-console.log("hhhbhhhiuk",TotalMagrinProfit)
+  const totalSellingPrice = TotalMagrinProfit?.meta?.totalSales?.stats?.totalSellingPrice ?? 0;
+  console.log("hhhbhhhiuk",TotalMagrinProfit)
 
   const { data: yearlyData, isLoading } = useYearlySaleQuery(undefined);
   const { data: purchaseData } = useGetAllPurchasesQuery(query);
   
   const yearlyTotalPurchases = purchaseData?.meta?.totalPurchasedAmount?.yearlyStats?.[0]?.yearlyTotal || 0;
 
-  if (isLoading) {
+  if (isLoading || creditLoading) {
     return <Loader />;
   }
 
@@ -43,20 +52,19 @@ console.log("hhhbhhhiuk",TotalMagrinProfit)
   const aggregateMetrics = {
     totalSalesRevenue: totalSellingPrice || 0,
     totalExpenses: rawData[0]?.expenses || 0,
-    netprofit: totalMarginProfit - rawData[0]?.expenses  || 0,
-    totalStock: totaltotalValue|| 0,
+    netprofit: totalMarginProfit - rawData[0]?.expenses || 0,
+    totalStock: totaltotalValue || 0,
   };
 
-  const MetricCard = ({ title, value, color = 'black' }) => (
-    
-      <div className=" rounded-lg shadow p-6 bg-gradient-to-tr from-white via-slate-200 justify-center items-center bg-white relative">
-        <h3 className="text-sm text-gray-600 mb-2">{title}</h3>
-        <h1 className="text-lg font-extrabold" style={{ color }}>
-          {value.toLocaleString()} 
-        </h1>
-        <span className="font-bold absolute right-2 bottom-1">/frw</span>
-      </div>
-    
+  const MetricCard = ({ title, value, color = 'black', subtitle }) => (
+    <div className="rounded-lg shadow p-6 bg-gradient-to-tr from-white via-slate-200 justify-center items-center bg-white relative">
+      <h3 className="text-sm text-gray-600 mb-2">{title}</h3>
+      <h1 className="text-lg font-extrabold" style={{ color }}>
+        {value.toLocaleString()} 
+      </h1>
+      {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+      <span className="font-bold absolute right-2 bottom-1">/frw</span>
+    </div>
   );
 
   const TabButton = ({ label, id }) => (
@@ -79,8 +87,12 @@ console.log("hhhbhhhiuk",TotalMagrinProfit)
         <MetricCard title="Total Margin Profit" value={totalMarginProfit} color="green" />
         <MetricCard title="Total Expenses" value={aggregateMetrics.totalExpenses} color="red" />
         <MetricCard title="Total Purchase" value={yearlyTotalPurchases} color="purple" />
-
-        
+        {/* <MetricCard 
+          title="Total Credit" 
+          value={totalCredit} 
+          color="#e67e22" 
+          subtitle={`${creditTransactions} transaction${creditTransactions !== 1 ? 's' : ''}`} 
+        /> */}
         <MetricCard
           title="Total Net Profit"
           value={aggregateMetrics.netprofit}

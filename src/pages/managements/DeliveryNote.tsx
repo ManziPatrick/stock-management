@@ -10,14 +10,20 @@ import {
   DatePicker, 
   Upload, 
   message, 
-  Select 
+  Select,
+  Space,
+  Row,
+  Col
 } from 'antd';
 import { 
   UploadOutlined, 
   PrinterOutlined, 
   SaveOutlined, 
   PlusOutlined, 
-  DeleteOutlined 
+  DeleteOutlined,
+  SearchOutlined,
+  FilterOutlined,
+  ReloadOutlined
 } from '@ant-design/icons';
 import moment from 'moment';
 import { useGetAllProductsQuery } from '../../redux/features/management/productApi';
@@ -33,6 +39,7 @@ import stampImg from '../../assets/stamp.png';
 
 const { TabPane } = Tabs;
 const { Option } = Select;
+const { RangePicker } = DatePicker;
 
 const DeliveryNoteSystem = () => {
   const [activeTab, setActiveTab] = useState('1');
@@ -41,6 +48,11 @@ const DeliveryNoteSystem = () => {
   const [itemsList, setItemsList] = useState([{ key: 0, sr: 1, productId: '', particulars: '', quantity: 0 }]);
   const [nextItemId, setNextItemId] = useState(1);
   const [viewingNoteId, setViewingNoteId] = useState(null);
+  
+  // Search state
+  const [searchText, setSearchText] = useState('');
+  const [dateRange, setDateRange] = useState(null);
+  const [filteredNotes, setFilteredNotes] = useState([]);
 
   // RTK Query hooks
   const { 
@@ -67,6 +79,11 @@ const DeliveryNoteSystem = () => {
   // Extract data from responses
   const products = productsResponse?.data || [];
   const deliveryNotes = deliveryNotesResponse?.data || [];
+
+  // Set filtered notes when delivery notes change
+  useEffect(() => {
+    setFilteredNotes(deliveryNotes);
+  }, [deliveryNotes]);
 
   // Load note details when viewingNoteId changes
   useEffect(() => {
@@ -141,6 +158,40 @@ const DeliveryNoteSystem = () => {
 
   const viewProof = (proofUrl) => {
     window.open(proofUrl, '_blank');
+  };
+
+  // Handle search and filtering
+  const handleSearch = () => {
+    let filtered = [...deliveryNotes];
+    
+    // Filter by search text (customer name or note ID)
+    if (searchText) {
+      const lowerSearch = searchText.toLowerCase();
+      filtered = filtered.filter(note => 
+        note.customerName.toLowerCase().includes(lowerSearch) || 
+        note.id.toString().includes(lowerSearch)
+      );
+    }
+    
+    // Filter by date range
+    if (dateRange && dateRange[0] && dateRange[1]) {
+      const startDate = dateRange[0].startOf('day');
+      const endDate = dateRange[1].endOf('day');
+      
+      filtered = filtered.filter(note => {
+        const noteDate = moment(note.date);
+        return noteDate.isSameOrAfter(startDate) && noteDate.isSameOrBefore(endDate);
+      });
+    }
+    
+    setFilteredNotes(filtered);
+  };
+
+  // Reset filters
+  const resetFilters = () => {
+    setSearchText('');
+    setDateRange(null);
+    setFilteredNotes(deliveryNotes);
   };
 
   const printDeliveryNote = (id) => {
@@ -386,18 +437,21 @@ const DeliveryNoteSystem = () => {
       dataIndex: 'date',
       key: 'date',
       render: (date) => moment(date).format('DD/MM/YYYY'),
+      sorter: (a, b) => moment(a.date).unix() - moment(b.date).unix(),
     },
     {
       title: 'Customer',
       dataIndex: 'customerName',
       key: 'customerName',
+      sorter: (a, b) => a.customerName.localeCompare(b.customerName),
     },
     {
       title: 'Proof of Delivery',
       key: 'proof',
       render: (_, record) => (
         record.proofOfDeliveryUrl ? 
-        <Button type="link" onClick={() => viewProof(record.proofOfDeliveryUrl)}>View</Button> : 
+        <Button type="link" onClick={() => viewProof(record.proofOfDeliveryUrl)}>View</Button> 
+        : 
         <Upload 
           beforeUpload={(file) => uploadProof(file, record.id)}
           showUploadList={false}
@@ -574,8 +628,50 @@ const DeliveryNoteSystem = () => {
         <TabPane tab="View Delivery Notes" key="2">
           <div className="bg-white p-6 shadow-md rounded-lg">
             <h2 className="text-xl font-bold mb-4">All Delivery Notes</h2>
+            
+            {/* Search and filter section */}
+            <div className="mb-6 p-4 border border-gray-200 rounded-lg bg-gray-50">
+              <Row gutter={[16, 16]} align="middle">
+                <Col xs={24} md={8}>
+                  <Input
+                    placeholder="Search by customer or note #"
+                    value={searchText}
+                    onChange={e => setSearchText(e.target.value)}
+                    prefix={<SearchOutlined />}
+                    allowClear
+                  />
+                </Col>
+                <Col xs={24} md={10}>
+                  <RangePicker
+                    value={dateRange}
+                    onChange={setDateRange}
+                    style={{ width: '100%' }}
+                    format="DD/MM/YYYY"
+                    placeholder={['Start Date', 'End Date']}
+                  />
+                </Col>
+                <Col xs={24} md={6}>
+                  <Space>
+                    <Button 
+                      type="primary" 
+                      icon={<FilterOutlined />} 
+                      onClick={handleSearch}
+                    >
+                      Filter
+                    </Button>
+                    <Button 
+                      icon={<ReloadOutlined />} 
+                      onClick={resetFilters}
+                    >
+                      Reset
+                    </Button>
+                  </Space>
+                </Col>
+              </Row>
+            </div>
+            
             <Table 
-              dataSource={deliveryNotes} 
+              dataSource={filteredNotes} 
               columns={deliveryNoteColumns}
               rowKey="id"
               loading={isLoadingDeliveryNotes}

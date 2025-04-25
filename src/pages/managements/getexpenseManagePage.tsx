@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import type { PaginationProps, TableColumnsType } from 'antd';
+import type { PaginationProps, TableColumnsType, TableProps } from 'antd';
 import { Flex, Pagination, Table, Button, Input, Select, message, Tag, Badge, Grid, Card, Space, Typography } from 'antd';
 import { useForm, Controller } from 'react-hook-form';
 import {
@@ -10,7 +10,7 @@ import { useGetPettyCashQuery } from '../../redux/features/management/pettyCashA
 import getUserFromPersistedAuth from '../../utils/GetUserId';
 import formatDate from '../../utils/formatDate';
 import Modal from 'antd/es/modal/Modal';
-import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { PlusOutlined, SearchOutlined, ReloadOutlined, FilterOutlined } from '@ant-design/icons';
 
 const { Text, Title } = Typography;
 const { useBreakpoint } = Grid;
@@ -74,13 +74,20 @@ const GetExpenseManagementPage: React.FC = () => {
     page: 1,
     limit: 10,
     search: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    sortField: 'date',
+    sortOrder: 'desc'
   });
+
+  const [searchValue, setSearchValue] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string | null>(null);
 
   const { data, isFetching, refetch } = useGetAllExpensesQuery(query);
   const { data: pettyCashData, isLoading: isLoadingPettyCash } = useGetPettyCashQuery(undefined);
   const [createExpense, { isLoading: isCreating }] = useCreateExpenseMutation();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
   // Get real petty cash data
@@ -106,6 +113,57 @@ const GetExpenseManagementPage: React.FC = () => {
 
   const userId = getUserFromPersistedAuth();
   const selectedPaymentMethod = watch('paymentMethod');
+
+  // Handle search submit
+  const handleSearch = () => {
+    setQuery(prev => ({ ...prev, search: searchValue, page: 1 }));
+  };
+
+  // Handle table sorting
+  const handleTableChange: TableProps<Expense>['onChange'] = (pagination, filters, sorter) => {
+    if (Array.isArray(sorter)) return;
+    
+    if (sorter && 'field' in sorter && 'order' in sorter) {
+      const sortField = sorter.field as string;
+      const sortOrder = sorter.order === 'ascend' ? 'asc' : 'desc';
+      setQuery(prev => ({ ...prev, sortField, sortOrder }));
+    }
+  };
+
+  // Apply filters
+  const applyFilters = () => {
+    const filterQuery: any = { ...query, page: 1 };
+    
+    if (categoryFilter) {
+      filterQuery.category = categoryFilter;
+    } else {
+      delete filterQuery.category;
+    }
+    
+    if (paymentMethodFilter) {
+      filterQuery.paymentMethod = paymentMethodFilter;
+    } else {
+      delete filterQuery.paymentMethod;
+    }
+    
+    setQuery(filterQuery);
+    setIsFilterModalOpen(false);
+  };
+
+  // Reset filters
+  const resetFilters = () => {
+    setCategoryFilter(null);
+    setPaymentMethodFilter(null);
+    setQuery({
+      page: 1,
+      limit: 10,
+      search: query.search,
+      status: 'ACTIVE',
+      sortField: 'date',
+      sortOrder: 'desc'
+    });
+    setIsFilterModalOpen(false);
+  };
 
   const onSubmit = async (formData: ExpenseFormData) => {
     try {
@@ -149,16 +207,20 @@ const GetExpenseManagementPage: React.FC = () => {
         title: 'Date',
         dataIndex: 'date',
         key: 'date',
+        sorter: true,
+        sortOrder: query.sortField === 'date' ? (query.sortOrder === 'asc' ? 'ascend' : 'descend') : undefined,
         render: (date: string) => formatDate(date)
       },
       {
         title: 'Amount',
         dataIndex: 'amount',
         key: 'amount',
-        align: 'right',
+        
+        sorter: true,
+        sortOrder: query.sortField === 'amount' ? (query.sortOrder === 'asc' ? 'ascend' : 'descend') : undefined,
         render: (amount: number) => (
           <Text strong style={{ color: '#d4380d' }}>
-            {amount.toFixed(2)} frw
+            {amount.toFixed(0)} frw
           </Text>
         )
       }
@@ -167,33 +229,48 @@ const GetExpenseManagementPage: React.FC = () => {
     // Add title column on small screens and up
     if (screens.sm) {
       baseColumns.splice(2, 0, {
-        title: 'category',
-        dataIndex: 'Category',
+        title: 'Category',
+        dataIndex: 'category',
         key: 'category',
+        filters: CATEGORY_OPTIONS.map(cat => ({ text: cat.label, value: cat.value })),
+        filteredValue: categoryFilter ? [categoryFilter] : null,
         render: (category: string, record: Expense) => (
+          <Tag color={categoryColors[record.category]}>
+            {CATEGORY_OPTIONS.find(cat => cat.value === record.category)?.label || record.category}
+          </Tag>
+        )
+      });
+    }
+    
+    if (screens.sm) {
+      baseColumns.splice(2, 0, {
+        title: 'Title',
+        dataIndex: 'title',
+        key: 'title',
+        sorter: true,
+        sortOrder: query.sortField === 'title' ? (query.sortOrder === 'asc' ? 'ascend' : 'descend') : undefined,
+        render: (title: string, record: Expense) => (
           <Flex vertical gap="small">
-            
-            <Tag color={categoryColors[record.category]}>
-              {CATEGORY_OPTIONS.find(cat => cat.value === record.category)?.label || record.category}
-            </Tag>
+            <Text strong>{title}</Text>
+          
           </Flex>
         )
       });
     }
     if (screens.sm) {
-      baseColumns.splice(2, 0, {
-        title: 'Title / by',
+      baseColumns.splice(3, 0, {
+        title: 'by',
         dataIndex: 'title',
         key: 'title',
+      
         render: (title: string, record: Expense) => (
           <Flex vertical gap="small">
-            <Text strong>{title}</Text>
-            <Text style={{ fontSize: '0.8em', color: 'gray' }}>{record.createdBy.name}</Text>
+            
+            <Text style={{ fontSize: '0.8em', color: 'gray' }}>{record.createdBy.role}</Text>
           </Flex>
         )
       });
     }
-    
     
     // Add payment method on medium screens and up
     if (screens.md) {
@@ -201,6 +278,8 @@ const GetExpenseManagementPage: React.FC = () => {
         title: 'Payment',
         dataIndex: 'paymentMethod',
         key: 'paymentMethod',
+        filters: PAYMENT_METHOD_OPTIONS.map(opt => ({ text: opt.label, value: opt.value })),
+        filteredValue: paymentMethodFilter ? [paymentMethodFilter] : null,
         render: (method: string) => {
           const methodLabel = PAYMENT_METHOD_OPTIONS.find(opt => opt.value === method)?.label || method;
           return (
@@ -270,8 +349,35 @@ const GetExpenseManagementPage: React.FC = () => {
 
   const expenses = data?.data || [];
   const totalExpenses = data?.total || 0;
-  const currentPage = data?.pagination?.currentPage || 1;
-  const totalPages = data?.pagination?.totalPages || 1;
+  
+  // Ensure we have correct pagination data
+  // Use data from API response or calculate based on total records
+  const currentPage = query.page;
+  const totalPages = Math.ceil(totalExpenses / query.limit);
+
+  // Handle page change
+  const handlePageChange = (page: number, pageSize?: number) => {
+    setQuery(prev => ({ 
+      ...prev, 
+      page,
+      limit: pageSize || prev.limit 
+    }));
+  };
+
+  // Handle page size change
+  const handlePageSizeChange = (current: number, size: number) => {
+    setQuery(prev => ({ 
+      ...prev, 
+      page: 1, // Reset to first page when changing page size
+      limit: size 
+    }));
+  };
+
+  // Function to refresh data
+  const handleRefresh = () => {
+    refetch();
+    messageApi.info('Refreshing expense data');
+  };
 
   return (
     <div className="p-2 md:p-6 bg-white rounded-lg shadow-md min-h-[80vh]">
@@ -287,10 +393,25 @@ const GetExpenseManagementPage: React.FC = () => {
           <Flex gap="small" wrap="wrap">
             <Input.Search
               placeholder="Search expenses..."
-              onSearch={(value) => setQuery(prev => ({ ...prev, search: value, page: 1 }))}
+              value={searchValue}
+              onChange={(e) => setSearchValue(e.target.value)}
+              onSearch={handleSearch}
               style={{ width: screens.xs ? '100%' : 200 }}
               loading={isFetching}
             />
+            <Button
+              icon={<FilterOutlined />}
+              onClick={() => setIsFilterModalOpen(true)}
+            >
+              {screens.sm ? 'Filter' : ''}
+            </Button>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+              loading={isFetching}
+            >
+              {screens.sm ? 'Refresh' : ''}
+            </Button>
             <Button
               type="primary"
               icon={<PlusOutlined />}
@@ -315,6 +436,7 @@ const GetExpenseManagementPage: React.FC = () => {
           pagination={false}
           expandable={expandableConfig}
           scroll={{ x: 'max-content' }}
+          onChange={handleTableChange}
         />
       </div>
 
@@ -328,24 +450,74 @@ const GetExpenseManagementPage: React.FC = () => {
         >
           <Text>
             {totalExpenses > 0 
-              ? `Showing ${((query.page - 1) * query.limit) + 1}-${Math.min(query.page * query.limit, totalExpenses)} of ${totalExpenses} items` 
+              ? `Showing ${((currentPage - 1) * query.limit) + 1}-${Math.min(currentPage * query.limit, totalExpenses)} of ${totalExpenses} items` 
               : 'No items to display'
             }
           </Text>
           
           <Pagination
-            current={query.page}
-            onChange={(page) => setQuery(prev => ({ ...prev, page }))}
+            current={currentPage}
+            onChange={handlePageChange}
             pageSize={query.limit}
             total={totalExpenses}
             showSizeChanger={screens.sm}
             pageSizeOptions={['10', '20', '50', '100']}
+            onShowSizeChange={handlePageSizeChange}
             showQuickJumper={screens.md}
             size={screens.sm ? "default" : "small"}
             showLessItems={!screens.md}
+            disabled={isFetching}
+            showTotal={(total, range) => screens.md ? `${range[0]}-${range[1]} of ${total} items` : null}
           />
         </Flex>
       </Card>
+
+      {/* Filter Modal */}
+      <Modal
+        title="Filter Expenses"
+        open={isFilterModalOpen}
+        onCancel={() => setIsFilterModalOpen(false)}
+        footer={[
+          <Button key="reset" onClick={resetFilters}>
+            Reset Filters
+          </Button>,
+          <Button key="cancel" onClick={() => setIsFilterModalOpen(false)}>
+            Cancel
+          </Button>,
+          <Button key="apply" type="primary" onClick={applyFilters} className="bg-blue-600">
+            Apply Filters
+          </Button>
+        ]}
+        width={screens.md ? 480 : "95%"}
+      >
+        <div className="flex flex-col gap-4 py-4">
+          <div className="flex flex-col gap-2">
+            <label htmlFor="categoryFilter">Category</label>
+            <Select
+              id="categoryFilter"
+              placeholder="Select category to filter"
+              value={categoryFilter}
+              onChange={setCategoryFilter}
+              allowClear
+              style={{ width: '100%' }}
+              options={CATEGORY_OPTIONS}
+            />
+          </div>
+          
+          <div className="flex flex-col gap-2">
+            <label htmlFor="paymentMethodFilter">Payment Method</label>
+            <Select
+              id="paymentMethodFilter"
+              placeholder="Select payment method to filter"
+              value={paymentMethodFilter}
+              onChange={setPaymentMethodFilter}
+              allowClear
+              style={{ width: '100%' }}
+              options={PAYMENT_METHOD_OPTIONS}
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* Add Expense Modal */}
       <Modal
