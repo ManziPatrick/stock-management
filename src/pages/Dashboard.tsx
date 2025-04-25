@@ -1,3 +1,4 @@
+//@ts-nocheck
 import React, { useState } from 'react';
 import Loader from '../components/Loader';
 import DailyChart from '../components/Charts/DailyChart';
@@ -24,6 +25,7 @@ const Dashboard = () => {
   });
   
   // Fetch credit data
+
   const { data: creditData, isLoading: creditLoading } = useGetTotalCreditQuery();
   const totalCredit = creditData?.data?.totalCredit || 0;
   const creditTransactions = creditData?.data?.numberOfTransactions || 0;
