@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import {
   BarChart,
   Bar,
@@ -15,19 +15,22 @@ import {
 import { useGetAllSaleQuery } from "../redux/features/management/saleApi";
 
 const SalesStatisticsDashboard = () => {
-  const [activeView, setActiveView] = useState("daily");
   const { data: salesData, isLoading } = useGetAllSaleQuery({ page: 1, limit: 10, search: "" });
 
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
-  if (!salesData?.meta?.totalSales) {
-    return <div className="p-4">No data available</div>;
+  // More defensive check - ensure all required data paths exist
+  if (!salesData || !salesData.meta || !salesData.meta.totalSales || !salesData.meta.totalSales.stats) {
+    return <div className="p-4">No sales data available</div>;
   }
 
-  const COLORS = ["#64748b", "#3b82f6", "#22c55e", "#6366f1"];
-  const formatCurrency = (value) => `${value.toLocaleString()}`;
+  const stats = salesData.meta.totalSales.stats;
+  const transactions = salesData.data || [];
+
+  const COLORS = ["#64748b", "#3b82f6", "#22c55e", "#6366f1", "#a855f7"];
+  const formatCurrency = (value) => `${(value || 0).toLocaleString()}`;
 
   const StatCard = ({ title, value, color }) => (
     <div className={`bg-white rounded-lg shadow p-6 border-t-4 ${color}`}>
@@ -36,17 +39,31 @@ const SalesStatisticsDashboard = () => {
     </div>
   );
 
-  const PaymentPieChart = ({ data, title }) => {
+  const PaymentPieChart = ({ stats }) => {
+    // Ensure we have valid values by using || 0 for each property
     const pieData = [
-      { name: "Cash", value: data.cashTotal || 0 },
-      { name: "Mobile Money", value: data.momoTotal || 0 },
-      { name: "Cheque", value: data.chequeTotal || 0 },
-      { name: "Transfer", value: data.transferTotal || 0 }
+      { name: "Cash", value: stats.cashTotal || 0 },
+      { name: "Mobile Money", value: stats.momoTotal || 0 },
+      { name: "Cheque", value: stats.chequeTotal || 0 },
+      { name: "Transfer", value: stats.transferTotal || 0 },
+      { name: "Credit Paid", value: stats.creditPaidTotal || 0 }
     ].filter(item => item.value > 0);
+
+    // If no payment data, show a message
+    if (pieData.length === 0) {
+      return (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Payment Distribution</h3>
+          <div className="h-64 flex items-center justify-center">
+            <p className="text-gray-500">No payment data available</p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">{title}</h3>
+        <h3 className="text-lg font-semibold mb-4">Payment Distribution</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -72,30 +89,34 @@ const SalesStatisticsDashboard = () => {
     );
   };
 
-  const TimeSeriesChart = ({ data, title }) => {
-    const formattedData = data.map(item => ({
-      date: `${item._id.day || item._id.month || item._id.year}`,
-      Cash: item.cashTotal,
-      "Mobile Money": item.momoTotal,
-      Cheque: item.chequeTotal,
-      Transfer: item.transferTotal
-    }));
+  const PaymentMethodsChart = ({ stats }) => {
+    const chartData = [
+      {
+        name: "Payment Methods",
+        "Cash": stats.cashTotal || 0,
+        "Mobile Money": stats.momoTotal || 0,
+        "Cheque": stats.chequeTotal || 0,
+        "Transfer": stats.transferTotal || 0,
+        "Credit Paid": stats.creditPaidTotal || 0
+      }
+    ];
 
     return (
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">{title}</h3>
+        <h3 className="text-lg font-semibold mb-4">Payment Methods</h3>
         <div className="h-64">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={formattedData}>
+            <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="date" />
+              <XAxis dataKey="name" />
               <YAxis />
               <Tooltip formatter={(value) => formatCurrency(value)} />
               <Legend />
-              <Bar dataKey="Cash" fill={COLORS[0]} stackId="stack" />
-              <Bar dataKey="Mobile Money" fill={COLORS[1]} stackId="stack" />
-              <Bar dataKey="Cheque" fill={COLORS[2]} stackId="stack" />
-              <Bar dataKey="Transfer" fill={COLORS[3]} stackId="stack" />
+              <Bar dataKey="Cash" fill={COLORS[0]} />
+              <Bar dataKey="Mobile Money" fill={COLORS[1]} />
+              <Bar dataKey="Cheque" fill={COLORS[2]} />
+              <Bar dataKey="Transfer" fill={COLORS[3]} />
+              <Bar dataKey="Credit Paid" fill={COLORS[4]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -103,91 +124,100 @@ const SalesStatisticsDashboard = () => {
     );
   };
 
-  const PaymentSummary = ({ data, title }) => (
-    <div className="bg-white rounded-lg shadow p-6">
-      <h3 className="text-lg font-semibold mb-4">{title}</h3>
-      <div className="space-y-2">
-        {data.map((item, index) => (
-          <div key={index} className="border-b pb-2">
-            <div className="font-semibold text-gray-800">
-              {item._id.day ? `${item._id.day}/` : ""}
-              {item._id.month ? `${item._id.month}/` : ""}
-              {item._id.year}
-            </div>
-            {item.payments.map((payment, i) => (
-              <div key={i} className="text-gray-600">
-                {payment.mode.charAt(0).toUpperCase() + payment.mode.slice(1)}:{" "}
-                <span className="font-medium">{formatCurrency(payment.total)}</span> ({payment.count} transactions)
-              </div>
-            ))}
-          </div>
-        ))}
+  const TransactionsList = ({ transactions }) => {
+    if (!transactions || transactions.length === 0) {
+      return (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
+          <p className="text-gray-500">No recent transactions</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4">Recent Transactions</h3>
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead>
+              <tr>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Buyer</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Date</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Payment</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Amount</th>
+                <th className="px-4 py-2 text-left text-sm font-medium text-gray-500">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {transactions.map((transaction) => (
+                <tr key={transaction._id}>
+                  <td className="px-4 py-2 whitespace-nowrap">{transaction.buyerName}</td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    {new Date(transaction.date).toLocaleDateString()}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    {transaction.paymentMode ? (
+                      transaction.paymentMode.charAt(0).toUpperCase() + transaction.paymentMode.slice(1)
+                    ) : "N/A"}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    {formatCurrency(transaction.totalAmount)}
+                  </td>
+                  <td className="px-4 py-2 whitespace-nowrap">
+                    <span 
+                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        transaction.status === "paid" 
+                          ? "bg-green-100 text-green-800" 
+                          : "bg-yellow-100 text-yellow-800"
+                      }`}
+                    >
+                      {transaction.status ? transaction.status.toUpperCase() : "N/A"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const { stats, dailyStats, monthlyStats, yearlyStats } = salesData.meta.totalSales;
-
-  // Calculate total amounts for each payment method across all time periods
-  // We'll use the current view's data to display the relevant totals
-  let viewData;
-  if (activeView === "daily") {
-    viewData = dailyStats;
-  } else if (activeView === "monthly") {
-    viewData = monthlyStats;
-  } else {
-    viewData = yearlyStats;
-  }
-
-  // Get the most recent data point for the current view
-  const currentData = viewData[0] || {};
-
+  // Render the dashboard with focus on payment methods
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Replaced cards section with payment method totals */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <StatCard title="Cash Total" value={currentData.cashTotal || 0} color="border-gray-500" />
-        <StatCard title="Mobile Money Total" value={currentData.momoTotal || 0} color="border-blue-500" />
-        <StatCard title="Cheque Total" value={currentData.chequeTotal || 0} color="border-green-500" />
-        <StatCard title="Transfer Total" value={currentData.transferTotal || 0} color="border-indigo-500" />
-      </div>
-
-      <div className="flex space-x-4 mb-6">
-        {["daily", "monthly", "yearly"].map((view) => (
-          <button
-            key={view}
-            onClick={() => setActiveView(view)}
-            className={`px-4 py-2 rounded-lg ${
-              activeView === view ? "bg-blue-500 text-white" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-            }`}
-          >
-            {view.charAt(0).toUpperCase() + view.slice(1)} View
-          </button>
-        ))}
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+        <StatCard 
+          title="Cash" 
+          value={stats.cashTotal || 0} 
+          color="border-gray-500" 
+        />
+        <StatCard 
+          title="Mobile Money" 
+          value={stats.momoTotal || 0} 
+          color="border-blue-500" 
+        />
+        <StatCard 
+          title="Cheque" 
+          value={stats.chequeTotal || 0} 
+          color="border-green-500" 
+        />
+        <StatCard 
+          title="Transfer" 
+          value={stats.transferTotal || 0} 
+          color="border-indigo-500" 
+        />
+        <StatCard 
+          title="Credit Paid" 
+          value={stats.creditPaidTotal || 0} 
+          color="border-purple-500" 
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {activeView === "daily" && (
-          <>
-            <TimeSeriesChart data={dailyStats} title="Daily Sales Distribution" />
-            <PaymentPieChart data={dailyStats[0] || {}} title="Today's Payment Distribution" />
-            <PaymentSummary data={dailyStats} title="Daily Payment Summary" />
-          </>
-        )}
-        {activeView === "monthly" && (
-          <>
-            <TimeSeriesChart data={monthlyStats} title="Monthly Sales Distribution" />
-            <PaymentPieChart data={monthlyStats[0] || {}} title="Current Month's Payment Distribution" />
-            <PaymentSummary data={monthlyStats} title="Monthly Payment Summary" />
-          </>
-        )}
-        {activeView === "yearly" && (
-          <>
-            <TimeSeriesChart data={yearlyStats} title="Yearly Sales Distribution" />
-            <PaymentPieChart data={yearlyStats[0] || {}} title="Current Year's Payment Distribution" />
-            <PaymentSummary data={yearlyStats} title="Yearly Payment Summary" />
-          </>
-        )}
+        <PaymentPieChart stats={stats} />
+        <PaymentMethodsChart stats={stats} />
+        <TransactionsList transactions={transactions} />
       </div>
     </div>
   );

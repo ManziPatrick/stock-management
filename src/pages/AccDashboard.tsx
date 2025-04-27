@@ -23,11 +23,10 @@ const Dashboard = () => {
     search: '',
   });
 
-  // Fetch data using Redux Toolkit Query
   const [getPettyCash, { data: pettyCashData }] = useLazyGetPettyCashQuery();
   const [topUpPettyCash] = useTopUpPettyCashMutation();
   const { data: products } = useGetAllProductsQuery(query);
-  const { data: TotalMagrinProfit, isFetching } = useGetAllSaleQuery(query);
+  const { data: salesData, isFetching } = useGetAllSaleQuery(query);
   const { data: yearlyData, isLoading } = useYearlySaleQuery(undefined);
   const { data: purchaseData } = useGetAllPurchasesQuery(query);
   const { data: expensesData } = useGetAllExpensesQuery({
@@ -50,8 +49,15 @@ const Dashboard = () => {
     }
   }, [showTopupModal]);
 
-  // Extract values from API responses
-  const totalSellingPrice = TotalMagrinProfit?.meta?.totalSales?.stats?.totalSellingPrice ?? 0;
+  // Extract values from API responses - now using the provided JSON structure
+  const salesStats = salesData?.meta?.totalSales?.stats || {};
+  const totalSellingPrice = salesStats.totalSaleAmount || 0;
+  const netProfit = salesStats.netProfit || 0;
+  const totalCostPrice = salesStats.totalCostPrice || 0;
+  const expenses = expensesData?.meta?.stats?.totalExpenses|| 0;
+  console.log('expenses:', expenses);
+  console.log('Total Selling Price:', totalSellingPrice);
+  
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
   const yearlyTotalPurchases = purchaseData?.meta?.totalPurchasedAmount?.yearlyStats?.[0]?.yearlyTotal || 0;
 
@@ -86,7 +92,7 @@ const Dashboard = () => {
 
   const aggregateMetrics = {
     totalSalesRevenue: totalSellingPrice || 0,
-    totalExpenses: rawData[0]?.expenses || 0,
+    totalExpenses: expenses || 0,
     totalStock: totaltotalValue || 0,
   };
 
@@ -368,7 +374,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="mt-6 sm:mt-8  lg:hidden">
+      <div className="mt-6 sm:mt-8 lg:hidden">
         <PettyCashCard />
       </div>
 

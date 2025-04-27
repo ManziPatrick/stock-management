@@ -205,7 +205,6 @@ const ProductManagePageuser = () => {
     </div>
   );
 };
-
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showReceipt, setShowReceipt] = useState(false);
@@ -235,12 +234,12 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       amountPaid: 0,
       dueDate: '',
       description: '',
-     
+      phoneNumber: '',
+      email: '',
     }
   });
 
   const [saleProduct] = useCreateSaleMutation();
-  const [createDebit] = useCreateDebitMutation();
   const today = new Date().toISOString().split('T')[0];
 
   const watchAmountPaid = watch("amountPaid");
@@ -347,21 +346,14 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         return;
       }
   
-      // Create common sale details object
-      const saleDetails = {
-        buyerName: data.buyerName,
-        date: data.date,
-        paymentMode: paymentMode,
-        paymentDetails: {
-          mode: paymentMode,
-          ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
-          ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
-          ...(paymentMode === 'transfer' && { 
-    
-          }),
-        }
+      // Create payment details based on selected payment mode
+      const paymentDetails = {
+        mode: paymentMode,
+        ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
+        ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
+        ...(paymentMode === 'transfer' && { bankDetails: data.bankDetails }),
       };
-  
+
       // Create products array with only product-specific information
       const productsPayload = selectedProducts.map(prod => {
         const profitPerUnit = prod.sellingPrice - prod.price;
@@ -383,11 +375,26 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         };
       });
   
-      // Combine into final payload
+      // Construct the payload matching backend expectations
       const salesPayload = {
-        ...saleDetails,
-        products: productsPayload
+        buyerName: data.buyerName,
+        date: data.date,
+        paymentMode: paymentMode,
+        paymentDetails: paymentDetails,
+        products: productsPayload,
+        status: isDebit ? 'credit' : 'pending'
       };
+
+      // Add debit details if this is a credit sale
+      if (isDebit) {
+        salesPayload.debitDetails = {
+          paidAmount: Number(data.amountPaid) || 0,
+          dueDate: data.dueDate,
+          buyerPhoneNumber: data.phoneNumber,
+          buyerEmail: data.email,
+          description: data.description || `Credit sale for multiple products - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
+        };
+      }
   
       // Send the combined payload in a single API call
       const saleResponse = await saleProduct(salesPayload).unwrap();
@@ -395,29 +402,20 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       // Check if sale was successful
       if (saleResponse.success) {
         if (isDebit) {
-          // Create debit record
-          const debitPayload = {
-            productName: `Multiple Products (${selectedProducts.length})`,
+          toastMessage({ 
+            icon: 'success', 
+            text: 'Sale and credit record created successfully'
+          });
+          // Store debit data for receipt
+          setDebitData({
             totalAmount: totalAmount,
             paidAmount: Number(data.amountPaid) || 0,
             remainingAmount: remainingAmount,
-            buyerEmail: data.email,
-            buyerPhoneNumber: data.phoneNumber,
             dueDate: data.dueDate,
             buyerName: data.buyerName,
-            saleId: saleResponse.data.sales[0]._id,
-            status: 'PENDING',
-            description: data.description || `Debit for multiple products - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
-          };
-  
-          const debitResponse = await createDebit(debitPayload).unwrap();
-          if (debitResponse.status === 'success') {
-            setDebitData(debitResponse.data);
-            toastMessage({ 
-              icon: 'success', 
-              text: 'Sale and debit record created successfully'
-            });
-          }
+            buyerPhoneNumber: data.phoneNumber,
+            buyerEmail: data.email
+          });
         } else {
           toastMessage({ 
             icon: 'success', 
@@ -454,7 +452,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       }
       
     } catch (error: any) {
-      console.error('Sale/Debit error:', error);
+      console.error('Sale/Credit error:', error);
       toastMessage({ 
         icon: 'error', 
         text: error.data?.message || error.message || 'An error occurred while processing the sale'
@@ -479,8 +477,8 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       amountPaid: 0,
       dueDate: '',
       description: '',
-     
-     
+      phoneNumber: '',
+      email: '',
     });
   };
 
@@ -520,31 +518,30 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       >
         {showReceipt && saleData.length > 0 ? (
         <div>
-      <SaleReceipt 
-      saleData={{
-        _id: saleData[0]._id,
-        products: saleData[0].products,
-        buyerName: saleData[0].buyerName,
-        date: saleData[0].date,
-        paymentMode: saleData[0].paymentMode,
-        totalAmount: saleData[0].totalAmount,
-        profitLoss: {
-          total: totalProfitLoss.amount,
-          isProfit: totalProfitLoss.isProfit
-        }
-      }}
-      debitData={debitData}
-      multipleProducts={saleData[0].products && saleData[0].products.length > 1}
-    />
-        <Flex justify='center' style={{ marginTop: '1rem' }}>
-          <Button onClick={handleCancel} type='primary'>
-            Close
-          </Button>
-        </Flex>
-      </div>
+          <SaleReceipt 
+            saleData={{
+              _id: saleData[0]._id,
+              products: saleData[0].products,
+              buyerName: saleData[0].buyerName,
+              date: saleData[0].date,
+              paymentMode: saleData[0].paymentMode,
+              totalAmount: saleData[0].totalAmount,
+              profitLoss: {
+                total: totalProfitLoss.amount,
+                isProfit: totalProfitLoss.isProfit
+              }
+            }}
+            debitData={debitData}
+            multipleProducts={saleData[0].products && saleData[0].products.length > 1}
+          />
+          <Flex justify='center' style={{ marginTop: '1rem' }}>
+            <Button onClick={handleCancel} type='primary'>
+              Close
+            </Button>
+          </Flex>
+        </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
-            {/* Form content remains the same */}
             {/* Product Selection Section */}
             <div className="mb-4 border p-4 rounded-md bg-gray-50">
               <Typography.Title level={5}>Select Products</Typography.Title>
@@ -576,7 +573,6 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 />
               </div>
               
-              {/* Rest of the form remains the same */}
               {/* Selected Products Table */}
               {selectedProducts.length > 0 && (
                 <Table
@@ -620,24 +616,24 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                       />
                     )}
                   />
-                                 <Table.Column 
-                   title="Quantity" 
-                   key="quantity"
-                   render={(record: any) => (
-                     <div className="flex items-center gap-1">
-                       <Input
-                         type="number"
-                         min={1}
-                         max={record.stock}
-                         value={record.selectedQuantity}
-                         onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
-                         className="w-[80px] text-right"
-                         style={{ fontWeight: 500 }}
-                       />
-                       <span className="text-[10px] text-gray-500">/ {record.stock}</span>
-                     </div>
-                   )}
-                 />
+                  <Table.Column 
+                    title="Quantity" 
+                    key="quantity"
+                    render={(record: any) => (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={record.stock}
+                          value={record.selectedQuantity}
+                          onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
+                          className="w-[80px] text-right"
+                          style={{ fontWeight: 500 }}
+                        />
+                        <span className="text-[10px] text-gray-500">/ {record.stock}</span>
+                      </div>
+                    )}
+                  />
                   <Table.Column 
                     title="Subtotal" 
                     key="subtotal"
@@ -729,12 +725,59 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
               </Radio.Group>
             </div>
 
+            {/* Conditionally render fields based on payment mode */}
+            {paymentMode === 'momo' && (
+              <CustomInput
+                name='momoNumber'
+                label='Mobile Money Number'
+                errors={errors}
+                required={true}
+                register={register}
+                type='tel'
+                rules={{
+                  required: 'Mobile money number is required',
+                  pattern: {
+                    value: /^[0-9]{10}$/,
+                    message: 'Enter a valid 10-digit phone number'
+                  }
+                }}
+              />
+            )}
+
+            {paymentMode === 'cheque' && (
+              <CustomInput
+                name='chequeNumber'
+                label='Cheque Number'
+                errors={errors}
+                required={true}
+                register={register}
+                type='text'
+                rules={{
+                  required: 'Cheque number is required'
+                }}
+              />
+            )}
+
+            {paymentMode === 'transfer' && (
+              <CustomInput
+                name='bankDetails'
+                label='Bank Details'
+                errors={errors}
+                required={true}
+                register={register}
+                type='text'
+                rules={{
+                  required: 'Bank details are required'
+                }}
+              />
+            )}
+
             <div className="mt-4 mb-2">
               <Checkbox 
                 checked={isDebit}
                 onChange={(e) => setIsDebit(e.target.checked)}
               >
-                Create as Debit Sale
+                Create as Credit Sale
               </Checkbox>
             </div>
 
@@ -755,35 +798,33 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     validate: {
                       lessThanTotal: (value) => 
                         value < totalAmount || 
-                        'For debit sales, initial payment must be less than total amount',
+                        'For credit sales, initial payment must be less than total amount',
                       positiveRemaining: (value) => {
                         const remaining = totalAmount - value;
                         return remaining > 0 || 
-                          'Remaining amount must be greater than 0 for debit sales';
+                          'Remaining amount must be greater than 0 for credit sales';
                       }
                     }
                   }}
                 />
 
-<CustomInput 
-  name='dueDate' 
-  label='Payment Due Date' 
-  errors={errors} 
-  required={true} 
-  register={register} 
-  type='datetime-local'
-  includeTime={true}
-  locale="en-US" // Or dynamically: userLocale from your app's context/state
-  timeZone="America/New_York" // Or dynamically: userTimeZone from your app's context
-  rules={{ 
-    required: 'Due date is required', 
-    validate: (value) => {
-      const selectedDateTime = new Date(value);
-      const now = new Date();
-      return selectedDateTime > now || 'Due date and time must be in the future';
-    }
-  }} 
-/>
+                <CustomInput 
+                  name='dueDate' 
+                  label='Payment Due Date' 
+                  errors={errors} 
+                  required={true} 
+                  register={register} 
+                  type='datetime-local'
+                  rules={{ 
+                    required: 'Due date is required', 
+                    validate: (value) => {
+                      const selectedDateTime = new Date(value);
+                      const now = new Date();
+                      return selectedDateTime > now || 'Due date and time must be in the future';
+                    }
+                  }} 
+                />
+
                 <CustomInput
                   name='phoneNumber'
                   label='Phone Number'
@@ -815,6 +856,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     }
                   }}
                 />
+
                 <CustomInput
                   name='description'
                   label='Description (Optional)'
@@ -833,7 +875,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 {remainingAmount <= 0 && (
                   <div className="mt-2">
                     <Typography.Text type="error">
-                      For debit sales, there must be a remaining amount to pay
+                      For credit sales, there must be a remaining amount to pay
                     </Typography.Text>
                   </div>
                 )}

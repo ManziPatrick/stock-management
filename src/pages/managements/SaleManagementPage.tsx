@@ -94,6 +94,7 @@ const SaleManagementPage = () => {
     setIsReceiptModalOpen(false);
     setSelectedSale(null);
   };
+  
 
   const onChange: PaginationProps['onChange'] = (page, pageSize) => {
     setQuery((prev) => ({ ...prev, page, limit: pageSize }));

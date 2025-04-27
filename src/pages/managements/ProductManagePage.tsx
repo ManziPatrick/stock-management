@@ -240,7 +240,6 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
   });
 
   const [saleProduct] = useCreateSaleMutation();
-  const [createDebit] = useCreateDebitMutation();
   const today = new Date().toISOString().split('T')[0];
 
   const watchAmountPaid = watch("amountPaid");
@@ -347,19 +346,14 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         return;
       }
   
-      // Create common sale details object
-      const saleDetails = {
-        buyerName: data.buyerName,
-        date: data.date,
-        paymentMode: paymentMode,
-        paymentDetails: {
-          mode: paymentMode,
-          ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
-          ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
-          ...(paymentMode === 'transfer' && {})
-        }
+      // Create payment details based on selected payment mode
+      const paymentDetails = {
+        mode: paymentMode,
+        ...(paymentMode === 'momo' && { momoNumber: data.momoNumber }),
+        ...(paymentMode === 'cheque' && { chequeNumber: data.chequeNumber }),
+        ...(paymentMode === 'transfer' && { bankDetails: data.bankDetails }),
       };
-  
+
       // Create products array with only product-specific information
       const productsPayload = selectedProducts.map(prod => {
         const profitPerUnit = prod.sellingPrice - prod.price;
@@ -381,62 +375,47 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         };
       });
   
-      // Combine into final payload
+      // Construct the payload matching backend expectations
       const salesPayload = {
-        ...saleDetails,
+        buyerName: data.buyerName,
+        date: data.date,
+        paymentMode: paymentMode,
+        paymentDetails: paymentDetails,
         products: productsPayload,
-        // Add a flag to indicate this is a debit sale
-        isDebit: isDebit
+        status: isDebit ? 'credit' : 'pending'
       };
+
+      // Add debit details if this is a credit sale
+      if (isDebit) {
+        salesPayload.debitDetails = {
+          paidAmount: Number(data.amountPaid) || 0,
+          dueDate: data.dueDate,
+          buyerPhoneNumber: data.phoneNumber,
+          buyerEmail: data.email,
+          description: data.description || `Credit sale for multiple products - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
+        };
+      }
   
       // Send the combined payload in a single API call
       const saleResponse = await saleProduct(salesPayload).unwrap();
       
       // Check if sale was successful
       if (saleResponse.success) {
-        // Extract the sale ID from response, handling different response structures
-        let saleId;
-        
-        // Safely extract saleId from various possible response structures
-        if (saleResponse.data.transaction && saleResponse.data.transaction._id) {
-          saleId = saleResponse.data.transaction._id;
-        } else if (saleResponse.data.sales && saleResponse.data.sales.length > 0 && saleResponse.data.sales[0]._id) {
-          saleId = saleResponse.data.sales[0]._id;
-        } else if (saleResponse.data._id) {
-          saleId = saleResponse.data._id;
-        } else {
-          console.error('Unable to find sale ID in response:', saleResponse);
-          throw new Error('Sale ID not found in response');
-        }
-        
         if (isDebit) {
-          // Create debit record
-          const debitPayload = {
-            productName: selectedProducts.length > 1 
-              ? `Multiple Products (${selectedProducts.length})` 
-              : selectedProducts[0].name,
+          toastMessage({ 
+            icon: 'success', 
+            text: 'Sale and credit record created successfully'
+          });
+          // Store debit data for receipt
+          setDebitData({
             totalAmount: totalAmount,
             paidAmount: Number(data.amountPaid) || 0,
             remainingAmount: remainingAmount,
-            buyerEmail: data.email,
-            buyerPhoneNumber: data.phoneNumber,
             dueDate: data.dueDate,
             buyerName: data.buyerName,
-            saleId: saleId,
-            status: 'PENDING',
-            description: data.description || `Debit for ${selectedProducts.length > 1 ? 'multiple products' : selectedProducts[0].name} - Total items: ${selectedProducts.reduce((sum, p) => sum + p.selectedQuantity, 0)}`
-          };
-  
-          const debitResponse = await createDebit(debitPayload).unwrap();
-          if (debitResponse.status === 'success' || debitResponse.success) {
-            setDebitData(debitResponse.data);
-            toastMessage({ 
-              icon: 'success', 
-              text: 'Sale and debit record created successfully'
-            });
-          } else {
-            throw new Error(debitResponse.message || 'Failed to create debit record');
-          }
+            buyerPhoneNumber: data.phoneNumber,
+            buyerEmail: data.email
+          });
         } else {
           toastMessage({ 
             icon: 'success', 
@@ -444,78 +423,36 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           });
         }
         
-        // Prepare sale data for receipt using a more robust approach
-        const processResponseData = () => {
-          let responseProducts = [];
-          let buyerName = '';
-          let date = '';
-          let paymentMode = '';
-          let id = '';
-          
-          // Extract data based on the response structure
-          if (saleResponse.data.transaction) {
-            responseProducts = saleResponse.data.transaction.products || [];
-            buyerName = saleResponse.data.transaction.buyerName;
-            date = saleResponse.data.transaction.date;
-            paymentMode = saleResponse.data.transaction.paymentMode;
-            id = saleResponse.data.transaction._id;
-          } else if (saleResponse.data.sales && saleResponse.data.sales.length > 0) {
-            responseProducts = saleResponse.data.sales[0].products || [];
-            buyerName = saleResponse.data.sales[0].buyerName;
-            date = saleResponse.data.sales[0].date;
-            paymentMode = saleResponse.data.sales[0].paymentMode;
-            id = saleResponse.data.sales[0]._id;
-          } else if (saleResponse.data.products) {
-            responseProducts = saleResponse.data.products;
-            buyerName = saleResponse.data.buyerName;
-            date = saleResponse.data.date;
-            paymentMode = saleResponse.data.paymentMode;
-            id = saleResponse.data._id;
-          }
-          
-          // Fall back to form data if response doesn't contain it
-          if (!buyerName) buyerName = data.buyerName;
-          if (!date) date = data.date;
-          if (!paymentMode) paymentMode = paymentMode;
-          if (!id) id = saleId;
-          
-          // If no products were returned in the response, use our original products
-          if (!responseProducts || responseProducts.length === 0) {
-            responseProducts = selectedProducts.map(prod => ({
-              _id: prod.key,
-              productName: prod.name,
-              productPrice: prod.price,
-              SellingPrice: prod.sellingPrice,
-              quantity: prod.selectedQuantity,
-              profitLoss: {
-                perUnit: Math.abs(prod.sellingPrice - prod.price),
-                total: Math.abs((prod.sellingPrice - prod.price) * prod.selectedQuantity),
-                isProfit: prod.sellingPrice > prod.price
-              }
-            }));
-          }
-          
-          return {
-            _id: id,
-            products: responseProducts,
-            buyerName,
-            date,
-            paymentMode,
-            totalAmount: saleResponse.data.transaction?.totalAmount || totalAmount,
+        const processedSaleData = {
+          _id: saleResponse.data.transaction._id,
+          products: saleResponse.data.transaction.products.map((product: any) => ({
+            _id: product._id,
+            productName: product.productName,
+            productPrice: product.productPrice,
+            SellingPrice: product.SellingPrice,
+            quantity: product.quantity,
             profitLoss: {
-              total: totalProfitLoss.amount,
-              isProfit: totalProfitLoss.isProfit
+              perUnit: Math.abs(product.SellingPrice - product.productPrice),
+              total: Math.abs((product.SellingPrice - product.productPrice) * product.quantity),
+              isProfit: product.SellingPrice > product.productPrice
             }
-          };
+          })),
+          buyerName: saleResponse.data.transaction.buyerName,
+          date: saleResponse.data.transaction.date,
+          paymentMode: saleResponse.data.transaction.paymentMode,
+          totalAmount: saleResponse.data.transaction.totalAmount,
+          profitLoss: {
+            total: totalProfitLoss.amount,
+            isProfit: totalProfitLoss.isProfit
+          }
         };
         
-        const processedSaleData = processResponseData();
         setSaleData([processedSaleData]);
         setShowReceipt(true);
       }
       
     } catch (error: any) {
-      console.error('Sale/Debit error:', error);
+      console.error('Sale/Credit error:', error);
       toastMessage({ 
         icon: 'error', 
         text: error.data?.message || error.message || 'An error occurred while processing the sale'
@@ -541,7 +478,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
       dueDate: '',
       description: '',
       phoneNumber: '',
-      email: ''
+      email: '',
     });
   };
 
@@ -580,29 +517,29 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         maskClosable={false}
       >
         {showReceipt && saleData.length > 0 ? (
-          <div>
-            <SaleReceipt 
-              saleData={{
-                _id: saleData[0]._id,
-                products: saleData[0].products,
-                buyerName: saleData[0].buyerName,
-                date: saleData[0].date,
-                paymentMode: saleData[0].paymentMode,
-                totalAmount: saleData[0].totalAmount,
-                profitLoss: {
-                  total: totalProfitLoss.amount,
-                  isProfit: totalProfitLoss.isProfit
-                }
-              }}
-              debitData={debitData}
-              multipleProducts={saleData[0].products && saleData[0].products.length > 1}
-            />
-            <Flex justify='center' style={{ marginTop: '1rem' }}>
-              <Button onClick={handleCancel} type='primary'>
-                Close
-              </Button>
-            </Flex>
-          </div>
+        <div>
+          <SaleReceipt 
+            saleData={{
+              _id: saleData[0]._id,
+              products: saleData[0].products,
+              buyerName: saleData[0].buyerName,
+              date: saleData[0].date,
+              paymentMode: saleData[0].paymentMode,
+              totalAmount: saleData[0].totalAmount,
+              profitLoss: {
+                total: totalProfitLoss.amount,
+                isProfit: totalProfitLoss.isProfit
+              }
+            }}
+            debitData={debitData}
+            multipleProducts={saleData[0].products && saleData[0].products.length > 1}
+          />
+          <Flex justify='center' style={{ marginTop: '1rem' }}>
+            <Button onClick={handleCancel} type='primary'>
+              Close
+            </Button>
+          </Flex>
+        </div>
         ) : (
           <form onSubmit={handleSubmit(onSubmit)} style={{ marginTop: '1rem' }}>
             {/* Product Selection Section */}
@@ -680,24 +617,23 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     )}
                   />
                   <Table.Column 
-  title="Quantity" 
-  key="quantity"
-  render={(record: any) => (
-    <div className="flex items-center gap-1">
-      <Input
-        type="number"
-        min={1}
-        max={record.stock}
-        value={record.selectedQuantity}
-        onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
-        className="w-[80px] text-right"
-        style={{ fontWeight: 500 }}
-      />
-      <span className="text-[10px] text-gray-500">/ {record.stock}</span>
-    </div>
-  )}
-/>
-
+                    title="Quantity" 
+                    key="quantity"
+                    render={(record: any) => (
+                      <div className="flex items-center gap-1">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={record.stock}
+                          value={record.selectedQuantity}
+                          onChange={(e) => updateProductQuantity(record.key, Number(e.target.value))}
+                          className="w-[80px] text-right"
+                          style={{ fontWeight: 500 }}
+                        />
+                        <span className="text-[10px] text-gray-500">/ {record.stock}</span>
+                      </div>
+                    )}
+                  />
                   <Table.Column 
                     title="Subtotal" 
                     key="subtotal"
@@ -789,12 +725,59 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
               </Radio.Group>
             </div>
 
+            {/* Conditionally render fields based on payment mode */}
+            {paymentMode === 'momo' && (
+              <CustomInput
+                name='momoNumber'
+                label='Mobile Money Number'
+                errors={errors}
+                required={true}
+                register={register}
+                type='tel'
+                rules={{
+                  required: 'Mobile money number is required',
+                  pattern: {
+                    value: /^[0-9]{10}$/,
+                    message: 'Enter a valid 10-digit phone number'
+                  }
+                }}
+              />
+            )}
+
+            {paymentMode === 'cheque' && (
+              <CustomInput
+                name='chequeNumber'
+                label='Cheque Number'
+                errors={errors}
+                required={true}
+                register={register}
+                type='text'
+                rules={{
+                  required: 'Cheque number is required'
+                }}
+              />
+            )}
+
+            {paymentMode === 'transfer' && (
+              <CustomInput
+                name='bankDetails'
+                label='Bank Details'
+                errors={errors}
+                required={true}
+                register={register}
+                type='text'
+                rules={{
+                  required: 'Bank details are required'
+                }}
+              />
+            )}
+
             <div className="mt-4 mb-2">
               <Checkbox 
                 checked={isDebit}
                 onChange={(e) => setIsDebit(e.target.checked)}
               >
-                Create as Debit Sale
+                Create as Credit Sale
               </Checkbox>
             </div>
 
@@ -815,35 +798,33 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     validate: {
                       lessThanTotal: (value) => 
                         value < totalAmount || 
-                        'For debit sales, initial payment must be less than total amount',
+                        'For credit sales, initial payment must be less than total amount',
                       positiveRemaining: (value) => {
                         const remaining = totalAmount - value;
                         return remaining > 0 || 
-                          'Remaining amount must be greater than 0 for debit sales';
+                          'Remaining amount must be greater than 0 for credit sales';
                       }
                     }
                   }}
                 />
 
-<CustomInput 
-  name='dueDate' 
-  label='Payment Due Date' 
-  errors={errors} 
-  required={true} 
-  register={register} 
-  type='datetime-local'
-  includeTime={true}
-  locale="en-US" // Or dynamically: userLocale from your app's context/state
-  timeZone="America/New_York" // Or dynamically: userTimeZone from your app's context
-  rules={{ 
-    required: 'Due date is required', 
-    validate: (value) => {
-      const selectedDateTime = new Date(value);
-      const now = new Date();
-      return selectedDateTime > now || 'Due date and time must be in the future';
-    }
-  }} 
-/>
+                <CustomInput 
+                  name='dueDate' 
+                  label='Payment Due Date' 
+                  errors={errors} 
+                  required={true} 
+                  register={register} 
+                  type='datetime-local'
+                  rules={{ 
+                    required: 'Due date is required', 
+                    validate: (value) => {
+                      const selectedDateTime = new Date(value);
+                      const now = new Date();
+                      return selectedDateTime > now || 'Due date and time must be in the future';
+                    }
+                  }} 
+                />
+
                 <CustomInput
                   name='phoneNumber'
                   label='Phone Number'
@@ -875,6 +856,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     }
                   }}
                 />
+
                 <CustomInput
                   name='description'
                   label='Description (Optional)'
@@ -893,7 +875,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                 {remainingAmount <= 0 && (
                   <div className="mt-2">
                     <Typography.Text type="error">
-                      For debit sales, there must be a remaining amount to pay
+                      For credit sales, there must be a remaining amount to pay
                     </Typography.Text>
                   </div>
                 )}

@@ -25,23 +25,26 @@ const Dashboard = () => {
   });
   
   // Fetch credit data
-
   const { data: creditData, isLoading: creditLoading } = useGetTotalCreditQuery();
-  const totalCredit = creditData?.data?.totalCredit || 0;
+
   const creditTransactions = creditData?.data?.numberOfTransactions || 0;
+ 
   
   const { data: products } = useGetAllProductsQuery(query);
   const { data: TotalMagrinProfit, isFetching } = useGetAllSaleQuery(query);
-  const totalMarginProfit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalMarginProfit ?? 0;
-
+  const totalMarginProfit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalMarginAmount ?? 0;
+  const totalCredit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalCreditAmount || 0;
+  const remainingCredit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalRemainingCredit || 0;
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
-  const totalSellingPrice = TotalMagrinProfit?.meta?.totalSales?.stats?.totalSellingPrice ?? 0;
-  console.log("hhhbhhhiuk",TotalMagrinProfit)
+  const totalSellingPrice = TotalMagrinProfit?.meta?.totalSales?.stats?.totalSaleAmount ?? 0;
+  console.log("goof",totalSellingPrice)
 
   const { data: yearlyData, isLoading } = useYearlySaleQuery(undefined);
   const { data: purchaseData } = useGetAllPurchasesQuery(query);
+  const { data: expensesData } = useGetAllExpensesQuery(query);
   
   const yearlyTotalPurchases = purchaseData?.meta?.totalPurchasedAmount?.yearlyStats?.[0]?.yearlyTotal || 0;
+  const totalExpenses = expensesData?.meta?.totalAmount || 0;
 
   if (isLoading || creditLoading) {
     return <Loader />;
@@ -51,10 +54,16 @@ const Dashboard = () => {
   const totalRevenue = yearlyData?.totalRevenue?.totalOverallRevenue || 0;
   const totalOverallStock = yearlyData?.totalRevenue?.totalOverallStock || 0;
 
+  // Get the most recent year's data
+  const currentYearData = rawData.length > 0 
+    ? rawData.sort((a, b) => b._id.year - a._id.year)[0] 
+    : { expenses: 0 };
+
   const aggregateMetrics = {
     totalSalesRevenue: totalSellingPrice || 0,
-    totalExpenses: rawData[0]?.expenses || 0,
-    netprofit: totalMarginProfit - rawData[0]?.expenses || 0,
+    totalExpenses: currentYearData.expenses || 0,
+    
+    netprofit: totalMarginProfit - currentYearData.expenses || 0,
     totalStock: totaltotalValue || 0,
   };
 
@@ -83,18 +92,23 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen ">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 justify-center items-center gap-8 p-6 mb-6">
+    <div className="p-6 bg-gray-50 min-h-screen">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 justify-center items-center gap-4 mb-6">
         <MetricCard title="Total Sales Revenue" value={aggregateMetrics.totalSalesRevenue} color="blue" />
         <MetricCard title="Total Margin Profit" value={totalMarginProfit} color="green" />
         <MetricCard title="Total Expenses" value={aggregateMetrics.totalExpenses} color="red" />
         <MetricCard title="Total Purchase" value={yearlyTotalPurchases} color="purple" />
-        {/* <MetricCard 
+        <MetricCard 
           title="Total Credit" 
           value={totalCredit} 
           color="#e67e22" 
-          subtitle={`${creditTransactions} transaction${creditTransactions !== 1 ? 's' : ''}`} 
-        /> */}
+         
+        />
+        <MetricCard
+          title="Remaining Credit" 
+          value={remainingCredit} 
+          color="#e74c3c"
+        />
         <MetricCard
           title="Total Net Profit"
           value={aggregateMetrics.netprofit}
@@ -113,8 +127,8 @@ const Dashboard = () => {
         <div className="border bg-white shadow-sm border-slate-200 w-full p-4 rounded-lg rounded-tl-none">
           {activeTab === 'daily' && (
             <>
-              <h1 className="text-center text-xl font-semibold mb-4">Daily Sale and Revenue</h1>
-              <DailyChart data={rawData} />
+              <h1 className="text-center text-xl font-semibold mb-4">Daily Sales and Revenue</h1>
+              <DailyChart />
             </>
           )}
           {activeTab === 'monthly' && (
