@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   AreaChart,
   Area,
@@ -29,71 +29,140 @@ interface ChartProps {
 
 const DailyChart: React.FC<ChartProps> = () => {
   const [chartType, setChartType] = useState('area');
+  const [todayData, setTodayData] = useState(null);
   
-  // Remove date filter from component state
+  // Fetch data
   const { data: salesData, isLoading: isLoadingSales } = useDailySaleQuery({});
   const { data: expensesData, isLoading: isLoadingExpenses } = useGetAllExpensesQuery({});
   const { data: purchaseData, isLoading: isLoadingPurchases } = useGetAllPurchasesQuery({});
+
+  useEffect(() => {
+    if (!isLoadingSales && !isLoadingExpenses && !isLoadingPurchases) {
+      // Get today's date in Rwanda time (CAT/EAT, UTC+2)
+      const now = new Date();
+      const rwandaDay = now.getDate();
+      const rwandaMonth = now.getMonth() + 1; // JavaScript months are 0-indexed
+      const todayKey = `${rwandaDay}/${rwandaMonth}`;
+      
+      // Process expense data
+      const expenseDailyStats = expensesData?.data ?? [];
+      const expenseMap = {};
+      expenseDailyStats.forEach(stat => {
+        const dateObj = new Date(stat.date);
+        const day = dateObj.getUTCDate();
+        const month = dateObj.getUTCMonth() + 1;
+        const dateKey = `${day}/${month}`;
+        
+        if (!expenseMap[dateKey]) {
+          expenseMap[dateKey] = 0;
+        }
+        expenseMap[dateKey] += stat.amount;
+      });
+      
+      // Process purchase data
+      const purchaseDailyStats = purchaseData?.meta?.totalExpenses?.dailyStats || [];
+      const purchaseMap = {};
+      purchaseDailyStats.forEach(stat => {
+        const dateKey = `${stat._id.day}/${stat._id.month}`;
+        purchaseMap[dateKey] = stat.dailyTotal || 0;
+      });
+
+      // Process sales data to find today's data
+      const processedData = salesData?.data?.map((dailyData) => {
+        const year = dailyData._id?.year;
+        const month = dailyData._id?.month - 1; // JavaScript months are 0-indexed
+        const day = dailyData._id?.day;
+      
+        // Create the date properly in Rwanda time (CAT/EAT, UTC+2)
+        const utcDate = new Date(Date.UTC(year, month, day));
+        
+        // Adjust for Rwanda timezone
+        const rwandaDate = new Date(utcDate);
+        rwandaDate.setUTCHours(21 - 2); // 9 PM adjusted for UTC+2
+        rwandaDate.setUTCMinutes(42);
+        
+        const correctedDay = rwandaDate.getUTCDate();
+        const correctedMonth = rwandaDate.getUTCMonth() + 1;
+        
+        const dateKey = `${correctedDay}/${correctedMonth}`;
+      
+        // Format for display
+        const formattedRwandaTime = rwandaDate.toLocaleString('en-US', { 
+          timeZone: 'Africa/Kigali',
+          hour: 'numeric', 
+          minute: 'numeric',
+          hour12: true
+        });
+      
+        return {
+          name: dateKey,
+          date: rwandaDate.getTime(),
+          formattedDate: formattedRwandaTime,
+          
+          // Sales-related
+          revenue: dailyData.dailyTotal || 0,
+          sellingPrice: dailyData.totalSales || 0,
+          productCost: (dailyData.totalSales - dailyData.totalMargin) || 0,
+          profit: dailyData.netProfit || 0,
+          margin: dailyData.totalMargin || 0,
+          quantity: dailyData.totalQuantity || 0,
+      
+          // Payment methods
+          cash: dailyData.cashTotal || 0,
+          momo: dailyData.momoTotal || 0,
+          cheque: dailyData.chequeTotal || 0,
+          transfer: dailyData.transferTotal || 0,
+      
+          // Credit information
+          creditAmount: dailyData.totalCreditAmount || 0,
+          creditCount: dailyData.totalCreditCount || 0,
+          paidCredit: dailyData.totalPaidCreditAmount || 0,
+          remainingCredit: dailyData.totalRemainingCredit || 0,
+      
+          // External maps (match by date key)
+          expenses: expenseMap[dateKey] || 0,
+          purchases: purchaseMap[dateKey] || 0,
+        };
+      }) || [];
+
+      // Find today's data
+      const todayDataPoint = processedData.find(item => item.name === todayKey) || {
+        revenue: 0,
+        profit: 0,
+        expenses: 0,
+        quantity: 0,
+        creditAmount: 0,
+        remainingCredit: 0,
+        productCost: 0,
+        cash: 0,
+        momo: 0,
+        cheque: 0,
+        transfer: 0
+      };
+      
+      setTodayData(todayDataPoint);
+    }
+  }, [salesData, expensesData, purchaseData, isLoadingSales, isLoadingExpenses, isLoadingPurchases]);
 
   if (isLoadingSales || isLoadingExpenses || isLoadingPurchases) {
     return <div className="flex justify-center items-center h-64">Loading...</div>;
   }
 
-  // Correctly extract expense data
-  const expenseDailyStats = expensesData?.data ?? [];
-  const expenseMap = {};
-
-  expenseDailyStats.forEach(stat => {
-    const dateObj = new Date(stat.date);
-    const day = dateObj.getUTCDate();
-    const month = dateObj.getUTCMonth() + 1;
-    const dateKey = `${day}/${month}`;
-
-    // Sum up the amounts per day
-    if (!expenseMap[dateKey]) {
-      expenseMap[dateKey] = 0;
-    }
-
-    expenseMap[dateKey] += stat.amount;
-  });
-  
-  // Similarly for purchases
-  const purchaseDailyStats = purchaseData?.meta?.totalExpenses?.dailyStats || [];
-  const purchaseMap = {};
-  purchaseDailyStats.forEach(stat => {
-    const dateKey = `${stat._id.day}/${stat._id.month}`;
-    purchaseMap[dateKey] = stat.dailyTotal || 0;
-  });
-
-  const processedData = salesData?.data?.map((dailyData) => {
+  // Sort data by date for the chart
+  const sortedData = (salesData?.data?.map((dailyData) => {
     const year = dailyData._id?.year;
-    const month = dailyData._id?.month - 1; // JavaScript months are 0-indexed
+    const month = dailyData._id?.month - 1;
     const day = dailyData._id?.day;
   
-    console.log("Original data:", { year, month: month + 1, day });
-  
-    // Create the date properly in Rwanda time (CAT/EAT, UTC+2)
-    // First create it in UTC to avoid browser's local timezone influence
+    // Create date in Rwanda time
     const utcDate = new Date(Date.UTC(year, month, day));
-    console.log("UTC date:", utcDate.toISOString());
-    
-    // Get current Rwanda time - use 9:42 PM as the time since that's what you specified
-    const rwandaHour = 21; // 9 PM
-    const rwandaMinute = 42;
-    
-    // Create a new date with the Rwanda time
     const rwandaDate = new Date(utcDate);
-    rwandaDate.setUTCHours(rwandaHour - 2); // Adjust for UTC+2
-    rwandaDate.setUTCMinutes(rwandaMinute);
-    
-    console.log("Rwanda time:", rwandaDate.toLocaleString('en-US', { timeZone: 'Africa/Kigali' }));
+    rwandaDate.setUTCHours(21 - 2);
+    rwandaDate.setUTCMinutes(42);
     
     const correctedDay = rwandaDate.getUTCDate();
     const correctedMonth = rwandaDate.getUTCMonth() + 1;
-    console.log("Corrected day/month:", correctedDay, correctedMonth);
-    
     const dateKey = `${correctedDay}/${correctedMonth}`;
-    console.log("Final dateKey:", dateKey);
   
     // Format for display
     const formattedRwandaTime = rwandaDate.toLocaleString('en-US', { 
@@ -103,11 +172,10 @@ const DailyChart: React.FC<ChartProps> = () => {
       hour12: true
     });
   
-    // Map API response fields to chart data structure
     return {
-      name: dateKey, // For x-axis in charts
-      date: rwandaDate.getTime(), // For optional advanced date sorting
-      formattedDate: formattedRwandaTime, // Should show 9:42 PM for Rwanda
+      name: dateKey,
+      date: rwandaDate.getTime(),
+      formattedDate: formattedRwandaTime,
       
       // Sales-related
       revenue: dailyData.dailyTotal || 0,
@@ -128,37 +196,10 @@ const DailyChart: React.FC<ChartProps> = () => {
       creditCount: dailyData.totalCreditCount || 0,
       paidCredit: dailyData.totalPaidCreditAmount || 0,
       remainingCredit: dailyData.totalRemainingCredit || 0,
-  
-      // External maps (match by date key)
-      expenses: expenseMap[dateKey] || 0,
-      purchases: purchaseMap[dateKey] || 0,
     };
-  }) || [];
-  
-
-  // Sort data by date
-  const sortedData = processedData.sort((a, b) => a.date - b.date);
+  }) || []).sort((a, b) => a.date - b.date);
 
   const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d'];
-
-  // Calculate totals for summary
-  const totals = processedData.reduce((acc, curr) => ({
-    revenue: acc.revenue + curr.revenue,
-    profit: acc.profit + curr.profit,
-    expenses: acc.expenses + curr.expenses,
-    quantity: acc.quantity + curr.quantity,
-    cash: acc.cash + curr.cash,
-    momo: acc.momo + curr.momo,
-    cheque: acc.cheque + curr.cheque,
-    transfer: acc.transfer + curr.transfer,
-    productCost: (acc.productCost || 0) + (curr.productCost || 0),
-    creditAmount: (acc.creditAmount || 0) + (curr.creditAmount || 0),
-    remainingCredit: (acc.remainingCredit || 0) + (curr.remainingCredit || 0)
-  }), {
-    revenue: 0, profit: 0, expenses: 0, quantity: 0,
-    cash: 0, momo: 0, cheque: 0, transfer: 0, productCost: 0,
-    creditAmount: 0, remainingCredit: 0
-  });
 
   const renderChart = () => {
     const commonProps = {
@@ -240,12 +281,13 @@ const DailyChart: React.FC<ChartProps> = () => {
         );
 
       case 'pie':
+        // Now showing pie chart with today's data only
         const pieData = [
-          { name: 'Revenue', value: totals.revenue },
-          { name: 'Product Cost', value: totals.productCost || 0 },
-          { name: 'Profit', value: totals.profit },
-          { name: 'Expenses', value: totals.expenses },
-          { name: 'Credit', value: totals.creditAmount }
+          { name: 'Revenue', value: todayData?.revenue || 0 },
+          { name: 'Product Cost', value: todayData?.productCost || 0 },
+          { name: 'Profit', value: todayData?.profit || 0 },
+          { name: 'Expenses', value: todayData?.expenses || 0 },
+          { name: 'Credit', value: todayData?.creditAmount || 0 }
         ];
         return (
           <PieChart>
@@ -274,10 +316,20 @@ const DailyChart: React.FC<ChartProps> = () => {
     }
   };
 
+  // Format today's date for display
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg">
       <div className="mb-6">
-        <div className="flex justify-end mb-4">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-semibold text-gray-800">Today's Statistics: {formattedDate}</h2>
           <div>
             <label className="block text-sm text-gray-600 mb-1">Chart Type</label>
             <select
@@ -296,39 +348,39 @@ const DailyChart: React.FC<ChartProps> = () => {
         
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
-            <h3 className="text-sm text-gray-600 mb-2">Total Sales</h3>
+            <h3 className="text-sm text-gray-600 mb-2">Today's Sales</h3>
             <p className="font-semibold">
-              {totals.revenue.toLocaleString()} RWF
+              {(todayData?.revenue || 0).toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
-            <h3 className="text-sm text-gray-600 mb-2">Total Profit</h3>
+            <h3 className="text-sm text-gray-600 mb-2">Today's Profit</h3>
             <p className="font-semibold">
-              {totals.profit.toLocaleString()} RWF
+              {(todayData?.profit || 0).toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-yellow-50 rounded-lg">
-            <h3 className="text-sm text-gray-600 mb-2">Total Expenses</h3>
+            <h3 className="text-sm text-gray-600 mb-2">Today's Expenses</h3>
             <p className="font-semibold">
-              {totals.expenses.toLocaleString()} RWF
+              {(todayData?.expenses || 0).toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-orange-50 rounded-lg">
-            <h3 className="text-sm text-gray-600 mb-2">Total Credit</h3>
+            <h3 className="text-sm text-gray-600 mb-2">Today's Credit</h3>
             <p className="font-semibold">
-              {totals.creditAmount.toLocaleString()} RWF
+              {(todayData?.creditAmount || 0).toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-red-50 rounded-lg">
             <h3 className="text-sm text-gray-600 mb-2">Remaining Credit</h3>
             <p className="font-semibold">
-              {totals.remainingCredit.toLocaleString()} RWF
+              {(todayData?.remainingCredit || 0).toLocaleString()} RWF
             </p>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
-            <h3 className="text-sm text-gray-600 mb-2">Total Quantity</h3>
+            <h3 className="text-sm text-gray-600 mb-2">Today's Quantity</h3>
             <p className="font-semibold">
-              {totals.quantity.toLocaleString()} units
+              {(todayData?.quantity || 0).toLocaleString()} units
             </p>
           </div>
         </div>
