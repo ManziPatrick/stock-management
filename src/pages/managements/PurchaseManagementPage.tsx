@@ -84,13 +84,13 @@ const PurchaseManagementPage = () => {
   return (
     
     <div className='p-6 bg-white rounded-lg shadow-md h-[90vh]'>
-      <Button 
+      {/* <Button 
             onClick={toggleView} 
             type="primary" 
             icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined  />}
           >
             {isListView ? 'Purchase table':'Updated purchase '}
-          </Button>
+          </Button> */}
           {isListView ? (
           <UpdatedProductsTable/>
         ) : (
