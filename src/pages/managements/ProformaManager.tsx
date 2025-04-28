@@ -132,7 +132,7 @@ const ProformaInvoice = () => {
           printWindow.document.write(`
             <html>
               <head>
-                <title>Proforma Invoice - ${currentInvoiceData?.invoiceNo || ''}</title>
+                
                 <style>
                   @page {
                     size: A4;
@@ -485,32 +485,8 @@ const ProformaInvoice = () => {
       <Modal 
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
-        footer={[
-          <Button 
-            key="save" 
-            type="default" 
-            icon={<SaveOutlined />} 
-            onClick={handleSaveAsPDF}
-            loading={isPrinting}
-          >
-            Save as PDF
-          </Button>,
-          // <Button 
-          //   key="print" 
-          //   type="primary" 
-          //   icon={<PrinterOutlined />} 
-          //   onClick={handlePrint}
-          //   loading={isPrinting}
-          // >
-          //   Print Invoice
-          // </Button>,
-          <Button key="new" type="default" onClick={resetForm}>
-            Create New Invoice
-          </Button>,
-          <Button key="close" onClick={() => setIsModalVisible(false)}>
-            Close
-          </Button>
-        ]}
+       
+        
         width={800}
         title={`Proforma Invoice - ${currentInvoiceData?.invoiceNo || ''}`}
         centered

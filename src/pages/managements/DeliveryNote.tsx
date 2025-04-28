@@ -612,7 +612,7 @@ const DeliveryNoteSystem = () => {
               </div>
 
               <div className="mt-8 flex justify-end">
-                <Button icon={<PrinterOutlined />} className="mr-2">Print Preview</Button>
+                
                 <Button 
                   type="primary" 
                   icon={<SaveOutlined />} 
