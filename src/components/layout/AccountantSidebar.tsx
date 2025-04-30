@@ -12,29 +12,75 @@ const { Content, Sider } = Layout;
 const AccountantDashboard = () => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
+  const [openKeys, setOpenKeys] = useState([]);
   const [mobileView, setMobileView] = useState(window.innerWidth <= 768);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-
+  
   // Get the active key based on the current path
   const getActiveKey = () => {
-    const path = location.pathname;
-    
-    // Handle root admin path
-    if (path === '/accountant') {
+     const path = location.pathname;
+     
+     if (path === '/accountant') {
       return 'Dashboard';
     }
-    
-    // For other paths, find the matching sidebar item
-    const matchingItem = sidebarItems.find(item => {
-      // Extract path from NavLink's to prop
-      const navLinkElement = item.label.props;
-      const itemPath = navLinkElement.to;
-      return path === itemPath;
-    });
-    
-    return matchingItem ? matchingItem.key : 'Dashboard';
-  };
+     
+     // For other paths, first check top-level items
+     const matchingItem = sidebarItems.find(item => {
+       // Handle items with direct NavLink
+       //@ts-ignore
+       if (item.label?.props?.to) {
+         //@ts-ignore
+         return path === item.label.props.to;
+       }
+       return false;
+     });
+     
+     if (matchingItem) {
+       return matchingItem.key;
+     }
+     
+     // If no top-level match, check for children
+     const itemWithMatchingChild = sidebarItems.find(item => {
+       if (!item.children) return false;
+       
+       return item.children.some(child => {
+         return child.label?.props?.to === path;
+       });
+     });
+     
+     // If we found a parent with matching child
+     if (itemWithMatchingChild) {
+       // Find the actual child for its key
+       const matchingChild = itemWithMatchingChild.children.find(
+         child => child.label?.props?.to === path
+       );
+       
+       // REMOVED the automatic opening of parent menu
+       // This was causing the issue with not being able to collapse
+       
+       return matchingChild ? matchingChild.key : 'Dashboard';
+     }
+     
+     return 'Dashboard'; // Default
+   };
+
+   useEffect(() => {
+      const path = location.pathname;
+      
+      // Check if current path matches any child route
+      sidebarItems.forEach(item => {
+        if (item.children) {
+          const hasMatchingChild = item.children.some(child => 
+            child.label?.props?.to === path
+          );
+          
+          if (hasMatchingChild && !openKeys.includes(item.key)) {
+            setOpenKeys([item.key]);
+          }
+        }
+      });
+    }, []); 
 
   useEffect(() => {
     const handleResize = () => {

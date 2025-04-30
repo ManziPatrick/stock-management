@@ -11,6 +11,22 @@ export type IProduct = {
   seller: ISeller
 }
 
+export interface IMeasurement {
+    _id: string;
+    name: string;
+    createdAt: string;
+    updatedAt: string;
+  }
+  
+  export interface IUnit {
+    _id: string;
+    name: string;
+    symbol: string;
+    measurementId: string;
+    createdAt: string;
+    updatedAt: string;
+  }
+  
 export interface ISeller {
   _id: string
   name: string

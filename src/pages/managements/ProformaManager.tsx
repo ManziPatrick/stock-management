@@ -12,7 +12,8 @@ import {
   Select,
   message,
   Spin,
-  Modal
+  Modal,
+  DatePicker
 } from 'antd';
 import { DeleteOutlined, FileAddOutlined, PlusOutlined, PrinterOutlined, SaveOutlined, UnorderedListOutlined } from '@ant-design/icons';
 import { useGetAllproformaQuery, useCreateProformaMutation } from '../../redux/features/management/ProformaApi';
@@ -21,6 +22,7 @@ import PrintableInvoice from '../../components/product/PrintableInvoice';
 import ProformaInvoicesList from './ProformaInvoicesList';
 import malublog from '../../assets/Marube_log.png';
 import addresslog from '../../assets/MARUBE.png';
+import moment from 'moment';
 
 const { Title } = Typography;
 const { Option } = Select;
@@ -421,7 +423,16 @@ const ProformaInvoice = () => {
                   <span>TEL : 0786530669</span> 
                   <span>EMAIL : oyileb.ob@gmail.com</span>
                   <span>TIN: 106949150</span> 
-                  <data value="">2025</data> 
+                   <Form.Item 
+                                        name="date" 
+                                        initialValue={moment()}
+                                        noStyle
+                                      >
+                                        <DatePicker 
+                                          style={{ width: '100%', marginTop: '8px' }} 
+                                          format="DD/MM/YYYY"
+                                        />
+                                      </Form.Item>
                 </div>
               </div>
             </div> 

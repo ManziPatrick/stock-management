@@ -25,7 +25,13 @@ import { useCreateCreditMutation } from '../redux/features/management/creditApi'
 import { useGetAllBrandsQuery } from '../redux/features/management/brandApi';
 import { useGetAllCategoriesQuery } from '../redux/features/management/categoryApi';
 import { useGetAllSellerQuery } from '../redux/features/management/sellerApi';
-import { ICategory, ISeller } from '../types/product.types';
+import { 
+  useGetAllMeasurementsQuery,
+  useCreateMeasurementMutation,
+  useCreateUnitMutation,
+  useGetUnitsByMeasurementIdQuery
+} from '../redux/features/management/measurementApi';
+import { ICategory, ISeller, IMeasurement, IUnit } from '../types/product.types';
 import CreateSeller from '../components/product/CreateSeller';
 import CreateCategory from '../components/product/CreateCategory';
 import CreateBrand from '../components/product/CreateBrand';
@@ -62,9 +68,12 @@ const CreateProduct: React.FC = () => {
   // Redux queries and mutations
   const [createNewProduct] = useCreateNewProductMutation();
   const [createCredit] = useCreateCreditMutation();
+  const [createMeasurement] = useCreateMeasurementMutation();
+  const [createUnit] = useCreateUnitMutation();
   const { data: categories } = useGetAllCategoriesQuery(undefined);
   const { data: sellers } = useGetAllSellerQuery(undefined);
   const { data: brands } = useGetAllBrandsQuery(undefined);
+  const { data: measurements, refetch: refetchMeasurements } = useGetAllMeasurementsQuery(undefined);
 
   // Form and state management
   const [form] = Form.useForm();
@@ -73,12 +82,50 @@ const CreateProduct: React.FC = () => {
   const [previewImage, setPreviewImage] = useState('');
   const [previewTitle, setPreviewTitle] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [selectedMeasurement, setSelectedMeasurement] = useState<string | null>(null);
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState<string | null>(null);
   const [isCredit, setIsCredit] = useState(false);
-
   const [selectedSupplier, setSelectedSupplier] = useState<ISeller | null>(null);
   const [initialPayment, setInitialPayment] = useState<number>(0);
+  
+  // Modal states for creating new measurements and units
+  const [isMeasurementModalOpen, setIsMeasurementModalOpen] = useState(false);
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
+  const [newMeasurementName, setNewMeasurementName] = useState('');
+  const [newUnitName, setNewUnitName] = useState('');
+  const [newUnitSymbol, setNewUnitSymbol] = useState('');
+  
+  // Get units by selected measurement
+  const { data: units, refetch: refetchUnits } = useGetUnitsByMeasurementIdQuery(
+    selectedMeasurementId || '', 
+    { skip: !selectedMeasurementId }
+  );
 
+  // Store measurement and unit mapping for easier lookup
+  const [measurementMap, setMeasurementMap] = useState<Map<string, IMeasurement>>(new Map());
+  const [unitMap, setUnitMap] = useState<Map<string, IUnit>>(new Map());
+
+  // Update measurement map when measurements data changes
+  useEffect(() => {
+    if (measurements?.data) {
+      const map = new Map();
+      measurements.data.forEach((measurement: IMeasurement) => {
+        map.set(measurement.name, measurement);
+      });
+      setMeasurementMap(map);
+    }
+  }, [measurements]);
+
+  // Update unit map when units data changes
+  useEffect(() => {
+    if (units?.data) {
+      const map = new Map();
+      units.data.forEach((unit: IUnit) => {
+        map.set(unit.name, unit);
+      });
+      setUnitMap(map);
+    }
+  }, [units]);
 
   const calculateCreditDetails = (totalPrice: number, initial: number, dueDate: any, quantity: number = 1) => {
     if (!dueDate || !initial) return;
@@ -110,7 +157,18 @@ const CreateProduct: React.FC = () => {
     }
   };
 
- 
+  const handleMeasurementSelect = (measurementName: string) => {
+    setSelectedMeasurement(measurementName);
+    
+    // Find the measurement ID based on the name
+    const measurement = measurementMap.get(measurementName);
+    if (measurement) {
+      setSelectedMeasurementId(measurement._id);
+    }
+    
+    form.setFieldsValue({ unit: undefined }); // Reset unit selection when measurement changes
+  };
+
   useEffect(() => {
     if (isCredit) {
       const price = form.getFieldValue('price');
@@ -118,13 +176,9 @@ const CreateProduct: React.FC = () => {
       const dueDate = form.getFieldValue('paymentDueDate');
       const quantity = form.getFieldValue('quantity') || 1;
       
-      
       calculateCreditDetails(price, initialPayment, dueDate, quantity);
     }
   }, [form.getFieldValue('quantity')]);
-
- 
-
 
   // Handle image preview
   const handlePreview = async (file: UploadFile) => {
@@ -154,6 +208,65 @@ const CreateProduct: React.FC = () => {
         customerPhone: undefined,
         customerEmail: undefined
       });
+    }
+  };
+
+  // Handle creating a new measurement
+  const handleCreateMeasurement = async () => {
+    if (!newMeasurementName.trim()) {
+      message.error('Measurement name cannot be empty');
+      return;
+    }
+    
+    try {
+      const response = await createMeasurement({ name: newMeasurementName.trim() }).unwrap();
+      if (response.statusCode === 201) {
+        message.success('Measurement created successfully');
+        refetchMeasurements();
+        setNewMeasurementName('');
+        setIsMeasurementModalOpen(false);
+        
+        // Select the newly created measurement
+        if (response.data?.name) {
+          setSelectedMeasurement(response.data.name);
+          setSelectedMeasurementId(response.data._id);
+          form.setFieldsValue({ measurement: response.data.name });
+        }
+      }
+    } catch (error: any) {
+      message.error(error.data?.message || 'Failed to create measurement');
+    }
+  };
+
+  // Handle creating a new unit
+  const handleCreateUnit = async () => {
+    if (!newUnitName.trim() || !newUnitSymbol.trim() || !selectedMeasurementId) {
+      message.error('Unit name, symbol, and measurement selection are required');
+      return;
+    }
+    
+    try {
+      const unitData = {
+        name: newUnitName.trim(),
+        symbol: newUnitSymbol.trim(),
+        measurementId: selectedMeasurementId
+      };
+      
+      const response = await createUnit(unitData).unwrap();
+      if (response.statusCode === 201) {
+        message.success('Unit created successfully');
+        refetchUnits();
+        setNewUnitName('');
+        setNewUnitSymbol('');
+        setIsUnitModalOpen(false);
+        
+        // Select the newly created unit
+        if (response.data?.name) {
+          form.setFieldsValue({ unit: response.data.name });
+        }
+      }
+    } catch (error: any) {
+      message.error(error.data?.message || 'Failed to create unit');
     }
   };
 
@@ -188,27 +301,41 @@ const CreateProduct: React.FC = () => {
           processedValues[field] = parsePrice(processedValues[field]);
         }
       });
+      
+      // Find measurement and unit IDs based on names
+      const measurementObj = measurementMap.get(values.measurement);
+      const unitObj = unitMap.get(values.unit);
+      
+      // Replace measurement and unit names with IDs for backend processing
+      const backendValues = { ...processedValues };
+      
+      // Remove measurement and unit to handle them separately
+      delete backendValues.measurement;
+      delete backendValues.unit;
 
       // Append basic product fields
-      Object.keys(processedValues).forEach(key => {
+      Object.keys(backendValues).forEach(key => {
         if (
-          processedValues[key] !== undefined && 
-          processedValues[key] !== '' && 
+          backendValues[key] !== undefined && 
+          backendValues[key] !== '' && 
           !['initialPayment', 'downPayment', 'creditAmount', 'paymentDueDate'].includes(key)
         ) {
-          productFormData.append(key, processedValues[key].toString());
+          productFormData.append(key, backendValues[key].toString());
         }
       });
 
-      // Handle measurement data
-      if (values.unitType) {
+      // Handle measurement data - prepare the measurement object as required by the backend
+      if (measurementObj && unitObj && values.quantity) {
         const measurement = {
-          type: values.unitType,
-          unit: values.unit,
+          measurement: measurementObj.name,
+          unit: unitObj.name,
           value: Number(values.quantity)
         };
         productFormData.append('measurement', JSON.stringify(measurement));
       }
+
+      // Append isCredit field explicitly
+      productFormData.append('isCredit', isCredit.toString());
 
       // Append images
       fileList.forEach((file) => {
@@ -267,6 +394,8 @@ const CreateProduct: React.FC = () => {
       setIsCredit(false);
       setSelectedSupplier(null);
       setInitialPayment(0);
+      setSelectedMeasurement(null);
+      setSelectedMeasurementId(null);
       
     } catch (error: any) {
       console.error('Product creation error:', error);
@@ -274,58 +403,6 @@ const CreateProduct: React.FC = () => {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  const renderUnitOptions = () => {
-    const unitTypes = {
-      weight: [
-        { value: 'g', label: 'Grams (g)' },
-        { value: 'kg', label: 'Kilograms (kg)' },
-        { value: 'lb', label: 'Pounds (lb)' }
-      ],
-      length: [
-        { value: 'cm', label: 'Centimeters (cm)' },
-        { value: 'm', label: 'Meters (m)' },
-        { value: 'inch', label: 'Inches (in)' }
-      ],
-      volume: [
-        { value: 'ml', label: 'Milliliters (ml)' },
-        { value: 'l', label: 'Liters (l)' },
-        { value: 'oz', label: 'Fluid Ounces (oz)' }
-      ],
-      pieces: [
-        { value: 'pc', label: 'Piece' },
-        { value: 'dozen', label: 'Dozen' },
-        { value: 'set', label: 'Set' }
-      ],
-      size: [
-        { value: 'EXTRA_SMALL', label: 'Extra Small (XS)' },
-        { value: 'SMALL', label: 'Small (S)' },
-        { value: 'MEDIUM', label: 'Medium (M)' },
-        { value: 'LARGE', label: 'Large (L)' },
-        { value: 'EXTRA_LARGE', label: 'Extra Large (XL)' },
-        { value: 'XXL', label: 'XXL' },
-        { value: 'XXXL', label: 'XXXL' },
-        { value: 'EU_36', label: 'EU 36' },
-        { value: 'EU_37', label: 'EU 37' },
-        { value: 'EU_38', label: 'EU 38' },
-        { value: 'EU_39', label: 'EU 39' },
-        { value: 'EU_40', label: 'EU 40' },
-        { value: 'EU_41', label: 'EU 41' },
-        { value: 'EU_42', label: 'EU 42' },
-        { value: 'EU_43', label: 'EU 43' },
-        { value: 'EU_44', label: 'EU 44' },
-        { value: 'EU_45', label: 'EU 45' },
-        { value: 'EU_46', label: 'EU 46' },
-        { value: 'EU_47', label: 'EU 47' },
-      ]
-    };
-
-    return unitTypes[selectedUnit as keyof typeof unitTypes]?.map(unit => (
-      <Option key={unit.value} value={unit.value}>
-        {unit.label}
-      </Option>
-    ));
   };
 
   // Upload button component
@@ -385,31 +462,44 @@ const CreateProduct: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                
-            
-                {/* Measurement Type */}
+                {/* Measurement Selection with Create Option */}
                 <Col xs={24} md={12}>
                   <Form.Item
                     label="Measurement Type"
-                    name="unitType"
+                    name="measurement"
+                    rules={[{ required: true, message: 'Please select or create a measurement type' }]}
                   >
                     <Select
                       size="large"
                       placeholder="Select measurement type"
-                      onChange={setSelectedUnit}
+                      onChange={handleMeasurementSelect}
                       className="rounded-md"
+                      dropdownRender={(menu) => (
+                        <>
+                          {menu}
+                          <Divider className="my-2" />
+                          <Button 
+                            type="text"
+                            block
+                            onClick={() => setIsMeasurementModalOpen(true)}
+                            icon={<PlusOutlined />}
+                          >
+                            Create New Measurement
+                          </Button>
+                        </>
+                      )}
                     >
-                      <Option value="weight">Weight</Option>
-                      <Option value="length">Length</Option>
-                      <Option value="volume">Volume</Option>
-                      <Option value="pieces">Pieces</Option>
-                      <Option value="size">Size</Option>
+                      {measurements?.data.map((measurement: IMeasurement) => (
+                        <Option key={measurement._id} value={measurement.name}>
+                          {measurement.name}
+                        </Option>
+                      ))}
                     </Select>
                   </Form.Item>
                 </Col>
 
                 {/* Quantity and Unit */}
-                {selectedUnit && (
+                {selectedMeasurement && (
                   <>
                     <Col xs={24} md={12}>
                       <Form.Item
@@ -435,8 +525,26 @@ const CreateProduct: React.FC = () => {
                           size="large" 
                           placeholder="Select unit"
                           className="rounded-md"
+                          dropdownRender={(menu) => (
+                            <>
+                              {menu}
+                              <Divider className="my-2" />
+                              <Button 
+                                type="text"
+                                block
+                                onClick={() => setIsUnitModalOpen(true)}
+                                icon={<PlusOutlined />}
+                              >
+                                Create New Unit
+                              </Button>
+                            </>
+                          )}
                         >
-                          {renderUnitOptions()}
+                          {units?.data.map((unit: IUnit) => (
+                            <Option key={unit._id} value={unit.name}>
+                              {unit.name} ({unit.symbol})
+                            </Option>
+                          ))}
                         </Select>
                       </Form.Item>
                     </Col>
@@ -445,24 +553,24 @@ const CreateProduct: React.FC = () => {
 
                 {/* Supplier */}
                 <Col xs={24} md={12}>
-                <Form.Item
-      label="Supplier"
-      name="seller"
-      rules={[{ required: true, message: 'Please select supplier' }]}
-    >
-      <Select
-        size="large"
-        placeholder="Select supplier"
-        className="rounded-md"
-        onSelect={handleSupplierSelect}
-      >
-        {sellers?.data.map((item: ICategory) => (
-          <Option key={item._id} value={item._id}>
-            {item.name}
-          </Option>
-        ))}
-      </Select>
-    </Form.Item>
+                  <Form.Item
+                    label="Supplier"
+                    name="seller"
+                    rules={[{ required: true, message: 'Please select supplier' }]}
+                  >
+                    <Select
+                      size="large"
+                      placeholder="Select supplier"
+                      className="rounded-md"
+                      onSelect={handleSupplierSelect}
+                    >
+                      {sellers?.data.map((item: ISeller) => (
+                        <Option key={item._id} value={item._id}>
+                          {item.name}
+                        </Option>
+                      ))}
+                    </Select>
+                  </Form.Item>
                 </Col>
 
                 <Col xs={24}>
@@ -497,7 +605,7 @@ const CreateProduct: React.FC = () => {
                                 const quantity = form.getFieldValue('quantity') || 1;
                                 const dueDate = form.getFieldValue('paymentDueDate');
                                 const price = form.getFieldValue('price');
-                                calculateCreditDetails(price, value, dueDate);
+                                calculateCreditDetails(price, value, dueDate, quantity);
                               }}
                             />
                           </Form.Item>
@@ -515,7 +623,8 @@ const CreateProduct: React.FC = () => {
                               disabledDate={(current) => current && current < dayjs().endOf('day')}
                               onChange={(date) => {
                                 const price = form.getFieldValue('price');
-                                calculateCreditDetails(price, initialPayment, date);
+                                const quantity = form.getFieldValue('quantity') || 1;
+                                calculateCreditDetails(price, initialPayment, date, quantity);
                               }}
                             />
                           </Form.Item>
@@ -688,6 +797,75 @@ const CreateProduct: React.FC = () => {
           className="w-full" 
           src={previewImage} 
         />
+      </Modal>
+
+      {/* Create Measurement Modal */}
+      <Modal
+        title="Create New Measurement"
+        open={isMeasurementModalOpen}
+        onOk={handleCreateMeasurement}
+        onCancel={() => {
+          setIsMeasurementModalOpen(false);
+          setNewMeasurementName('');
+        }}
+        okText="Create"
+        confirmLoading={isSubmitting}
+      >
+        <Form layout="vertical">
+          <Form.Item 
+            label="Measurement Name" 
+            required
+            rules={[{ required: true, message: 'Please enter measurement name' }]}
+          >
+            <Input 
+              value={newMeasurementName}
+              onChange={(e) => setNewMeasurementName(e.target.value)}
+              placeholder="e.g., Weight, Length, Volume"
+            />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Create Unit Modal */}
+      <Modal
+        title="Create New Unit"
+        open={isUnitModalOpen}
+        onOk={handleCreateUnit}
+        onCancel={() => {
+          setIsUnitModalOpen(false);
+          setNewUnitName('');
+          setNewUnitSymbol('');
+        }}
+        okText="Create"
+        confirmLoading={isSubmitting}
+      >
+        <Form layout="vertical">
+          <Form.Item 
+            label="Unit Name" 
+            required
+            rules={[{ required: true, message: 'Please enter unit name' }]}
+          >
+            <Input 
+              value={newUnitName}
+              onChange={(e) => setNewUnitName(e.target.value)}
+              placeholder="e.g., Kilogram, Meter, Liter"
+            />
+          </Form.Item>
+          <Form.Item 
+            label="Unit Symbol" 
+            required
+            rules={[{ required: true, message: 'Please enter unit symbol' }]}
+          >
+            <Input 
+              value={newUnitSymbol}
+              onChange={(e) => setNewUnitSymbol(e.target.value)}
+              placeholder="e.g., kg, m, L" 
+            />
+          </Form.Item>
+          <Text type="secondary">
+            This unit will be associated with the currently selected measurement type.
+          </Text>
+        </Form>
       </Modal>
     </div>
   );

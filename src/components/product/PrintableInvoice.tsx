@@ -248,7 +248,7 @@ const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ data, items }) => {
                     <span>TEL : 0786530669</span> 
                     <span>EMAIL : oyileb.ob@gmail.com</span>
                     <span>TIN: 106949150</span> 
-                    <span>${currentDate.split('/')[2]}</span> 
+                    <span>Date: ${data.date ? formatDateToDMY(new Date(data.date)) : currentDate}</span>
                   </div>
                 </div>
               </div>
@@ -262,8 +262,7 @@ const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ data, items }) => {
                     <span>${data.invoiceNo || 'N/A'}</span>
                   </div>
                   <div>
-                    <span class="bold-text">Date: </span>
-                    <span>${data.date ? formatDateToDMY(new Date(data.date)) : currentDate}</span>
+                  
                   </div>
                 </div>
               </div>
@@ -433,7 +432,7 @@ const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ data, items }) => {
             <span>TEL : 0786530669</span> 
             <span>EMAIL : oyileb.ob@gmail.com</span>
             <span>TIN: 106949150</span> 
-            <span>{formatDateToDMY(new Date()).split('/')[2]}</span> 
+            <span>Date: {data.date ? formatDateToDMY(new Date(data.date)) : currentDate}</span>
           </div>
         </div>
       </div>
@@ -446,10 +445,7 @@ const PrintableInvoice: React.FC<PrintableInvoiceProps> = ({ data, items }) => {
             <Text strong>Invoice No: </Text>
             <Text>{data.invoiceNo || 'N/A'}</Text>
           </div>
-          <div>
-            <Text strong>Date: </Text>
-            <Text>{data.date ? formatDateToDMY(new Date(data.date)) : currentDate}</Text>
-          </div>
+         
         </div>
       </div>
 

@@ -233,7 +233,7 @@ const DeliveryNoteSystem = () => {
                 <h2>MarubeTraders Ltd</h2>
                 <p>Phone: 0788308463</p>
                 <p>Tin: 106949150</p>
-                <h3>MarubeInteriors & Exteriors</h3>
+                
                 <p>E-mail: oyileb.ob@gmail.com</p>
               </div>
             </div>
@@ -524,12 +524,10 @@ const DeliveryNoteSystem = () => {
                       <h2 className="text-lg font-bold">MarubeTraders Ltd</h2>
                       <p className="text-sm">Phone: 0788308463</p>
                       <p className="text-sm">Tin: 106949150</p>
+                      <p className="text-sm">E-mail: oyileb.ob@gmail.com</p>
                     </div>
                   </div>
-                  <div className="mt-2">
-                    <h3 className="font-semibold">MarubeInteriors & Exteriors</h3>
-                    <p className="text-sm">E-mail: oyileb.ob@gmail.com</p>
-                  </div>
+                  
                 </div>
                 <div className="text-right">
                   <div className="border border-gray-300 rounded px-4 py-2">
@@ -720,12 +718,10 @@ const DeliveryNoteSystem = () => {
                       <h2 className="text-lg font-bold">MarubeTraders Ltd</h2>
                       <p className="text-sm">Phone: 0788308463</p>
                       <p className="text-sm">Tin: 106949150</p>
+                      <p className="text-sm">E-mail: oyileb.ob@gmail.com</p>
                     </div>
                   </div>
-                  <div className="mt-2">
-                    <h3 className="font-semibold">MarubeInteriors & Exteriors</h3>
-                    <p className="text-sm">E-mail: oyileb.ob@gmail.com</p>
-                  </div>
+                  
                 </div>
                 <div className="text-right">
                   <div className="border border-gray-300 rounded px-4 py-2">

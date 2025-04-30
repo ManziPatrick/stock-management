@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-import { DeleteFilled, EditFilled } from '@ant-design/icons';
+import { DeleteFilled, EditFilled ,PlusOutlined} from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
 import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table,Select,Empty, Tag, Checkbox, Image, Input, Radio, Space } from 'antd';
 import React, { useEffect, useState } from 'react';
@@ -13,6 +13,12 @@ import {
   useGetAllProductsQuery,
   useUpdateProductMutation,
 } from '../../redux/features/management/productApi';
+import { 
+  useGetAllMeasurementsQuery,
+  useCreateMeasurementMutation,
+  useCreateUnitMutation,
+  useGetUnitsByMeasurementIdQuery
+} from '../../redux/features/management/measurementApi';
 import SaleReceipt from '../../components/product/receipt';
 import { ICategory, IProduct } from '../../types/product.types';
 import ProductManagementFilter from '../../components/query-filters/ProductManagementFilter';
@@ -1078,15 +1084,61 @@ const AddStockModal = ({ product }) => {
 /**
  * Update Product Modal
  */
+
 const UpdateProductModal = ({ product }) => {
   const [updateProduct] = useUpdateProductMutation();
   const [updatePurchase] = useUpdatePurchaseMutation();
   const { data: categories } = useGetAllCategoriesQuery(undefined);
   const { data: sellers, isLoading: isSellerLoading } = useGetAllSellerQuery(undefined);
   const { data: brands } = useGetAllBrandsQuery(undefined);
+  const { data: measurements, refetch: refetchMeasurements } = useGetAllMeasurementsQuery(undefined);
+  const [createMeasurement] = useCreateMeasurementMutation();
+  const [createUnit] = useCreateUnitMutation();
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [shouldUpdatePurchases, setShouldUpdatePurchases] = useState(true);
+  const [selectedMeasurement, setSelectedMeasurement] = useState(null);
+  const [selectedMeasurementId, setSelectedMeasurementId] = useState(null);
+  
+  // Modal states for creating new measurements and units
+  const [isMeasurementModalOpen, setIsMeasurementModalOpen] = useState(false);
+  const [isUnitModalOpen, setIsUnitModalOpen] = useState(false);
+  const [newMeasurementName, setNewMeasurementName] = useState('');
+  const [newUnitName, setNewUnitName] = useState('');
+  const [newUnitSymbol, setNewUnitSymbol] = useState('');
+  
+  // Maps for easier lookup
+  const [measurementMap, setMeasurementMap] = useState(new Map());
+  const [unitMap, setUnitMap] = useState(new Map());
+
+  // Get units by selected measurement
+  const { data: units, refetch: refetchUnits } = useGetUnitsByMeasurementIdQuery(
+    selectedMeasurementId || '', 
+    { skip: !selectedMeasurementId }
+  );
+
+  // Update measurement map when measurements data changes
+  useEffect(() => {
+    if (measurements?.data) {
+      const map = new Map();
+      measurements.data.forEach((measurement) => {
+        map.set(measurement.name, measurement);
+      });
+      setMeasurementMap(map);
+    }
+  }, [measurements]);
+
+  // Update unit map when units data changes
+  useEffect(() => {
+    if (units?.data) {
+      const map = new Map();
+      units.data.forEach((unit) => {
+        map.set(unit.name, unit);
+      });
+      setUnitMap(map);
+    }
+  }, [units]);
 
   const {
     handleSubmit,
@@ -1094,6 +1146,7 @@ const UpdateProductModal = ({ product }) => {
     formState: { errors },
     reset,
     watch,
+    setValue,
   } = useForm({
     defaultValues: React.useMemo(() => ({
       name: product.name,
@@ -1107,6 +1160,113 @@ const UpdateProductModal = ({ product }) => {
       quantity: product.measurement?.value || product.stock || 0,
     }), [product])
   });
+
+  // Set selected measurement when the form is initialized or when measurements are loaded
+  useEffect(() => {
+    if (product.measurement?.type && measurements?.data) {
+      const measurementObj = measurements.data.find(m => m.name === product.measurement.type);
+      if (measurementObj) {
+        setSelectedMeasurement(measurementObj.name);
+        setSelectedMeasurementId(measurementObj._id);
+      }
+    }
+  }, [product, measurements]);
+
+  const handleMeasurementSelect = (measurementName) => {
+    setSelectedMeasurement(measurementName);
+    
+    // Find the measurement ID based on the name
+    const measurement = measurementMap.get(measurementName);
+    if (measurement) {
+      setSelectedMeasurementId(measurement._id);
+    }
+    
+    // Reset unit selection when measurement changes
+    setValue('unit', '');
+  };
+
+  // Handle creating a new measurement
+  const handleCreateMeasurement = async () => {
+    if (!newMeasurementName.trim()) {
+      toastMessage({
+        icon: 'error',
+        text: 'Measurement name cannot be empty'
+      });
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      const response = await createMeasurement({ name: newMeasurementName.trim() }).unwrap();
+      if (response.statusCode === 201) {
+        toastMessage({
+          icon: 'success',
+          text: 'Measurement created successfully'
+        });
+        refetchMeasurements();
+        setNewMeasurementName('');
+        setIsMeasurementModalOpen(false);
+        
+        // Select the newly created measurement
+        if (response.data?.name) {
+          setSelectedMeasurement(response.data.name);
+          setSelectedMeasurementId(response.data._id);
+          setValue('unitType', response.data.name);
+        }
+      }
+    } catch (error) {
+      toastMessage({
+        icon: 'error',
+        text: error.data?.message || 'Failed to create measurement'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle creating a new unit
+  const handleCreateUnit = async () => {
+    if (!newUnitName.trim() || !newUnitSymbol.trim() || !selectedMeasurementId) {
+      toastMessage({
+        icon: 'error',
+        text: 'Unit name, symbol, and measurement selection are required'
+      });
+      return;
+    }
+    
+    try {
+      setIsSubmitting(true);
+      const unitData = {
+        name: newUnitName.trim(),
+        symbol: newUnitSymbol.trim(),
+        measurementId: selectedMeasurementId
+      };
+      
+      const response = await createUnit(unitData).unwrap();
+      if (response.statusCode === 201) {
+        toastMessage({
+          icon: 'success',
+          text: 'Unit created successfully'
+        });
+        refetchUnits();
+        setNewUnitName('');
+        setNewUnitSymbol('');
+        setIsUnitModalOpen(false);
+        
+        // Select the newly created unit
+        if (response.data?.name) {
+          setValue('unit', response.data.name);
+        }
+      }
+    } catch (error) {
+      toastMessage({
+        icon: 'error', 
+        text: error.data?.message || 'Failed to create unit'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const onSubmit = async (data) => {
     try {
@@ -1173,47 +1333,12 @@ const UpdateProductModal = ({ product }) => {
   };
 
   const renderUnitOptions = () => {
-    const unitOptions = {
-      weight: [
-        { value: 'g', label: 'Grams (g)' },
-        { value: 'kg', label: 'Kilograms (kg)' },
-        { value: 'lb', label: 'Pounds (lb)' }
-      ],
-      length: [
-        { value: 'cm', label: 'Centimeters (cm)' },
-        { value: 'm', label: 'Meters (m)' },
-        { value: 'inch', label: 'Inches (in)' }
-      ],
-      volume: [
-        { value: 'ml', label: 'Milliliters (ml)' },
-        { value: 'l', label: 'Liters (l)' },
-        { value: 'oz', label: 'Fluid Ounces (oz)' }
-      ],
-      pieces: [
-        { value: 'pc', label: 'Piece' },
-        { value: 'dozen', label: 'Dozen' },
-        { value: 'set', label: 'Set' }
-      ],
-      size: [
-        { value: 'EXTRA_SMALL', label: 'Extra Small (XS)' },
-        { value: 'SMALL', label: 'Small (S)' },
-        { value: 'MEDIUM', label: 'Medium (M)' },
-        { value: 'LARGE', label: 'Large (L)' },
-        { value: 'EXTRA_LARGE', label: 'Extra Large (XL)' },
-        { value: 'XXL', label: 'XXL' },
-        { value: 'XXXL', label: 'XXXL' },
-        ...Array.from({ length: 12 }, (_, i) => ({
-          value: `EU_${i + 36}`,
-          label: `EU ${i + 36}`
-        }))
-      ]
-    };
-
-    const selectedType = watch('unitType');
-    const options = unitOptions[selectedType] || [];
-
-    return options.map(({ value, label }) => (
-      <option key={value} value={value}>{label}</option>
+    if (!units?.data) return null;
+    
+    return units.data.map((unit) => (
+      <option key={unit._id} value={unit.name}>
+        {unit.name} ({unit.symbol})
+      </option>
     ));
   };
 
@@ -1229,6 +1354,16 @@ const UpdateProductModal = ({ product }) => {
       unit: product.measurement?.unit || '',
       quantity: product.measurement?.value || product.stock || 0,
     });
+    
+    // Set selected measurement when modal opens
+    if (product.measurement?.type && measurements?.data) {
+      const measurementObj = measurements.data.find(m => m.name === product.measurement.type);
+      if (measurementObj) {
+        setSelectedMeasurement(measurementObj.name);
+        setSelectedMeasurementId(measurementObj._id);
+      }
+    }
+    
     setIsModalOpen(true);
   };
 
@@ -1297,19 +1432,29 @@ const UpdateProductModal = ({ product }) => {
               </label>
             </Col>
             <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <select
-                {...register('unitType')}
-                className="p-2.5 bg-transparent w-full"
-                required={true}
-                disabled={isSubmitting}
-              >
-                <option value="">Select Measurement Type</option>
-                <option value="weight">Weight</option>
-                <option value="length">Length</option>
-                <option value="volume">Volume</option>
-                <option value="pieces">Pieces</option>
-                <option value="size">Size</option>
-              </select>
+              <div className="flex gap-2">
+                <select
+                  {...register('unitType')}
+                  className="p-2.5 bg-transparent flex-1"
+                  required={true}
+                  disabled={isSubmitting}
+                  onChange={(e) => handleMeasurementSelect(e.target.value)}
+                >
+                  <option value="">Select Measurement Type</option>
+                  {measurements?.data?.map((measurement) => (
+                    <option key={measurement._id} value={measurement.name}>
+                      {measurement.name}
+                    </option>
+                  ))}
+                </select>
+                <Button
+                  type="default"
+                  onClick={() => setIsMeasurementModalOpen(true)}
+                  disabled={isSubmitting}
+                >
+                  <PlusOutlined /> New
+                </Button>
+              </div>
             </Col>
           </Row>
 
@@ -1333,16 +1478,23 @@ const UpdateProductModal = ({ product }) => {
                   />
                 </div>
                 {watch('unitType') && (
-                  <div className="flex-1">
+                  <div className="flex gap-2 flex-1">
                     <select
                       {...register('unit')}
-                      className="p-2.5 bg-transparent w-full"
+                      className="p-2.5 bg-transparent flex-1"
                       required={true}
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || !selectedMeasurementId}
                     >
                       <option value="">Select Unit</option>
                       {renderUnitOptions()}
                     </select>
+                    <Button
+                      type="default"
+                      onClick={() => setIsUnitModalOpen(true)}
+                      disabled={isSubmitting || !selectedMeasurementId}
+                    >
+                      <PlusOutlined /> New
+                    </Button>
                   </div>
                 )}
               </div>
@@ -1441,10 +1593,65 @@ const UpdateProductModal = ({ product }) => {
           </Flex>
         </form>
       </Modal>
+
+      {/* Create Measurement Modal */}
+      <Modal
+        title="Create New Measurement"
+        open={isMeasurementModalOpen}
+        onOk={handleCreateMeasurement}
+        onCancel={() => {
+          setIsMeasurementModalOpen(false);
+          setNewMeasurementName('');
+        }}
+        okText="Create"
+        confirmLoading={isSubmitting}
+      >
+        <div className="mb-4">
+          <label className="block mb-2">Measurement Name</label>
+          <Input 
+            value={newMeasurementName}
+            onChange={(e) => setNewMeasurementName(e.target.value)}
+            placeholder="e.g., Weight, Length, Volume"
+          />
+        </div>
+      </Modal>
+
+      {/* Create Unit Modal */}
+      <Modal
+        title="Create New Unit"
+        open={isUnitModalOpen}
+        onOk={handleCreateUnit}
+        onCancel={() => {
+          setIsUnitModalOpen(false);
+          setNewUnitName('');
+          setNewUnitSymbol('');
+        }}
+        okText="Create"
+        confirmLoading={isSubmitting}
+      >
+        <div className="mb-4">
+          <label className="block mb-2">Unit Name</label>
+          <Input 
+            value={newUnitName}
+            onChange={(e) => setNewUnitName(e.target.value)}
+            placeholder="e.g., Kilogram, Meter, Liter"
+          />
+        </div>
+        <div className="mb-4">
+          <label className="block mb-2">Unit Symbol</label>
+          <Input 
+            value={newUnitSymbol}
+            onChange={(e) => setNewUnitSymbol(e.target.value)}
+            placeholder="e.g., kg, m, L" 
+          />
+        </div>
+        <div className="text-gray-500 text-sm">
+          This unit will be associated with the selected measurement type: <strong>{selectedMeasurement}</strong>
+        </div>
+      </Modal>
     </>
   );
 };
-
 /**
  * Delete Product Modal
  */

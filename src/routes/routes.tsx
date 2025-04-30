@@ -111,7 +111,7 @@ export const router = createBrowserRouter([
     element: <AdminSidebar />,
     children: [
       {
-        path: '',  // This will be /admin
+        path: '',  
         element: (
           <ProtectRoute>
             <Dashboard />
@@ -304,6 +304,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'Proforma',
+        element: (
+          <ProtectRoute>
+            <ProformaManager />
+          </ProtectRoute>
+        ),
+      },
+      {
         path: 'cases',
         element: (
           <ProtectRoute>
@@ -312,10 +320,26 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'delivery',
+        element: (
+          <ProtectRoute>
+            <DeliveryNoteSystem/>
+          </ProtectRoute>
+        ),
+      },
+      {
         path: 'adashboard',  
         element: (
           <ProtectRoute>
             <AccountantDashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'create-product', 
+        element: (
+          <ProtectRoute>
+            <CreateProduct />
           </ProtectRoute>
         ),
       },
@@ -391,6 +415,7 @@ export const router = createBrowserRouter([
           </ProtectRoute>
         ),
       },
+
       {
         path: 'change-password',  
         element: (
