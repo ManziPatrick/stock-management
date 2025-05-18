@@ -62,6 +62,7 @@ const DailyFinancialReport = () => {
     data: expensesData, 
     isFetching: expensesLoading 
   } = useGetAllExpensesQuery(expensesQuery);
+  console.log("expensesData",expensesData)
 
   // Processed data states
   const [todaySalesData, setTodaySalesData] = useState([]);
@@ -141,11 +142,12 @@ const DailyFinancialReport = () => {
   // Process expenses data to get today's expenses
   useEffect(() => {
     // Check for the nested data structure based on the provided response example
-    const expensesArray = expensesData?.data?.data;
-    
+    const expensesArray = expensesData?.data;
+    console.log("expensesArray2",expensesArray)
     if (expensesArray && Array.isArray(expensesArray)) {
+
       const todayExpenses = expensesArray.filter(expense => isToday(expense.date));
-      
+      console.log("todayExpenses",todayExpenses)
       const processedExpenses = todayExpenses.map((expense, index) => ({
         key: `expense-${expense._id}`,
         title: expense.title || 'Unknown Expense',
@@ -160,6 +162,7 @@ const DailyFinancialReport = () => {
       setTodayExpensesData(processedExpenses);
     }
   }, [expensesData]);
+  console.log("todayExpensesData",todayExpensesData)
 
   // Calculate summary for today's data
   useEffect(() => {
@@ -504,6 +507,7 @@ const DailyFinancialReport = () => {
       key: 'time',
       render: (text, record) => {
         const timestamp = record.type === 'Expense' ? record.date : record.createdAt;
+        console.log("timestamp",timestamp)
         return formatTime(timestamp);
       },
       responsive: ['md']
