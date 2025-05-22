@@ -55,6 +55,11 @@ export const sidebarItems = [
     icon: React.createElement(AntDesignOutlined),
   },
 
+    {
+      key: 'Manage Products',
+      label: <NavLink to='/accountant/products'>MANAGE PRODUCTS</NavLink>,
+      icon: <MoneyCollectFilled />,
+    },
   {
     key: 'Manage Pettycash',
     label: <NavLink to='/accountant/pettycash'>MANAGE PETTYCASH</NavLink>,

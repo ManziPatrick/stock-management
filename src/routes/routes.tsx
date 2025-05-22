@@ -360,6 +360,14 @@ export const router = createBrowserRouter([
         ),
       },
       {
+        path: 'products',  // This will be /admin/products
+        element: (
+          <ProtectRoute>
+            <ProductManagePage />
+          </ProtectRoute>
+        ),
+      },
+      {
         path: 'debits',  
         element: (
           <ProtectRoute>
