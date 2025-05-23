@@ -18,7 +18,7 @@ import {
 } from 'antd';
 import { DownloadOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
-import { useGetAllSaleQuery } from '../../redux/features/management/saleApi';
+import { useGetAllSaleQuery,useDailySaleQuery } from '../../redux/features/management/saleApi';
 import { useGetAllPurchasesQuery } from '../../redux/features/management/purchaseApi';
 import * as XLSX from 'xlsx';
 
@@ -36,7 +36,8 @@ const DailyFinancialReport = () => {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   });
-  
+  const { data: DailySale, isLoading: isLoadingSales } = useDailySaleQuery({});
+  console.log("daily data",DailySale.data?.[0].netProfit)
   const [purchasesQuery, setPurchasesQuery] = useState({
     page: 1,
     limit: 100
@@ -109,7 +110,7 @@ const DailyFinancialReport = () => {
         totalAmount: sale.totalAmount,
         payment: sale.paymentMode || 'Cash',
         createdAt: sale.createdAt,
-        profit: sale.profit || 0,
+        profit: DailySale.data?.[0].netProfit|| 0,
         type: 'Sale',
         products: sale.products || []  // Add products array
       }));
