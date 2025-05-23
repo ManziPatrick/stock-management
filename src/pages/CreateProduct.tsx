@@ -17,6 +17,7 @@ import {
   Checkbox,
   DatePicker
 } from 'antd';
+import BulkUploadProducts from '../components/BulkUploadProducts';
 import { PlusOutlined } from '@ant-design/icons';
 import type { RcFile, UploadProps } from 'antd/es/upload';
 import type { UploadFile } from 'antd/es/upload/interface';
@@ -105,6 +106,51 @@ const CreateProduct: React.FC = () => {
   const [measurementMap, setMeasurementMap] = useState<Map<string, IMeasurement>>(new Map());
   const [unitMap, setUnitMap] = useState<Map<string, IUnit>>(new Map());
 
+
+
+  const [isBulkUploadVisible, setIsBulkUploadVisible] = useState(false);
+
+// Add this function to handle bulk product creation
+const handleBulkProductCreation = async (products: any[]) => {
+  const results = [];
+  
+  for (const productData of products) {
+    try {
+      const formData = new FormData();
+      
+      // Handle measurement data
+      if (productData.measurement) {
+        formData.append('measurement', JSON.stringify(productData.measurement));
+      }
+      
+      // Append other product fields
+      Object.keys(productData).forEach(key => {
+        if (
+          productData[key] !== undefined && 
+          productData[key] !== '' && 
+          key !== 'measurement'
+        ) {
+          formData.append(key, productData[key].toString());
+        }
+      });
+      
+      // Set default values
+      formData.append('isCredit', 'false');
+      
+      // Create the product
+      const response = await createNewProduct(formData).unwrap();
+      results.push({ success: true, data: response });
+      
+    } catch (error) {
+      console.error('Error creating product:', error);
+      results.push({ success: false, error: error });
+      throw error; // Re-throw to handle in bulk upload component
+    }
+  }
+  
+  return results;
+};
+
   // Update measurement map when measurements data changes
   useEffect(() => {
     if (measurements?.data) {
@@ -127,33 +173,13 @@ const CreateProduct: React.FC = () => {
     }
   }, [units]);
 
-  const calculateCreditDetails = (totalPrice: number, initial: number, dueDate: any, quantity: number = 1) => {
-    if (!dueDate || !initial) return;
-
-    const totalAmount = totalPrice * quantity;
-    const downPayment = initial;
-    const creditAmount = totalAmount - downPayment;
-
-    form.setFieldsValue({
-      downPayment,
-      creditAmount,
-    });
-  };
 
   const handleSupplierSelect = (supplierId: string) => {
     const supplier = sellers?.data.find((s: ISeller) => s._id === supplierId);
     if (supplier) {
       setSelectedSupplier(supplier);
       
-      // Update credit details if credit is enabled
-      if (isCredit) {
-        const price = form.getFieldValue('price');
-        const initialPayment = form.getFieldValue('initialPayment');
-        const dueDate = form.getFieldValue('paymentDueDate');
-        const quantity = form.getFieldValue('quantity') || 1;
-        
-        calculateCreditDetails(price, initialPayment, dueDate, quantity);
-      }
+     
     }
   };
 
@@ -169,17 +195,7 @@ const CreateProduct: React.FC = () => {
     form.setFieldsValue({ unit: undefined }); // Reset unit selection when measurement changes
   };
 
-  useEffect(() => {
-    if (isCredit) {
-      const price = form.getFieldValue('price');
-      const initialPayment = form.getFieldValue('initialPayment');
-      const dueDate = form.getFieldValue('paymentDueDate');
-      const quantity = form.getFieldValue('quantity') || 1;
-      
-      calculateCreditDetails(price, initialPayment, dueDate, quantity);
-    }
-  }, [form.getFieldValue('quantity')]);
-
+ 
   // Handle image preview
   const handlePreview = async (file: UploadFile) => {
     if (!file.url && !file.preview) {
@@ -197,19 +213,6 @@ const CreateProduct: React.FC = () => {
   };
 
   // Handle credit checkbox change
-  const handleCreditChange = (e: any) => {
-    setIsCredit(e.target.checked);
-    if (!e.target.checked) {
-      form.setFieldsValue({
-        downPayment: undefined,
-        paymentDueDate: undefined,
-        creditAmount: undefined,
-        customerName: undefined,
-        customerPhone: undefined,
-        customerEmail: undefined
-      });
-    }
-  };
 
   // Handle creating a new measurement
   const handleCreateMeasurement = async () => {
@@ -573,97 +576,9 @@ const CreateProduct: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                <Col xs={24}>
-                  <Form.Item name="isCredit" valuePropName="checked">
-                    <Checkbox onChange={handleCreditChange}>
-                      Sell on Credit
-                    </Checkbox>
-                  </Form.Item>
-                </Col>
+             
 
-               
-                {isCredit && (
-                  <Col xs={24}>
-                    <Card className="bg-gray-50">
-                      <Title level={4}>Credit Details</Title>
-                      <Row gutter={[16, 16]}>
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Initial Payment"
-                            name="initialPayment"
-                            rules={[{ required: true, message: 'Please enter initial payment' }]}
-                          >
-                            <InputNumber
-                              size="large"
-                              className="w-full rounded-md"
-                              min={0}
-                              placeholder="Enter initial payment"
-                              formatter={formatPrice}
-                              parser={parsePrice}
-                              onChange={(value) => {
-                                setInitialPayment(value || 0);
-                                const quantity = form.getFieldValue('quantity') || 1;
-                                const dueDate = form.getFieldValue('paymentDueDate');
-                                const price = form.getFieldValue('price');
-                                calculateCreditDetails(price, value, dueDate, quantity);
-                              }}
-                            />
-                          </Form.Item>
-                        </Col>
-
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Payment Due Date"
-                            name="paymentDueDate"
-                            rules={[{ required: true, message: 'Please select due date' }]}
-                          >
-                            <DatePicker
-                              size="large"
-                              className="w-full rounded-md"
-                              disabledDate={(current) => current && current < dayjs().endOf('day')}
-                              onChange={(date) => {
-                                const price = form.getFieldValue('price');
-                                const quantity = form.getFieldValue('quantity') || 1;
-                                calculateCreditDetails(price, initialPayment, date, quantity);
-                              }}
-                            />
-                          </Form.Item>
-                        </Col>
-
-                        {/* Read-only calculated fields */}
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Down Payment"
-                            name="downPayment"
-                          >
-                            <InputNumber
-                              size="large"
-                              className="w-full rounded-md"
-                              disabled
-                              formatter={formatPrice}
-                              parser={parsePrice}
-                            />
-                          </Form.Item>
-                        </Col>
-
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Credit Amount"
-                            name="creditAmount"
-                          >
-                            <InputNumber
-                              size="large"
-                              className="w-full rounded-md"
-                              disabled
-                              formatter={formatPrice}
-                              parser={parsePrice}
-                            />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                    </Card>
-                  </Col>
-                )}
+              
 
                 {/* Category */}
                 <Col xs={24} md={12}>
@@ -762,27 +677,51 @@ const CreateProduct: React.FC = () => {
         </Col>
 
         {/* Sidebar Actions */}
-        <Col xs={24} lg={8}>
-          <Card 
-            bordered={false} 
-            className="shadow-md rounded-lg"
-          >
-            <Title level={3} className="mb-6">
-              Quick Actions
-            </Title>
-            <Space 
-              direction="vertical" 
-              className="w-full" 
-              size="large"
-            >
-              <CreateSeller />
-              <Divider />
-              <CreateCategory />
-              <Divider />
-              <CreateBrand />
-            </Space>
-          </Card>
-        </Col>
+      <Col xs={24} lg={8}>
+  <Card 
+    bordered={false} 
+    className="shadow-md rounded-lg"
+  >
+    <Title level={3} className="mb-6">
+      Quick Actions
+    </Title>
+    <Space 
+      direction="vertical" 
+      className="w-full" 
+      size="large"
+    >
+      {/* Add Bulk Upload Button */}
+      <Button
+        type="primary"
+        block
+        size="large"
+        icon={<PlusOutlined />}
+        onClick={() => setIsBulkUploadVisible(true)}
+        className="mb-4 bg-green-600 hover:bg-green-700 border-green-600"
+      >
+        Bulk Upload Products
+      </Button>
+      
+      <Divider />
+      
+      <CreateSeller />
+      <Divider />
+      <CreateCategory />
+      <Divider />
+      <CreateBrand />
+    </Space>
+  </Card>
+  <BulkUploadProducts
+  visible={isBulkUploadVisible}
+  onClose={() => setIsBulkUploadVisible(false)}
+  onBulkCreate={handleBulkProductCreation}
+  sellers={sellers?.data || []}
+  categories={categories?.data || []}
+  brands={brands?.data || []}
+  measurements={measurements?.data || []}
+  units={units?.data || []}
+/>
+</Col>
       </Row>
 
       {/* Image Preview Modal */}
@@ -844,7 +783,7 @@ const CreateProduct: React.FC = () => {
             label="Unit Name" 
             required
             rules={[{ required: true, message: 'Please enter unit name' }]}
-          >
+          > 
             <Input 
               value={newUnitName}
               onChange={(e) => setNewUnitName(e.target.value)}

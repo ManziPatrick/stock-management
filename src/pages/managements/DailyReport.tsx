@@ -76,6 +76,7 @@ const DailyFinancialReport = () => {
     netCashflow: 0
   });
 
+  console.log("summaryData",summaryData)
   const formatCurrency = (value) => {
     return `${Number(value).toLocaleString()} frw`;
   };
