@@ -138,8 +138,7 @@ const DailyChart: React.FC<ChartProps> = () => {
         momo: 0,
         cheque: 0,
         transfer: 0
-      };
-      
+      };     
       setTodayData(todayDataPoint);
     }
   }, [salesData, expensesData, purchaseData, isLoadingSales, isLoadingExpenses, isLoadingPurchases]);
@@ -345,8 +344,8 @@ const DailyChart: React.FC<ChartProps> = () => {
             </select>
           </div>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+         
+       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <h3 className="text-sm text-gray-600 mb-2">Today's Sales</h3>
             <p className="font-semibold">

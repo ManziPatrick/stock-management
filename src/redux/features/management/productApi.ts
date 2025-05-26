@@ -34,6 +34,16 @@ const productApi = baseApi.injectEndpoints({
       }),
       providesTags: ['product']
     }),
+    
+  bulkCreateProducts: builder.mutation({
+    query: (products) => ({
+      url: '/products/bulk',
+      method: 'POST',
+      body: { products },
+    }),
+    invalidatesTags: ['product'],
+  }),
+
     createNewProduct: builder.mutation({
       query: (payload) => ({
         url: '/products',
@@ -86,6 +96,7 @@ export const {
   useGetSingleProductQuery,
   useUpdateProductMutation,
   useBulkDeleteMutation,
+  useBulkCreateProductsMutation,
   // Export the new query hook
   useGetUpdatedProductsQuery
 } = productApi

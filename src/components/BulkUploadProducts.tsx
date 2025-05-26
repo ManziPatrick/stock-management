@@ -27,6 +27,7 @@ import {
   FileExcelOutlined,
   InfoCircleOutlined
 } from '@ant-design/icons';
+import { useBulkCreateProductsMutation } from '../redux/features/management/productApi';
 import * as XLSX from 'xlsx';
 
 const { Title, Text, Paragraph } = Typography;
@@ -43,6 +44,7 @@ interface ProductRow {
   category?: string;
   brand?: string;
   description?: string;
+  image?: string;
   status: 'pending' | 'success' | 'error';
   error?: string;
 }
@@ -50,7 +52,6 @@ interface ProductRow {
 interface BulkUploadProductsProps {
   visible: boolean;
   onClose: () => void;
-  onBulkCreate: (products: any[]) => Promise<void>;
   sellers: any[];
   categories: any[];
   brands: any[];
@@ -61,18 +62,19 @@ interface BulkUploadProductsProps {
 const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
   visible,
   onClose,
-  onBulkCreate,
   sellers,
   categories,
   brands,
   measurements,
   units
 }) => {
+  const [bulkCreateProducts] = useBulkCreateProductsMutation();
   const [currentStep, setCurrentStep] = useState(0);
   const [products, setProducts] = useState<ProductRow[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [bulkResults, setBulkResults] = useState<any>(null);
   const fileInputRef = useRef<any>(null);
 
   // Template data for Excel download
@@ -86,7 +88,8 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
       seller: 'Sample Seller',
       category: 'Electronics',
       brand: 'Sample Brand',
-      description: 'Sample product description'
+      description: 'Sample product description',
+      image: '' // Optional image URL
     },
     {
       name: 'Sample Product 2',
@@ -97,7 +100,8 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
       seller: 'Another Seller',
       category: 'Home & Garden',
       brand: 'Brand X',
-      description: 'Another sample description'
+      description: 'Another sample description',
+      image: 'https://example.com/product-image.jpg'
     }
   ];
 
@@ -114,7 +118,8 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
 
   const optionalColumns = {
     brand: 'Brand',
-    description: 'Description'
+    description: 'Description',
+    image: 'Image URL'
   };
 
   // Download Excel template
@@ -133,7 +138,8 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
       { wch: 15 }, // seller
       { wch: 15 }, // category
       { wch: 15 }, // brand
-      { wch: 30 }  // description
+      { wch: 30 }, // description
+      { wch: 25 }  // image
     ];
     worksheet['!cols'] = colWidths;
     
@@ -169,6 +175,7 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
           category: row.category || row.Category,
           brand: row.brand || row.Brand,
           description: row.description || row.Description,
+          image: row.image || row.Image || row['Image URL'] || '', // Optional image
           status: 'pending'
         }));
 
@@ -231,118 +238,131 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
       if (product.measurement && !measurementNames.includes(product.measurement.toLowerCase())) {
         errors.push(`Row ${rowNumber}: Measurement "${product.measurement}" not found`);
       }
+
+      // Image URL validation (optional but should be valid URL if provided)
+      if (product.image && product.image.trim()) {
+        try {
+          new URL(product.image);
+        } catch {
+          errors.push(`Row ${rowNumber}: Invalid image URL format`);
+        }
+      }
     });
 
     setValidationErrors(errors);
   };
 
-  // Handle file upload
-  const handleFileUpload = (info: any) => {
-    const { file } = info;
-    if (file.status === 'done' || file.status === 'uploading') {
-      parseExcelFile(file.originFileObj);
-    }
-  };
+  // Upload products using the bulk mutation
 
-  // Upload products
-  const handleBulkUpload = async () => {
-    if (validationErrors.length > 0) {
-      message.error('Please fix validation errors before uploading');
-      return;
-    }
+const handleBulkUpload = async () => {
+  if (validationErrors.length > 0) {
+    message.error('Please fix validation errors before uploading');
+    return;
+  }
 
-    setIsUploading(true);
-    setUploadProgress(0);
-    setCurrentStep(2);
+  setIsUploading(true);
+  setUploadProgress(0);
+  setCurrentStep(2);
 
-    try {
-      // Process products in batches
-      const batchSize = 10;
-      const batches = [];
-      for (let i = 0; i < products.length; i += batchSize) {
-        batches.push(products.slice(i, i + batchSize));
-      }
+  try {
+    // Transform products for API - ensure we're sending an array
+    const productsForApi = products.map((product) => {
+      // Find reference IDs
+      const seller = sellers.find(s => s.name.toLowerCase() === product.seller?.toLowerCase());
+      const category = categories.find(c => c.name.toLowerCase() === product.category?.toLowerCase());
+      const brand = brands.find(b => b.name.toLowerCase() === product.brand?.toLowerCase());
 
-      let processedCount = 0;
-      const updatedProducts = [...products];
+      return {
+        name: product.name,
+        price: product.price,
+        stock: product.quantity, // Using stock instead of quantity to match API
+        seller: seller?._id,
+        category: category?._id,
+        brand: brand?._id,
+        description: product.description || '',
+        image: product.image || '', // Will use default image if empty
+        measurement: {
+          measurement: product.measurement,
+          unit: product.unit,
+          value: product.quantity
+        },
+        isCredit: false // Default to false for bulk uploads
+      };
+    });
 
-      for (const batch of batches) {
-        const processedBatch = await Promise.allSettled(
-          batch.map(async (product) => {
-            try {
-              // Find reference IDs
-              const seller = sellers.find(s => s.name.toLowerCase() === product.seller?.toLowerCase());
-              const category = categories.find(c => c.name.toLowerCase() === product.category?.toLowerCase());
-              const brand = brands.find(b => b.name.toLowerCase() === product.brand?.toLowerCase());
-              const measurement = measurements.find(m => m.name.toLowerCase() === product.measurement?.toLowerCase());
-              const unit = units.find(u => u.name.toLowerCase() === product.unit?.toLowerCase());
+    console.log('Sending products for bulk creation:', productsForApi);
+    console.log('Products array length:', productsForApi.length);
+    console.log('First product sample:', productsForApi[0]);
 
-              const productData = {
-                name: product.name,
-                price: product.price,
-                stock: product.quantity,
-                seller: seller?._id,
-                category: category?._id,
-                brand: brand?._id,
-                description: product.description,
-                measurement: {
-                  measurement: product.measurement,
-                  unit: product.unit,
-                  value: product.quantity
-                }
-              };
+    // Update progress as we prepare data
+    setUploadProgress(25);
 
-              // Call the bulk create function
-              await onBulkCreate([productData]);
-              
-              return { ...product, status: 'success' as const };
-            } catch (error: any) {
-              return { 
-                ...product, 
-                status: 'error' as const, 
-                error: error.message || 'Failed to create product'
-              };
-            }
-          })
+    // FIXED: Send directly as products array, not wrapped in another products object
+    const result = await bulkCreateProducts(productsForApi).unwrap(); // Direct array, not { products: array }
+
+    console.log('Bulk create result:', result);
+    
+    setUploadProgress(75);
+
+    setBulkResults(result);
+
+    // Update product statuses based on results
+    if (result && result.data) {
+      const { successful = [], failed = [] } = result.data;
+      
+      const updatedProducts = products.map((product, index) => {
+        // Check if this product was successful or failed
+        const isSuccessful = successful.some((success: any) => 
+          success.originalIndex === index || success.name === product.name
+        );
+        const failedItem = failed.find((fail: any) => 
+          fail.originalIndex === index || fail.name === product.name
         );
 
-        // Update product statuses
-        processedBatch.forEach((result, index) => {
-          const productIndex = updatedProducts.findIndex(p => p.id === batch[index].id);
-          if (productIndex !== -1) {
-            if (result.status === 'fulfilled') {
-              updatedProducts[productIndex] = result.value;
-            } else {
-              updatedProducts[productIndex] = {
-                ...batch[index],
-                status: 'error',
-                error: 'Failed to process'
-              };
-            }
-          }
-        });
-
-        processedCount += batch.length;
-        setUploadProgress((processedCount / products.length) * 100);
-        setProducts([...updatedProducts]);
-
-        // Small delay between batches to prevent overwhelming the server
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-
-      const successCount = updatedProducts.filter(p => p.status === 'success').length;
-      const errorCount = updatedProducts.filter(p => p.status === 'error').length;
-
-      message.success(`Upload completed: ${successCount} successful, ${errorCount} failed`);
-      setCurrentStep(3);
-
-    } catch (error) {
-      console.error('Bulk upload error:', error);
-      message.error('Bulk upload failed');
-    } finally {
-      setIsUploading(false);
+        return {
+          ...product,
+          status: isSuccessful ? 'success' as const : 'error' as const,
+          error: failedItem?.error || (isSuccessful ? undefined : 'Upload failed')
+        };
+      });
+      
+      setProducts(updatedProducts);
     }
-  };
+
+    setUploadProgress(100);
+    setCurrentStep(3);
+
+    const successCount = result?.data?.successful?.length || 0;
+    const failedCount = result?.data?.failed?.length || 0;
+    
+    message.success(
+      `Bulk upload completed! ${successCount} products created successfully, ${failedCount} failed`
+    );
+
+  } catch (error: any) {
+    console.error('Bulk upload error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      data: error.data,
+      status: error.status
+    });
+    
+    message.error(`Bulk upload failed: ${error.data?.message || error.message || 'Unknown error'}`);
+    
+    // Mark all products as failed
+    const failedProducts = products.map(product => ({
+      ...product,
+      status: 'error' as const,
+      error: error.data?.message || error.message || 'Bulk upload failed'
+    }));
+    setProducts(failedProducts);
+    
+    setCurrentStep(3); // Still go to completion step to show results
+  } finally {
+    setIsUploading(false);
+    setUploadProgress(100);
+  }
+};
 
   // Reset component
   const handleReset = () => {
@@ -351,6 +371,7 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
     setValidationErrors([]);
     setUploadProgress(0);
     setIsUploading(false);
+    setBulkResults(null);
     if (fileInputRef.current) {
       fileInputRef.current.fileList = [];
     }
@@ -390,6 +411,15 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
       title: 'Category',
       dataIndex: 'category',
       ellipsis: true,
+    },
+    {
+      title: 'Image',
+      dataIndex: 'image',
+      render: (image: string) => (
+        image ? 
+          <Tag color="green">Provided</Tag> : 
+          <Tag color="default">Default</Tag>
+      ),
     },
     {
       title: 'Status',
@@ -435,7 +465,7 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
             <Card>
               <Title level={4}>Upload Excel File</Title>
               <Paragraph>
-                Upload an Excel file containing product data. Make sure your file follows the required format.
+                Upload an Excel file containing product data. Images are optional - default images will be used if not provided.
               </Paragraph>
               
               <Space direction="vertical" className="w-full" size="large">
@@ -487,6 +517,7 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
                     renderItem={([key, label]) => (
                       <List.Item>
                         <Text>{label}</Text>
+                        {key === 'image' && <Text type="secondary"> (Default image if empty)</Text>}
                       </List.Item>
                     )}
                   />
@@ -508,7 +539,7 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
                   onClick={handleBulkUpload}
                   disabled={validationErrors.length > 0}
                 >
-                  Start Upload
+                  Start Bulk Upload
                 </Button>
               </Space>
             </div>
@@ -528,6 +559,14 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
               />
             )}
 
+            <Alert
+              type="info"
+              message="Bulk Upload Process"
+              description="All products will be uploaded together using the bulk create API for better performance and consistency."
+              showIcon
+              className="mb-4"
+            />
+
             <Table
               columns={columns}
               dataSource={products}
@@ -542,24 +581,21 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
         {/* Step 2: Processing */}
         {currentStep === 2 && (
           <div className="space-y-6 text-center">
-            <Title level={4}>Processing Products...</Title>
+            <Title level={4}>Processing Bulk Upload...</Title>
+            <Paragraph>
+              All products are being processed together using the bulk create API.
+            </Paragraph>
             <Progress 
               percent={Math.round(uploadProgress)} 
               status={isUploading ? "active" : "success"}
               strokeWidth={8}
             />
-            <Text>Please wait while we create your products...</Text>
-            
-            {products.length > 0 && (
-              <Table
-                columns={columns}
-                dataSource={products}
-                rowKey="id"
-                pagination={{ pageSize: 5 }}
-                size="small"
-                scroll={{ x: 800 }}
-              />
-            )}
+            <Text>
+              {uploadProgress < 25 ? 'Preparing data...' :
+               uploadProgress < 75 ? 'Uploading products...' :
+               uploadProgress < 100 ? 'Processing results...' :
+               'Complete!'}
+            </Text>
           </div>
         )}
 
@@ -568,14 +604,17 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
           <div className="space-y-6">
             <div className="text-center">
               <CheckCircleOutlined className="text-green-500 text-6xl mb-4" />
-              <Title level={3}>Upload Complete!</Title>
+              <Title level={3}>Bulk Upload Complete!</Title>
+              <Paragraph>
+                Products have been processed using the bulk create API.
+              </Paragraph>
             </div>
 
             <Row gutter={[16, 16]}>
               <Col span={8}>
                 <Card className="text-center">
                   <Title level={2} className="text-green-500">
-                    {products.filter(p => p.status === 'success').length}
+                    {bulkResults?.data?.successful?.length || products.filter(p => p.status === 'success').length}
                   </Title>
                   <Text>Successful</Text>
                 </Card>
@@ -583,7 +622,7 @@ const BulkUploadProducts: React.FC<BulkUploadProductsProps> = ({
               <Col span={8}>
                 <Card className="text-center">
                   <Title level={2} className="text-red-500">
-                    {products.filter(p => p.status === 'error').length}
+                    {bulkResults?.data?.failed?.length || products.filter(p => p.status === 'error').length}
                   </Title>
                   <Text>Failed</Text>
                 </Card>

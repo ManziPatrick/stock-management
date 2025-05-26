@@ -111,45 +111,45 @@ const CreateProduct: React.FC = () => {
   const [isBulkUploadVisible, setIsBulkUploadVisible] = useState(false);
 
 // Add this function to handle bulk product creation
-const handleBulkProductCreation = async (products: any[]) => {
-  const results = [];
+// const handleBulkProductCreation = async (products: any[]) => {
+//   const results = [];
   
-  for (const productData of products) {
-    try {
-      const formData = new FormData();
+//   for (const productData of products) {
+//     try {
+//       const formData = new FormData();
       
-      // Handle measurement data
-      if (productData.measurement) {
-        formData.append('measurement', JSON.stringify(productData.measurement));
-      }
+//       // Handle measurement data
+//       if (productData.measurement) {
+//         formData.append('measurement', JSON.stringify(productData.measurement));
+//       }
       
-      // Append other product fields
-      Object.keys(productData).forEach(key => {
-        if (
-          productData[key] !== undefined && 
-          productData[key] !== '' && 
-          key !== 'measurement'
-        ) {
-          formData.append(key, productData[key].toString());
-        }
-      });
+//       // Append other product fields
+//       Object.keys(productData).forEach(key => {
+//         if (
+//           productData[key] !== undefined && 
+//           productData[key] !== '' && 
+//           key !== 'measurement'
+//         ) {
+//           formData.append(key, productData[key].toString());
+//         }
+//       });
       
-      // Set default values
-      formData.append('isCredit', 'false');
+//       // Set default values
+//       formData.append('isCredit', 'false');
       
-      // Create the product
-      const response = await createNewProduct(formData).unwrap();
-      results.push({ success: true, data: response });
+//       // Create the product
+//       const response = await createNewProduct(formData).unwrap();
+//       results.push({ success: true, data: response });
       
-    } catch (error) {
-      console.error('Error creating product:', error);
-      results.push({ success: false, error: error });
-      throw error; // Re-throw to handle in bulk upload component
-    }
-  }
+//     } catch (error) {
+//       console.error('Error creating product:', error);
+//       results.push({ success: false, error: error });
+//       throw error; // Re-throw to handle in bulk upload component
+//     }
+//   }
   
-  return results;
-};
+//   return results;
+// };
 
   // Update measurement map when measurements data changes
   useEffect(() => {
@@ -690,7 +690,6 @@ const handleBulkProductCreation = async (products: any[]) => {
       className="w-full" 
       size="large"
     >
-      {/* Add Bulk Upload Button */}
       <Button
         type="primary"
         block
@@ -714,7 +713,7 @@ const handleBulkProductCreation = async (products: any[]) => {
   <BulkUploadProducts
   visible={isBulkUploadVisible}
   onClose={() => setIsBulkUploadVisible(false)}
-  onBulkCreate={handleBulkProductCreation}
+  // onBulkCreate={handleBulkProductCreation}
   sellers={sellers?.data || []}
   categories={categories?.data || []}
   brands={brands?.data || []}
