@@ -12,22 +12,24 @@ import {
   Pie,
   Cell
 } from "recharts";
-import { useGetAllSaleQuery } from "../redux/features/management/saleApi";
+import { useGetAllSaleQuery } from "../../redux/features/management/saleApi";
 
 const SalesStatisticsDashboard = () => {
   const { data: salesData, isLoading } = useGetAllSaleQuery({ page: 1, limit: 10, search: "" });
-
+console.log("Sales Data:", salesData);
   if (isLoading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>;
   }
 
   // More defensive check - ensure all required data paths exist
-  if (!salesData || !salesData.meta || !salesData.meta.totalSales || !salesData.meta.totalSales.stats) {
-    return <div className="p-4">No sales data available</div>;
-  }
+  // if (!salesData || !salesData.meta || !salesData.meta.totalSales || !salesData.meta.totalSales.stats) {
+  //   return <div className="p-4">No sales data available</div>;
+  // }
 
   const stats = salesData.meta.totalSales.stats;
   const transactions = salesData.data || [];
+  console.log("Sales Data:", salesData);
+  console.log("Stats:", stats);
 
   const COLORS = ["#64748b", "#3b82f6", "#22c55e", "#6366f1", "#a855f7"];
   const formatCurrency = (value) => `${(value || 0).toLocaleString()}`;

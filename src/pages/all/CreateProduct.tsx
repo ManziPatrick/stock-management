@@ -20,21 +20,21 @@ import {
 import { PlusOutlined } from '@ant-design/icons';
 import type { RcFile, UploadProps } from 'antd/es/upload';
 import type { UploadFile } from 'antd/es/upload/interface';
-import { useCreateNewProductMutation } from '../redux/features/management/productApi';
-import { useCreateCreditMutation } from '../redux/features/management/creditApi';
-import { useGetAllBrandsQuery } from '../redux/features/management/brandApi';
-import { useGetAllCategoriesQuery } from '../redux/features/management/categoryApi';
-import { useGetAllSellerQuery } from '../redux/features/management/sellerApi';
+import { useCreateNewProductMutation } from '../../redux/features/management/productApi';
+import { useCreateCreditMutation } from '../../redux/features/management/creditApi';
+import { useGetAllBrandsQuery } from '../../redux/features/management/brandApi';
+import { useGetAllCategoriesQuery } from '../../redux/features/management/categoryApi';
+import { useGetAllSellerQuery } from '../../redux/features/management/sellerApi';
 import { 
   useGetAllMeasurementsQuery,
   useCreateMeasurementMutation,
   useCreateUnitMutation,
   useGetUnitsByMeasurementIdQuery
-} from '../redux/features/management/measurementApi';
-import { ICategory, ISeller, IMeasurement, IUnit } from '../types/product.types';
-import CreateSeller from '../components/product/CreateSeller';
-import CreateCategory from '../components/product/CreateCategory';
-import CreateBrand from '../components/product/CreateBrand';
+} from '../../redux/features/management/measurementApi';
+import { ICategory, ISeller, IMeasurement, IUnit } from '../../types/product.types';
+import CreateSeller from '../../components/product/CreateSeller';
+import CreateCategory from '../../components/product/CreateCategory';
+import CreateBrand from '../../components/product/CreateBrand';
 import dayjs from 'dayjs';
 
 const { Title, Text } = Typography;

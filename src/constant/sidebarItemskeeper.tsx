@@ -19,6 +19,12 @@ import {
       label: <NavLink to='/keeper/products'>REMAINING STOCK</NavLink>,
       icon: React.createElement(MoneyCollectFilled),
     },
+     {
+        
+        key: 'Add Product',
+        label: <NavLink to='/keeper/create-product'>ADD PRODUCT</NavLink>,
+        icon: React.createElement(AntDesignOutlined),
+      },
 
     {
       key: 'Manage Sales',

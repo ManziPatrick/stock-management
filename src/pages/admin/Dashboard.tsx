@@ -1,20 +1,20 @@
 //@ts-nocheck
 import React, { useState } from 'react';
-import Loader from '../components/Loader';
-import DailyChart from '../components/Charts/DailyChart';
-import MonthlyChart from '../components/Charts/MonthlyChart';
-import YearlySalesChart from '../components/Charts/YearlyChart';
+import Loader from '../../components/Loader';
+import DailyChart from '../../components/Charts/DailyChart';
+import MonthlyChart from '../../components/Charts/MonthlyChart';
+import YearlySalesChart from '../../components/Charts/YearlyChart';
 import { 
   useYearlySaleQuery,
   useGetAllSaleQuery,
   useGetTotalCreditQuery 
-} from '../redux/features/management/saleApi';
+} from '../../redux/features/management/saleApi';
 import {
   useDeletePurchaseMutation,
   useGetAllPurchasesQuery,
-} from '../redux/features/management/purchaseApi';
-import { useGetAllExpensesQuery } from '../redux/features/management/expenseApi';
-import { useGetAllProductsQuery } from '../redux/features/management/productApi';
+} from '../../redux/features/management/purchaseApi';
+import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
+import { useGetAllProductsQuery } from '../../redux/features/management/productApi';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('daily');

@@ -26,8 +26,8 @@ import {
   useGetPettyCashQuery, 
   useGetAllTransactionsQuery,
   useTopUpPettyCashMutation
-} from '../redux/features/management/pettyCashApi';
-import formatDate from '../utils/formatDate';
+} from '../../redux/features/management/pettyCashApi';
+import formatDate from '../../utils/formatDate';
 
 const { Title, Text } = Typography;
 const { RangePicker } = DatePicker;

@@ -10,6 +10,14 @@ const saleApi = baseApi.injectEndpoints({
       }),
       providesTags: ['sale']
     }),
+    getAllSalecollection: builder.query({
+      query: (query) => ({
+        url: '/sales/collection',
+        method: 'GET',
+        params: query
+      }),
+      providesTags: ['sale']
+    }),
     createSale: builder.mutation({
       query: (payload) => ({
         url: '/sales',
@@ -26,6 +34,14 @@ const saleApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['sale']
     }),
+    markProductsCollected: builder.mutation({
+      query: ({ saleId, collected }) => ({
+        url: `/sales/${saleId}/collection`,
+        method: 'PATCH',
+        body: { collected }
+      }),
+      invalidatesTags: ['sale']
+    }),
     deleteSale: builder.mutation({
       query: (id) => ({
         url: `/sales/${id}`,
@@ -33,6 +49,7 @@ const saleApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['sale']
     }),
+    // Existing endpoints...
     yearlySale: builder.query({
       query: () => ({
         url: `/sales/years`,
@@ -76,7 +93,9 @@ export const {
   useCreateSaleMutation,
   useDeleteSaleMutation,
   useUpdateSaleStatusMutation,
+  useMarkProductsCollectedMutation,
   useYearlySaleQuery,
+  useGetAllSalecollectionQuery,
   useMonthlySaleQuery,
   useWeeklySaleQuery,
   useDailySaleQuery,

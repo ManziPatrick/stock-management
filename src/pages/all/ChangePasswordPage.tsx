@@ -1,7 +1,7 @@
 import { Button, Flex, Input } from 'antd';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useChangePasswordMutation } from '../redux/features/authApi';
+import { useChangePasswordMutation } from '../../redux/features/authApi';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 

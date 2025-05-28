@@ -1,15 +1,15 @@
 //@ts-nocheck
 import React, { useState, useEffect, useRef } from 'react';
-import Loader from '../components/Loader';
-import DailyChart from '../components/Charts/DailyChart';
-import MonthlyChart from '../components/Charts/MonthlyChart';
-import YearlySalesChart from '../components/Charts/YearlyChart';
-import { useYearlySaleQuery } from '../redux/features/management/saleApi';
-import { useGetAllPurchasesQuery } from '../redux/features/management/purchaseApi';
-import { useGetAllExpensesQuery } from '../redux/features/management/expenseApi';
-import { useGetAllSaleQuery } from '../redux/features/management/saleApi';
-import { useGetAllProductsQuery } from '../redux/features/management/productApi';
-import { useLazyGetPettyCashQuery, useTopUpPettyCashMutation } from '../redux/features/management/pettyCashApi';
+import Loader from '../../components/Loader';
+import DailyChart from '../../components/Charts/DailyChart';
+import MonthlyChart from '../../components/Charts/MonthlyChart';
+import YearlySalesChart from '../../components/Charts/YearlyChart';
+import { useYearlySaleQuery } from '../../redux/features/management/saleApi';
+import { useGetAllPurchasesQuery } from '../../redux/features/management/purchaseApi';
+import { useGetAllExpensesQuery } from '../../redux/features/management/expenseApi';
+import { useGetAllSaleQuery } from '../../redux/features/management/saleApi';
+import { useGetAllProductsQuery } from '../../redux/features/management/productApi';
+import { useLazyGetPettyCashQuery, useTopUpPettyCashMutation } from '../../redux/features/management/pettyCashApi';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('daily');
@@ -51,6 +51,7 @@ const Dashboard = () => {
 
   // Extract values from API responses - now using the provided JSON structure
   const salesStats = salesData?.meta?.totalSales?.stats || {};
+  console.log('salesStats:', salesStats);
   const totalSellingPrice = salesStats.totalSaleAmount || 0;
   const netProfit = salesStats.netProfit || 0;
   const totalCostPrice = salesStats.totalCostPrice || 0;
@@ -101,7 +102,7 @@ const Dashboard = () => {
     <div className="rounded-lg shadow p-4 sm:p-6 bg-gradient-to-tr from-white via-slate-50 to-slate-100 overflow-hidden relative h-auto min-h-[80px] sm:min-h-[100px]">
       <div className="absolute top-0 right-0 w-16 sm:w-20 h-16 sm:h-20 opacity-10 rounded-full bg-current transform translate-x-6 -translate-y-6"></div>
       <h3 className="text-sm sm:text-base text-gray-600 mb-1 sm:mb-2 font-medium">{title}</h3>
-      <div className="flex items-baseline">
+      <div className="flex items-baseline"> 
         <h1 className="text-lg sm:text-xl font-bold tracking-tight" style={{ color }}>
           {value.toLocaleString()}
         </h1>

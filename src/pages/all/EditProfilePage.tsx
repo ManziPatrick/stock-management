@@ -1,14 +1,14 @@
 import { UploadOutlined, ArrowLeftOutlined } from '@ant-design/icons';
 import { Button, Col, Flex, Row, message } from 'antd';
-import userProPic from '../assets/User.png';
-import CustomInput from '../components/CustomInput';
+import userProPic from '../../assets/User.png';
+import CustomInput from '../../components/CustomInput';
 import { useForm } from 'react-hook-form';
-import { profileInputFields } from '../constant/profile';
-import { useGetSelfProfileQuery, useUpdateProfileMutation } from '../redux/features/authApi';
-import Loader from '../components/Loader';
+import { profileInputFields } from '../../constant/profile';
+import { useGetSelfProfileQuery, useUpdateProfileMutation } from '../../redux/features/authApi';
+import Loader from '../../components/Loader';
 import { toast } from 'sonner';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { config } from '../utils/config';
+import { config } from '../../utils/config';
 
 const EditProfilePage = () => {
   const { data, isLoading } = useGetSelfProfileQuery(undefined);

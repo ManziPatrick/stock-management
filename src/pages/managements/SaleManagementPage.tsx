@@ -147,15 +147,7 @@ const SaleManagementPage = () => {
         title: 'Subtotal',
         render: (_, record) => formatCurrency(record.SellingPrice * record.quantity),
       },
-      {
-        title: 'Profit',
-        render: (_, record) => {
-          const profit = (record.SellingPrice - record.productPrice) * record.quantity;
-          return <span style={{ color: profit >= 0 ? 'green' : 'red' }}>
-            {formatCurrency(profit)}
-          </span>;
-        },
-      },
+      
     ];
 
     return <Table 
@@ -197,17 +189,7 @@ const SaleManagementPage = () => {
       dataIndex: 'paymentMode',
       align: 'center',
     },
-    {
-      title: 'Profit',
-      key: 'totalProfit',
-      dataIndex: 'totalProfit',
-      align: 'right',
-      render: (profit: number) => (
-        <span style={{ color: profit >= 0 ? 'green' : 'red' }}>
-          {formatCurrency(profit)}
-        </span>
-      ),
-    },
+   
     {
       title: 'Action',
       key: 'action',
@@ -264,19 +246,7 @@ const SaleManagementPage = () => {
       <div className="mt-4 border-t pt-4">
         <Flex justify="space-between" align="center" className="mb-4">
           <div className="flex gap-8">
-            <div>
-              <Text className="text-gray-600">Total Revenue:</Text>
-              <Text strong className="ml-2">
-                {formatCurrency(overallStats.totalRevenue)}
-              </Text>
-            </div>
-            <div>
-              <Text className="text-gray-600">Total Profit:</Text>
-              <Text strong className="ml-2 text-green-600">
-                {formatCurrency(overallStats.totalProfit)}
-              </Text>
-            </div>
-          </div>
+         </div>
           <Pagination
             current={query.page}
             onChange={onChange}

@@ -13,47 +13,15 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 
 export const sidebarItems = [
-  {
-    key: 'Dashboard',
-    label: <NavLink to='/accountant'>DASHBOARD</NavLink>,
-    icon: React.createElement(DashboardOutlined),
-  },
+ 
   {
     key: 'Manage Cases',
     label: <NavLink to='/accountant/cases'>DASHBOARD CASES</NavLink>,
     icon: React.createElement(AimOutlined),
   },
-   {
-      key: 'BusinessDocuments',
-      label: 'BUSINESS DOCUMENTS',
-      icon: <FileTextOutlined />,
-      // Use regular string instead of NavLink component to make it clickable for collapse
-      children: [
-        {
-          key: 'proforma',
-          label: <NavLink to='/accountant/proforma'>PROFORMA</NavLink>,
-          icon: <ProfileFilled />,
-        },
-        {
-          key: 'delivery note',
-          label: <NavLink to='/accountant/delivery'>DELIVERY NOTE</NavLink>,
-          icon: <AimOutlined />,
-        },
-      ],
-      // Properties to ensure it can collapse even when children are active
-      popupClassName: 'business-documents-submenu'
-    },
-  // {
-  //   key: 'New User',
-  //   label: <NavLink to='/accountant/register'>NEW USER</NavLink>,
-  //   icon: React.createElement(ProfileFilled),
-  // },
-  {
-    
-    key: 'Add Product',
-    label: <NavLink to='/accountant/create-product'>ADD PRODUCT</NavLink>,
-    icon: React.createElement(AntDesignOutlined),
-  },
+   
+  
+ 
 
     {
       key: 'Manage Products',

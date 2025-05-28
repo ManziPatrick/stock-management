@@ -1,11 +1,11 @@
 import { Col, Row } from 'antd';
-import HistoryTable from '../components/tables/HistoryTable';
+import HistoryTable from '../../components/tables/HistoryTable';
 import {
   useDailySaleQuery,
   useMonthlySaleQuery,
   useWeeklySaleQuery,
   useYearlySaleQuery,
-} from '../redux/features/management/saleApi';
+} from '../../redux/features/management/saleApi';
 
 const SaleHistoryPage = () => {
   const { data: yearlyData, isFetching: isYearlyDataFetching } = useYearlySaleQuery(undefined);

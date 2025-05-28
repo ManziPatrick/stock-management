@@ -1,20 +1,20 @@
 import { createBrowserRouter } from 'react-router-dom';
 import ProtectRoute from '../components/layout/ProtectRoute';
 import Sidebar from '../components/layout/Sidebar';
-import CreateProduct from '../pages/CreateProduct';
-import Dashboard from '../pages/Dashboard';
-import AccountantDashboard from '../pages/AccDashboard';
+import CreateProduct from '../pages/all/CreateProduct';
+import Dashboard from '../pages/admin/Dashboard';
+import AccountantDashboard from '../pages/accountant/AccDashboard';
 import NotFound from '../pages/NotFound';
-import ProfilePage from '../pages/ProfilePage';
-import SaleHistoryPage from '../pages/SaleHistoryPage';
+import ProfilePage from '../pages/all/ProfilePage';
+import SaleHistoryPage from '../pages/all/SaleHistoryPage';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 import ProductManagePage from '../pages/managements/ProductManagePage';
 import PurchaseManagementPage from '../pages/managements/PurchaseManagementPage';
 import SaleManagementPage from '../pages/managements/SaleManagementPage';
 import SellerManagementPage from '../pages/managements/SellerManagementPage';
-import ChangePasswordPage from '../pages/ChangePasswordPage';
-import EditProfilePage from '../pages/EditProfilePage';
+import ChangePasswordPage from '../pages/all/ChangePasswordPage';
+import EditProfilePage from '../pages/all/EditProfilePage';
 import AdminSidebar from '../components/layout/AdminSidebar';
 import KeeperSidebar  from '../components/layout/KeeperSidebar';
 import UserManagementPage from '../pages/managements/UserManagement';
@@ -25,14 +25,14 @@ import ProductManagePageKeeper from '../pages/managements/productManagePageKeepe
 import SaleManagementPageKepper from '../pages/managements/SaleManagementPageKeeper';
 import SaleAccountantPage from '../pages/managements/SaleManagementAccountant';
 import GetDebitManagementPage from '../pages/managements/debitsManagementPage';
-import DashboardCase from '../pages/DashboardCases';
+import DashboardCase from '../pages/all/DashboardCases';
 import ProformaManager from '../pages/managements/ProformaManager';
 import DailyFinancialReport from '../pages/managements/DailyReport';
 import ADailyFinancialReport from '../pages/managements/AccDailyReport';
 import SuperAdminSidebar from '../components/layout/SuperSidebar';
 import AccountantSidebar from '../components/layout/AccountantSidebar';
 import DeliveryNoteSystem from '../pages/managements/DeliveryNote';
-import PettyCashTransactionsPage from '../pages/CashTransactionsPage';
+import PettyCashTransactionsPage from '../pages/all/CashTransactionsPage';
 export const router = createBrowserRouter([
   {
     path: '/seller',
@@ -279,14 +279,14 @@ export const router = createBrowserRouter([
     path: '/accountant',
     element: <AccountantSidebar />,  // Use an accountant-specific sidebar
     children: [
-      {
-        path: '',  // This will be /accountant
-        element: (
-          <ProtectRoute>
-            <AccountantDashboard />
-          </ProtectRoute>
-        ),
-      },
+      // {
+      //   path: '',  
+      //   element: (
+      //     <ProtectRoute>
+      //       <AccountantDashboard />
+      //     </ProtectRoute>
+      //   ),
+      // },
       {
         path: 'purchases',  // This will be /admin/purchases
         element: (
@@ -303,6 +303,14 @@ export const router = createBrowserRouter([
           </ProtectRoute>
         ),
       },
+       {
+        path: 'products',  
+        element: (
+          <ProtectRoute>
+            <ProductManagePageuser />
+          </ProtectRoute>
+        ),
+      },
       {
         path: 'Proforma',
         element: (
@@ -312,7 +320,15 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'cases',
+        path: '',  
+        element: (
+          <ProtectRoute>
+            <DashboardCase/>
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'cases',  // This will be /accountant/cases
         element: (
           <ProtectRoute>
             <DashboardCase/>
@@ -360,7 +376,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'products',  // This will be /admin/products
+        path: 'products',  
         element: (
           <ProtectRoute>
             <ProductManagePage />
@@ -439,10 +455,18 @@ export const router = createBrowserRouter([
     element: <SuperAdminSidebar />,
     children: [
       {
-        path: '',  // This will be /admin
+        path: '',  
         element: (
           <ProtectRoute>
             <Dashboard />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'sellers',  // This will be /admin/sellers
+        element: (
+          <ProtectRoute>
+            <SellerManagementPage />
           </ProtectRoute>
         ),
       },
@@ -451,6 +475,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectRoute>
             <ProformaManager />
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'delivery',
+        element: (
+          <ProtectRoute>
+            <DeliveryNoteSystem/>
           </ProtectRoute>
         ),
       },
@@ -467,6 +499,14 @@ export const router = createBrowserRouter([
         element: (
           <ProtectRoute>
             <DashboardCase/>
+          </ProtectRoute>
+        ),
+      },
+      {
+        path: 'report',
+        element: (
+          <ProtectRoute>
+            <DailyFinancialReport/>
           </ProtectRoute>
         ),
       },
@@ -488,7 +528,7 @@ export const router = createBrowserRouter([
       },
    
       {
-        path: 'create-product',  // This will be /admin/create-product
+        path: 'create-product', 
         element: (
           <ProtectRoute>
             <CreateProduct />
@@ -504,7 +544,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'profile',  // This will be /admin/profile
+        path: 'profile', 
         element: (
           <ProtectRoute>
             <ProfilePage />
@@ -527,14 +567,7 @@ export const router = createBrowserRouter([
           </ProtectRoute>
         ),
       },
-      {
-        path: 'sellers',  // This will be /admin/sellers
-        element: (
-          <ProtectRoute>
-            <SellerManagementPage />
-          </ProtectRoute>
-        ),
-      },
+      
       { 
         path: 'register',  // This will be /admin/register
         element: (
@@ -600,7 +633,14 @@ export const router = createBrowserRouter([
         ),
       },
     
-   
+   {
+        path: 'create-product', 
+        element: (
+          <ProtectRoute>
+            <CreateProduct />
+          </ProtectRoute>
+        ),
+      },
       {
         path: 'products',
         element: (

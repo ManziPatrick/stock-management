@@ -1,10 +1,10 @@
 import { EditFilled, EditOutlined } from '@ant-design/icons';
 import { Button, Col, Flex, Row } from 'antd';
-import userProPic from '../assets/User.png';
+import userProPic from '../../assets/User.png';
 
-import Loader from '../components/Loader';
-import { useGetSelfProfileQuery } from '../redux/features/authApi';
-import { profileKeys } from '../constant/profile';
+import Loader from '../../components/Loader';
+import { useGetSelfProfileQuery } from '../../redux/features/authApi';
+import { profileKeys } from '../../constant/profile';
 import { Link,useLocation } from 'react-router-dom';
 
 const ProfilePage = () => {

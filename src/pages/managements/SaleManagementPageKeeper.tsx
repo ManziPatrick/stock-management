@@ -1,11 +1,39 @@
-import { PrinterOutlined } from '@ant-design/icons';
-import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Flex, Modal, Pagination, Table, Typography, Select } from 'antd';
-import { useState } from 'react';
-import Receipt from '../../components/product/receipt';
-import SearchInput from '../../components/SearchInput';
-import { useGetAllSaleQuery } from '../../redux/features/management/saleApi';
+import React, { useState } from 'react';
+import { 
+  Button, 
+  Flex, 
+  Modal, 
+  Pagination, 
+  Table, 
+  Typography, 
+  Select, 
+  Tag, 
+  Space, 
+  Popconfirm,
+  Card,
+  Row,
+  Col,
+  Statistic
+} from 'antd';
+import { 
+  PrinterOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ClockCircleOutlined,
+  ShoppingCartOutlined,
+  PauseOutlined
+} from '@ant-design/icons';
 
+const { Text, Title } = Typography;
+const { Option } = Select;
+
+import {
+  useGetAllSalecollectionQuery,
+  useUpdateSaleStatusMutation,
+  useMarkProductsCollectedMutation
+} from '../../redux/features/management/saleApi';
+
+// Interfaces
 interface IProduct {
   product: string;
   productName: string;
@@ -13,6 +41,7 @@ interface IProduct {
   SellingPrice: number;
   quantity: number;
   _id: string;
+  inventoryReserved?: boolean;
 }
 
 interface ISaleData {
@@ -22,21 +51,16 @@ interface ISaleData {
   paymentMode: 'cash' | 'momo' | 'cheque' | 'transfer';
   products: IProduct[];
   totalAmount: number;
+  status: 'pending' | 'approved' | 'rejected' | 'credit';
+  inventoryStatus: 'reserved' | 'deducted' | 'released';
+  isProductsCollected: boolean;
   createdAt: string;
 }
 
-interface ITableSaleData {
+interface ITableSaleData extends ISaleData {
   key: string;
-  products: IProduct[];
-  buyerName: string;
   totalQuantity: number;
-  totalAmount: number;
-  totalProfit: number;
-  date: string;
-  paymentMode: string;
 }
-
-const { Text } = Typography;
 
 const SaleManagementPage = () => {
   const [query, setQuery] = useState({
@@ -46,16 +70,17 @@ const SaleManagementPage = () => {
     sortBy: 'createdAt',
     sortOrder: 'desc',
     filterBy: 'daily',
+    status: '',
+    inventoryStatus: '',
+    collectionStatus: ''
   });
 
   const [selectedSale, setSelectedSale] = useState<any>(null);
   const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false);
 
-  const { data, isFetching } = useGetAllSaleQuery(query);
-
-  const formatCurrency = (value: number): string => {
-    return `${value?.toFixed(0) || '0.00'} frw`;
-  };
+  const { data, isFetching } = useGetAllSalecollectionQuery(query);
+  const [updateSaleStatus] = useUpdateSaleStatusMutation();
+  const [markProductsCollected] = useMarkProductsCollectedMutation();
 
   const formatDate = (date: string): string => {
     return new Date(date).toISOString().split('T')[0];
@@ -65,187 +90,371 @@ const SaleManagementPage = () => {
     return products.reduce(
       (acc, product) => {
         const quantity = Number(product.quantity) || 0;
-        const sellingPrice = Number(product.SellingPrice) || 0;
-        const purchasePrice = Number(product.productPrice) || 0;
-        
         acc.totalQuantity += quantity;
-        acc.totalAmount += sellingPrice * quantity;
-        acc.totalProfit += (sellingPrice - purchasePrice) * quantity;
-        
         return acc;
       },
-      { totalQuantity: 0, totalAmount: 0, totalProfit: 0 }
+      { totalQuantity: 0 }
     );
   };
 
-  const showReceiptModal = (sale: ITableSaleData) => {
-    setSelectedSale({
-      _id: sale.key,
-      products: sale.products,
-      buyerName: sale.buyerName,
-      date: sale.date,
-      totalAmount: sale.totalAmount,
-      paymentMode: sale.paymentMode,
-    });
-    setIsReceiptModalOpen(true);
+  const handleStatusUpdate = async (saleId: string, newStatus: string) => {
+    try {
+      await updateSaleStatus({ saleId, status: newStatus }).unwrap();
+    } catch (error) {
+      console.error('Failed to update status:', error);
+    }
   };
 
-  const handleModalClose = () => {
-    setIsReceiptModalOpen(false);
-    setSelectedSale(null);
+  const handleCollectionToggle = async (saleId: string, collected: boolean) => {
+    try {
+      await markProductsCollected({ saleId, collected }).unwrap();
+    } catch (error) {
+      console.error('Failed to update collection status:', error);
+    }
   };
 
-  const onChange: PaginationProps['onChange'] = (page, pageSize) => {
-    setQuery((prev) => ({ ...prev, page, limit: pageSize }));
+  const getStatusTag = (status: string) => {
+    const statusConfig = {
+      pending: { color: 'orange', icon: <ClockCircleOutlined /> },
+      approved: { color: 'green', icon: <CheckCircleOutlined /> },
+      rejected: { color: 'red', icon: <CloseCircleOutlined /> },
+      credit: { color: 'blue', icon: <ShoppingCartOutlined /> }
+    };
+    
+    const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+    return (
+      <Tag color={config.color} icon={config.icon}>
+        {status.toUpperCase()}
+      </Tag>
+    );
   };
 
-  const handleFilterChange = (value: string) => {
-    setQuery((prev) => ({ ...prev, filterBy: value, page: 1 }));
+  const getInventoryStatusTag = (inventoryStatus: string, isCollected: boolean) => {
+    if (inventoryStatus === 'deducted' && isCollected) {
+      return <Tag color="success" icon={<PauseOutlined />}>OUT & DELIVERED</Tag>;
+    }
+    if (inventoryStatus === 'deducted' && !isCollected) {
+      return <Tag color="warning" icon={<PauseOutlined />}>IN & RESERVED</Tag>;
+    }
+    if (inventoryStatus === 'reserved') {
+      return <Tag color="processing" icon={<PauseOutlined />}>RESERVED</Tag>;
+    }
+    if (inventoryStatus === 'released') {
+      return <Tag color="default" icon={<PauseOutlined />}>RELEASED</Tag>;
+    }
+    return <Tag>{inventoryStatus}</Tag>;
   };
 
-  const tableData: ITableSaleData[] = data?.data?.map((sale: ISaleData) => {
-    const stats = calculateSaleStats(sale.products);
+  const onChange = (page: number, pageSize?: number) => {
+    setQuery((prev) => ({ ...prev, page, limit: pageSize || prev.limit }));
+  };
+
+  const handleFilterChange = (field: string, value: string) => {
+    setQuery((prev) => ({ ...prev, [field]: value, page: 1 }));
+  };
+
+  // FIXED: Handle both data structures - with fallback for missing data
+  const tableData: ITableSaleData[] = (data?.data || []).map((sale: ISaleData) => {
+    const stats = calculateSaleStats(sale.products || []);
     
     return {
+      ...sale,
       key: sale._id,
-      products: sale.products,
-      buyerName: sale.buyerName,
-      paymentMode: sale.paymentMode,
       totalQuantity: stats.totalQuantity,
-      totalAmount: stats.totalAmount,
-      totalProfit: stats.totalProfit,
       date: formatDate(sale.createdAt),
+      products: sale.products || [] // Ensure products is always an array
     };
-  }) || [];
+  });
 
-  // Calculate overall stats
-  const overallStats = tableData.reduce(
-    (acc, sale) => {
-      acc.totalRevenue += sale.totalAmount;
-      acc.totalProfit += sale.totalProfit;
-      return acc;
-    },
-    { totalRevenue: 0, totalProfit: 0 }
-  );
+  // FIXED: Calculate summary statistics with fallback for missing API stats
+  const apiStats = data?.meta?.totalSales?.stats;
+  
+  let summaryStats;
+  if (apiStats) {
+    // Use API-provided stats if available
+    summaryStats = {
+      totalItems: apiStats.totalCount || 0,
+      outAndDelivered: 0,
+      inAndReserved: 0,
+      pending: 0,
+      reserved: 0
+    };
+  } else {
+    // FIXED: Fallback calculation when API doesn't provide stats
+    summaryStats = tableData.reduce(
+      (acc, sale) => {
+        acc.totalItems += sale.totalQuantity;
+        
+        if (sale.inventoryStatus === 'deducted' && sale.isProductsCollected) {
+          acc.outAndDelivered += sale.totalQuantity;
+        }
+        if (sale.inventoryStatus === 'deducted' && !sale.isProductsCollected) {
+          acc.inAndReserved += sale.totalQuantity;
+        }
+        if (sale.status === 'pending') {
+          acc.pending += sale.totalQuantity;
+        }
+        if (sale.inventoryStatus === 'reserved') {
+          acc.reserved += sale.totalQuantity;
+        }
+        
+        return acc;
+      },
+      { totalItems: 0, outAndDelivered: 0, inAndReserved: 0, pending: 0, reserved: 0 }
+    );
+  }
+
+  // FIXED: Additional calculation for status-based counts when API stats not available
+  if (!apiStats) {
+    tableData.forEach(sale => {
+      if (sale.inventoryStatus === 'deducted' && sale.isProductsCollected) {
+        summaryStats.outAndDelivered += sale.totalQuantity;
+      }
+      if (sale.inventoryStatus === 'deducted' && !sale.isProductsCollected) {
+        summaryStats.inAndReserved += sale.totalQuantity;
+      }
+      if (sale.status === 'pending') {
+        summaryStats.pending += sale.totalQuantity;
+      }
+      if (sale.inventoryStatus === 'reserved') {
+        summaryStats.reserved += sale.totalQuantity;
+      }
+    });
+  }
 
   const expandedRowRender = (record: ITableSaleData) => {
-    const columns: TableColumnsType<IProduct> = [
+    const columns = [
       { title: 'Product', dataIndex: 'productName' },
-      { 
-        title: 'Purchase Price', 
-        dataIndex: 'productPrice',
-        render: (price: number) => formatCurrency(price),
-      },
-      { 
-        title: 'Selling Price', 
-        dataIndex: 'SellingPrice',
-        render: (price: number) => formatCurrency(price),
-      },
-      { title: 'Quantity', dataIndex: 'quantity' },
+      { title: 'Quantity', dataIndex: 'quantity', align: 'center' as const },
       {
-        title: 'Subtotal',
-        render: (_, record) => formatCurrency(record.SellingPrice * record.quantity),
-      },
-      {
-        title: 'Profit',
-        render: (_, record) => {
-          const profit = (record.SellingPrice - record.productPrice) * record.quantity;
-          return <span style={{ color: profit >= 0 ? 'green' : 'red' }}>
-            {formatCurrency(profit)}
-          </span>;
-        },
+        title: 'Status',
+        render: (_: any, product: IProduct) => (
+          <Tag color={product.inventoryReserved ? 'orange' : 'green'}>
+            {product.inventoryReserved ? 'Reserved' : 'Available'}
+          </Tag>
+        ),
       },
     ];
 
     return <Table 
       columns={columns} 
-      dataSource={record.products} 
+      dataSource={record.products || []} 
       pagination={false} 
       size="small"
     />;
   };
 
-  const columns: TableColumnsType<ITableSaleData> = [
+  const columns = [
     {
       title: 'Date',
       key: 'date',
       dataIndex: 'date',
-      width: '120px',
+      width: '100px',
     },
     {
       title: 'Buyer',
       key: 'buyerName',
       dataIndex: 'buyerName',
+      width: '120px',
     },
     {
-      title: 'Total Items',
+      title: 'Items',
       key: 'totalQuantity',
       dataIndex: 'totalQuantity',
-      align: 'right',
-    },
-    {
-      title: 'Total Amount',
-      key: 'totalAmount',
-      dataIndex: 'totalAmount',
-      align: 'right',
-      render: (amount: number) => formatCurrency(amount),
+      align: 'center' as const,
+      width: '60px',
     },
     {
       title: 'Payment',
       key: 'paymentMode',
       dataIndex: 'paymentMode',
-      align: 'center',
+      align: 'center' as const,
+      width: '80px',
+      render: (mode: string) => mode?.toUpperCase() || 'N/A',
     },
     {
-      title: 'Profit',
-      key: 'totalProfit',
-      dataIndex: 'totalProfit',
-      align: 'right',
-      render: (profit: number) => (
-        <span style={{ color: profit >= 0 ? 'green' : 'red' }}>
-          {formatCurrency(profit)}
-        </span>
+      title: 'Status',
+      key: 'status',
+      dataIndex: 'status',
+      align: 'center' as const,
+      width: '100px',
+      render: (status: string) => getStatusTag(status),
+    },
+    {
+      title: 'Inventory',
+      key: 'inventoryStatus',
+      align: 'center' as const,
+      width: '120px',
+      render: (_: any, record: ITableSaleData) => 
+        getInventoryStatusTag(record.inventoryStatus, record.isProductsCollected),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      align: 'center' as const,
+      width: '200px',
+      render: (_: any, record: ITableSaleData) => (
+        <Space size="small" wrap>
+          {record.status === 'pending' && (
+            <>
+              <Popconfirm
+                title="Approve this sale?"
+                description="This will confirm the sale and deduct inventory."
+                onConfirm={() => handleStatusUpdate(record._id, 'approved')}
+              >
+                <Button size="small" type="primary" icon={<CheckCircleOutlined />}>
+                  Approve
+                </Button>
+              </Popconfirm>
+              <Popconfirm
+                title="Reject this sale?"
+                description="This will cancel the sale and restore inventory."
+                onConfirm={() => handleStatusUpdate(record._id, 'rejected')}
+              >
+                <Button size="small" danger icon={<CloseCircleOutlined />}>
+                  Reject
+                </Button>
+              </Popconfirm>
+            </>
+          )}
+          
+          {record.status === 'approved' && record.inventoryStatus === 'deducted' && (
+            <Popconfirm
+              title={`Mark as ${record.isProductsCollected ? 'not delivered' : 'delivered'}?`}
+              onConfirm={() => handleCollectionToggle(record._id, !record.isProductsCollected)}
+            >
+              <Button 
+                size="small" 
+                type={record.isProductsCollected ? "default" : "primary"}
+                icon={<PauseOutlined />}
+              >
+                {record.isProductsCollected ? 'Mark In' : 'Mark Out'}
+              </Button>
+            </Popconfirm>
+          )}
+          
+          <Button 
+            size="small" 
+            icon={<PrinterOutlined />}
+            onClick={() => {
+              setSelectedSale(record);
+              setIsReceiptModalOpen(true);
+            }}
+          >
+            Receipt
+          </Button>
+        </Space>
       ),
     },
-    // {
-    //   title: 'Action',
-    //   key: 'action',
-    //   align: 'center',
-    //   render: (_, record) => (
-    //     <Button
-    //       type="primary"
-    //       icon={<PrinterOutlined />}
-    //       onClick={() => showReceiptModal(record)}
-    //       className="flex items-center"
-    //     >
-    //       Print
-    //     </Button>
-    //   ),
-    //   width: '100px',
-    // },
   ];
 
   return (
-    <div className="p-6 bg-white rounded-lg shadow min-h-[90vh] flex flex-col">
-      <Flex justify="space-between" className="mb-4">
-        <SearchInput
-        //@ts-ignore
-          setQuery={setQuery}
-          placeholder="Search sales..."
-        />
-        <Select
-          defaultValue="daily"
-          style={{ width: 200 }}
-          onChange={handleFilterChange}
-          options={[
-            { value: 'daily', label: 'Daily Sales' },
-            { value: 'monthly', label: 'Monthly Sales' },
-            { value: 'yearly', label: 'Yearly Sales' },
-          ]}
-        />
-      </Flex>
+    <div className="p-6 bg-gray-50 min-h-screen">
+      {/* Summary Cards */}
+      <Row gutter={16} className="mb-6">
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Total Items"
+              value={summaryStats.totalItems}
+              valueStyle={{ color: '#3f8600' }}
+              suffix="items"
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Out & Delivered"
+              value={summaryStats.outAndDelivered}
+              valueStyle={{ color: '#52c41a' }}
+              suffix="items"
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="In & Reserved"
+              value={summaryStats.inAndReserved}
+              valueStyle={{ color: '#faad14' }}
+              suffix="items"
+            />
+          </Card>
+        </Col>
+        <Col span={6}>
+          <Card>
+            <Statistic
+              title="Pending"
+              value={summaryStats.pending}
+              valueStyle={{ color: '#1890ff' }}
+              suffix="items"
+            />
+          </Card>
+        </Col>
+      </Row>
 
-      <div className="flex-grow">
+      {/* Main Content Card */}
+      <Card className="shadow-sm">
+        <div className="mb-4">
+          <Title level={4} className="mb-4">Sale Management</Title>
+          
+          {/* Filters */}
+          <Row gutter={16} className="mb-4">
+            <Col span={6}>
+              <Select
+                placeholder="Filter by Status"
+                style={{ width: '100%' }}
+                allowClear
+                onChange={(value) => handleFilterChange('status', value || '')}
+              >
+                <Option value="pending">Pending</Option>
+                <Option value="approved">Approved</Option>
+                <Option value="rejected">Rejected</Option>
+                <Option value="credit">Credit</Option>
+              </Select>
+            </Col>
+            
+            <Col span={6}>
+              <Select
+                placeholder="Filter by Inventory Status"
+                style={{ width: '100%' }}
+                allowClear
+                onChange={(value) => handleFilterChange('inventoryStatus', value || '')}
+              >
+                <Option value="reserved">Reserved</Option>
+                <Option value="deducted">Deducted</Option>
+                <Option value="released">Released</Option>
+              </Select>
+            </Col>
+            
+            <Col span={6}>
+              <Select
+                placeholder="Filter by Collection"
+                style={{ width: '100%' }}
+                allowClear
+                onChange={(value) => handleFilterChange('collectionStatus', value || '')}
+              >
+                <Option value="true">Products Delivered (Out)</Option>
+                <Option value="false">Products Not Delivered (In)</Option>
+              </Select>
+            </Col>
+            
+            <Col span={6}>
+              <Select
+                defaultValue="daily"
+                style={{ width: '100%' }}
+                onChange={(value) => handleFilterChange('filterBy', value)}
+              >
+                <Option value="daily">Daily Sales</Option>
+                <Option value="monthly">Monthly Sales</Option>
+                <Option value="yearly">Yearly Sales</Option>
+              </Select>
+            </Col>
+          </Row>
+        </div>
+
+        {/* Table */}
         <Table
           size="small"
           loading={isFetching}
@@ -257,25 +466,11 @@ const SaleManagementPage = () => {
           }}
           pagination={false}
           className="rounded-lg border"
+          scroll={{ x: 1000 }}
         />
-      </div>
 
-      <div className="mt-4 border-t pt-4">
-        <Flex justify="space-between" align="center" className="mb-4">
-          <div className="flex gap-8">
-            <div>
-              <Text className="text-gray-600">Total Revenue:</Text>
-              <Text strong className="ml-2">
-                {formatCurrency(overallStats.totalRevenue)}
-              </Text>
-            </div>
-            <div>
-              <Text className="text-gray-600">Total Profit:</Text>
-              <Text strong className="ml-2 text-green-600">
-                {formatCurrency(overallStats.totalProfit)}
-              </Text>
-            </div>
-          </div>
+        {/* Pagination */}
+        <div className="mt-4 flex justify-end">
           <Pagination
             current={query.page}
             onChange={onChange}
@@ -286,17 +481,90 @@ const SaleManagementPage = () => {
               `${range[0]}-${range[1]} of ${total} items`
             }
           />
-        </Flex>
-      </div>
+        </div>
+      </Card>
 
+      {/* Receipt Modal */}
       <Modal
         open={isReceiptModalOpen}
-        onCancel={handleModalClose}
+        onCancel={() => {
+          setIsReceiptModalOpen(false);
+          setSelectedSale(null);
+        }}
         footer={null}
         width={600}
         centered
+        title="Sale Receipt"
       >
-        {selectedSale && <Receipt saleData={selectedSale} />}
+        {selectedSale && (
+          <div className="p-4">
+            <div className="text-center mb-4">
+              <Title level={3}>SALE RECEIPT</Title>
+              <Text>Transaction ID: {selectedSale._id}</Text>
+            </div>
+            
+            <div className="mb-4">
+              <Row gutter={16}>
+                <Col span={12}>
+                  <Text strong>Buyer: </Text>
+                  <Text>{selectedSale.buyerName}</Text>
+                </Col>
+                <Col span={12}>
+                  <Text strong>Date: </Text>
+                  <Text>{selectedSale.date}</Text>
+                </Col>
+              </Row>
+              <Row gutter={16} className="mt-2">
+                <Col span={12}>
+                  <Text strong>Payment Mode: </Text>
+                  <Text>{selectedSale.paymentMode?.toUpperCase() || 'N/A'}</Text>
+                </Col>
+                <Col span={12}>
+                  <Text strong>Status: </Text>
+                  {getStatusTag(selectedSale.status)}
+                </Col>
+              </Row>
+            </div>
+
+            <Table
+              size="small"
+              dataSource={selectedSale.products || []}
+              columns={[
+                { title: 'Item', dataIndex: 'productName' },
+                { title: 'Qty', dataIndex: 'quantity', align: 'center' },
+                {
+                  title: 'Status',
+                  render: (_: any, product: IProduct) => (
+                    <Tag color={product.inventoryReserved ? 'orange' : 'green'}>
+                      {product.inventoryReserved ? 'Reserved' : 'Available'}
+                    </Tag>
+                  ),
+                }
+              ]}
+              pagination={false}
+              summary={() => (
+                <Table.Summary fixed>
+                  <Table.Summary.Row>
+                    <Table.Summary.Cell index={0} colSpan={2}>
+                      <Text strong>Total Items</Text>
+                    </Table.Summary.Cell>
+                    <Table.Summary.Cell index={2} align="center">
+                      <Text strong>
+                        {(selectedSale.products || []).reduce((sum: number, product: IProduct) => 
+                          sum + (product.quantity || 0), 0
+                        )}
+                      </Text>
+                    </Table.Summary.Cell>
+                  </Table.Summary.Row>
+                </Table.Summary>
+              )}
+            />
+            
+            <div className="mt-4 text-center">
+              <Text type="secondary">Thank you for your business!</Text>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

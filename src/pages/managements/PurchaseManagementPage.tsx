@@ -116,11 +116,7 @@ const PurchaseManagementPage = () => {
           total={purchaseResponse?.meta?.total || 0}
         />
       </Flex>
-      <Flex justify="end" className="mt-4 pr-4">
-        <Typography>
-          Total Purchase value: <span className="text-green-600">{totalPurchasedAmount.toLocaleString()} frw</span>
-        </Typography>
-      </Flex>
+    
     </div>
       )}
     </div>

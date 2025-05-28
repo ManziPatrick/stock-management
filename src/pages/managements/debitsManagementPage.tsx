@@ -20,7 +20,7 @@ import { useGetAllDebitsQuery, useCreateDebitMutation, useUpdateDebitMutation } 
 import dayjs from 'dayjs';
 import type { TableColumnsType } from 'antd';
 import getUserFromPersistedAuth from '../../utils/GetUserId';
-import Credit from '../credit';
+import Credit from '../all/credit';
 import { useMediaQuery } from 'react-responsive';
 
 const { Title } = Typography;

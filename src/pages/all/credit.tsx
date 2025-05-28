@@ -11,11 +11,11 @@ import {
   Form,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { useGetAllCreditsQuery, useCreateCreditMutation, useUpdateCreditMutation } from '../redux/features/management/creditApi';
-import { useGetAllProductsQuery } from '../redux/features/management/productApi';
+import { useGetAllCreditsQuery, useCreateCreditMutation, useUpdateCreditMutation } from '../../redux/features/management/creditApi';
+import { useGetAllProductsQuery } from '../../redux/features/management/productApi';
 import dayjs from 'dayjs';
 import type { TableColumnsType } from 'antd';
-import getUserFromPersistedAuth from '../utils/GetUserId';
+import getUserFromPersistedAuth from '../../utils/GetUserId';
 import { toast } from 'sonner';
 
 interface CustomerDetails {
