@@ -33,6 +33,7 @@ const Dashboard = () => {
   const { data: products } = useGetAllProductsQuery(query);
   const { data: TotalMagrinProfit, isFetching } = useGetAllSaleQuery(query);
   const totalMarginProfit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalMarginAmount ?? 0;
+  const netprofitData = TotalMagrinProfit?.meta?.totalSales?.stats?.netProfit ?? 0;
   const totalCredit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalCreditAmount || 0;
   const remainingCredit = TotalMagrinProfit?.meta?.totalSales?.stats?.totalRemainingCredit || 0;
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
@@ -42,9 +43,10 @@ const Dashboard = () => {
   const { data: yearlyData, isLoading } = useYearlySaleQuery(undefined);
   const { data: purchaseData } = useGetAllPurchasesQuery(query);
   const { data: expensesData } = useGetAllExpensesQuery(query);
+  console.log("expensesData", expensesData);
   
   const yearlyTotalPurchases = purchaseData?.meta?.totalPurchasedAmount?.yearlyStats?.[0]?.yearlyTotal || 0;
-  const totalExpenses = expensesData?.meta?.totalAmount || 0;
+  const totalExpensesData = expensesData?.meta?.stats?.totalExpenses || 0;
 
   if (isLoading || creditLoading) {
     return <Loader />;
@@ -61,9 +63,9 @@ const Dashboard = () => {
 
   const aggregateMetrics = {
     totalSalesRevenue: totalSellingPrice || 0,
-    totalExpenses: currentYearData.expenses || 0,
+    totalExpenses: totalExpensesData|| 0,
     
-    netprofit: totalMarginProfit - currentYearData.expenses || 0,
+    netprofit:netprofitData | 0,
     totalStock: totaltotalValue || 0,
   };
 
