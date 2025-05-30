@@ -19,20 +19,12 @@ export const sidebarItems = [
     label: <NavLink to='/accountant/cases'>DASHBOARD CASES</NavLink>,
     icon: React.createElement(AimOutlined),
   },
-   
-  
- 
-
-    {
+  {
       key: 'Manage Products',
       label: <NavLink to='/accountant/products'>MANAGE PRODUCTS</NavLink>,
       icon: <MoneyCollectFilled />,
     },
-  {
-    key: 'Manage Pettycash',
-    label: <NavLink to='/accountant/pettycash'>MANAGE PETTYCASH</NavLink>,
-    icon: React.createElement(MoneyCollectFilled),
-  },
+ 
   {
       key: 'Manage Seller',
       label: <NavLink to='/accountant/sellers'>MANAGE SUPPIERS</NavLink>,

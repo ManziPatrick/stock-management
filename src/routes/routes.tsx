@@ -3,7 +3,7 @@ import ProtectRoute from '../components/layout/ProtectRoute';
 import Sidebar from '../components/layout/Sidebar';
 import CreateProduct from '../pages/all/CreateProduct';
 import Dashboard from '../pages/admin/Dashboard';
-import AccountantDashboard from '../pages/accountant/AccDashboard';
+// import  from '../pages/accountant/AccDashboard';
 import NotFound from '../pages/NotFound';
 import ProfilePage from '../pages/all/ProfilePage';
 import SaleHistoryPage from '../pages/all/SaleHistoryPage';
@@ -348,7 +348,7 @@ export const router = createBrowserRouter([
         path: 'adashboard',  
         element: (
           <ProtectRoute>
-            <AccountantDashboard />
+             <DashboardCase/>
           </ProtectRoute>
         ),
       },
@@ -457,7 +457,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'sellers',  // This will be /admin/sellers
+        path: 'sellers',  
         element: (
           <ProtectRoute>
             <SellerManagementPage />
@@ -639,10 +639,11 @@ export const router = createBrowserRouter([
         path: 'products',
         element: (
           <ProtectRoute>
-            <ProductManagePageKeeper />
+            <ProductManagePage />
           </ProtectRoute>
         ),
       },
+      
      
       {
         path: 'purchases',

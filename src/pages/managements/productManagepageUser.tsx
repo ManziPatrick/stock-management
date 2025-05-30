@@ -197,11 +197,7 @@ const ProductManagePageuser = () => {
   showTotal={(total) => `Total ${total} items`}
 />
       </Flex>
-      <Flex justify="end" className="mt-4 pr-4">
-        <Typography.Title level={4}>
-          Total Stock Value: <span className="text-green-600">{totaltotalValue} frw</span>
-        </Typography.Title>
-      </Flex>
+     
     </div>
   );
 };
