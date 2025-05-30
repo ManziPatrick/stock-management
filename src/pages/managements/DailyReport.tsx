@@ -36,8 +36,14 @@ const DailyFinancialReport = () => {
     sortBy: 'createdAt',
     sortOrder: 'desc'
   });
-  const { data: DailySale, isLoading: isLoadingSales } = useDailySaleQuery({});
-  console.log("daily data",DailySale.data?.[0].netProfit)
+  
+  // Fixed: Added proper handling for the daily sale query
+  const { data: DailySale, isLoading: isLoadingSales, error: dailySaleError } = useDailySaleQuery({});
+  
+  // Safe access to daily sale data with fallback
+  const dailyNetProfit = DailySale?.data?.[0]?.netProfit || 0;
+  console.log("daily data", dailyNetProfit);
+  
   const [purchasesQuery, setPurchasesQuery] = useState({
     page: 1,
     limit: 100
@@ -97,7 +103,7 @@ const DailyFinancialReport = () => {
            date.getFullYear() === today.getFullYear();
   };
 
-  // Process sales data to get today's sales
+  // Process sales data to get today's sales - Fixed to use safe access
   useEffect(() => {
     if (salesData && salesData.data && Array.isArray(salesData.data)) {
       const todaySales = salesData.data.filter(sale => isToday(sale.createdAt));
@@ -110,14 +116,14 @@ const DailyFinancialReport = () => {
         totalAmount: sale.totalAmount,
         payment: sale.paymentMode || 'Cash',
         createdAt: sale.createdAt,
-        profit: DailySale.data?.[0].netProfit|| 0,
+        profit: dailyNetProfit, // Fixed: Use the safely accessed value
         type: 'Sale',
-        products: sale.products || []  // Add products array
+        products: sale.products || []
       }));
       
       setTodaySalesData(processedSales);
     }
-  }, [salesData]);
+  }, [salesData, dailyNetProfit]); // Added dailyNetProfit to dependencies
 
   // Process purchases data to get today's purchases
   useEffect(() => {
@@ -144,11 +150,12 @@ const DailyFinancialReport = () => {
   useEffect(() => {
     // Check for the nested data structure based on the provided response example
     const expensesArray = expensesData?.data;
-    console.log("expensesArray2",expensesArray)
+    console.log("expensesArray2", expensesArray);
+    
     if (expensesArray && Array.isArray(expensesArray)) {
-
       const todayExpenses = expensesArray.filter(expense => isToday(expense.date));
-      console.log("todayExpenses",todayExpenses)
+      console.log("todayExpenses", todayExpenses);
+      
       const processedExpenses = todayExpenses.map((expense, index) => ({
         key: `expense-${expense._id}`,
         title: expense.title || 'Unknown Expense',
@@ -163,7 +170,8 @@ const DailyFinancialReport = () => {
       setTodayExpensesData(processedExpenses);
     }
   }, [expensesData]);
-  console.log("todayExpensesData",todayExpensesData)
+  
+  console.log("todayExpensesData", todayExpensesData);
 
   // Calculate summary for today's data
   useEffect(() => {
@@ -244,7 +252,7 @@ const DailyFinancialReport = () => {
       })));
       
       // Create expenses worksheet with all expenses data
-      const allExpensesData = expensesData?.data?.data || [];
+      const allExpensesData = expensesData?.data || [];
       const expensesWs = XLSX.utils.json_to_sheet(allExpensesData.map(expense => ({
         'Date': formatDate(expense.date),
         'Time': formatTime(expense.date),
@@ -259,14 +267,10 @@ const DailyFinancialReport = () => {
         [''],
         ['', 'Amount (frw)'],
         ['Total Sales', allSalesData.reduce((sum, item) => sum + (item.totalAmount || 0), 0)],
-        ['Total Profit', allSalesData.reduce((sum, item) => sum + (item.profit || 0), 0)],
+        
         ['Total Purchases', allPurchasesData.reduce((sum, item) => sum + (item.totalPrice || 0), 0)],
         ['Total Expenses', allExpensesData.reduce((sum, item) => sum + (item.amount || 0), 0)],
-        ['Net Cashflow', 
-          allSalesData.reduce((sum, item) => sum + (item.totalAmount || 0), 0) - 
-          allPurchasesData.reduce((sum, item) => sum + (item.totalPrice || 0), 0) - 
-          allExpensesData.reduce((sum, item) => sum + (item.amount || 0), 0)
-        ]
+       
       ];
       
       const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows);
@@ -508,7 +512,7 @@ const DailyFinancialReport = () => {
       key: 'time',
       render: (text, record) => {
         const timestamp = record.type === 'Expense' ? record.date : record.createdAt;
-        console.log("timestamp",timestamp)
+        console.log("timestamp", timestamp);
         return formatTime(timestamp);
       },
       responsive: ['md']
@@ -520,7 +524,7 @@ const DailyFinancialReport = () => {
     ...todaySalesData,
     ...todayPurchasesData,
     ...todayExpensesData
-  ].sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));  // Sort by time descending
+  ].sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
   // Handle mobile summary display
   const renderSummaryCards = () => {
@@ -529,7 +533,6 @@ const DailyFinancialReport = () => {
       { title: "Today's Profit", value: summaryData.totalProfit, color: '#3f8600' },
       { title: "Today's Purchases", value: summaryData.totalPurchases, color: '#cf1322' },
       { title: "Today's Expenses", value: summaryData.totalExpenses, color: '#cf1322' },
-      // { title: "Today's Net Cashflow", value: summaryData.netCashflow, color: summaryData.netCashflow >= 0 ? '#3f8600' : '#cf1322' }
     ];
 
     return (
@@ -549,6 +552,25 @@ const DailyFinancialReport = () => {
       </Row>
     );
   };
+
+  // Show loading state if daily sales data is still loading
+  if (isLoadingSales) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spin size="large" />
+        <Text className="ml-3">Loading daily sales data...</Text>
+      </div>
+    );
+  }
+
+  // Show error state if there's an error with daily sales
+  if (dailySaleError) {
+    return (
+      <div className="p-6 text-center">
+        <Text type="danger">Error loading daily sales data. Please try again.</Text>
+      </div>
+    );
+  }
 
   return (
     <div className="p-2 md:p-6 bg-white rounded-lg shadow min-h-[90vh] flex flex-col">

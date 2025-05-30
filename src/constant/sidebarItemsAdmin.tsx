@@ -13,14 +13,10 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 
 export const sidebarItems = [
+
   {
     key: 'Dashboard',
-    label: <NavLink to='/admin'>DASHBOARD</NavLink>,
-    icon: <DashboardOutlined />,
-  },
-  {
-    key: 'Manage Cases',
-    label: <NavLink to='/admin/cases'>DASHBOARD CASES</NavLink>,
+    label: <NavLink to='/admin/'>DASHBOARD CASES</NavLink>,
     icon: <AimOutlined />,
   },
   {
@@ -43,11 +39,7 @@ export const sidebarItems = [
     // Properties to ensure it can collapse even when children are active
     popupClassName: 'business-documents-submenu'
   },
-  {
-    key: 'New User',
-    label: <NavLink to='/admin/register'>NEW USER</NavLink>,
-    icon: <ProfileFilled />,
-  },
+ 
   {
     key: 'Add Product',
     label: <NavLink to='/admin/create-product'>ADD PRODUCT</NavLink>,

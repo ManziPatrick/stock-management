@@ -43,11 +43,7 @@ export const sidebarItems = [
     label: <NavLink to='/accountant/sales'>MANAGE SALES</NavLink>,
     icon: React.createElement(AreaChartOutlined),
   },
-  // {
-  //   key: 'Manage Seller',
-  //   label: <NavLink to='/accountant/sellers'>MANAGE SUPPIERS</NavLink>,
-  //   icon: React.createElement(ApartmentOutlined),
-  // },
+ 
   {
     key: 'Manage Purchase',
     label: <NavLink to='/accountant/purchases'>MANAGE PURCHASES</NavLink>,

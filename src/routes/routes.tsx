@@ -114,15 +114,23 @@ export const router = createBrowserRouter([
         path: '',  
         element: (
           <ProtectRoute>
-            <Dashboard />
+            <DashboardCase/>
           </ProtectRoute>
         ),
       },
       {
-        path: 'sellers',  // This will be /admin/sellers
+        path: 'sellers', 
         element: (
           <ProtectRoute>
             <SellerManagementPage />
+          </ProtectRoute>
+        ),
+      },
+         {
+        path: 'pettycash',
+        element: (
+          <ProtectRoute>
+            <PettyCashTransactionsPage />
           </ProtectRoute>
         ),
       },
@@ -277,16 +285,9 @@ export const router = createBrowserRouter([
   },
   {
     path: '/accountant',
-    element: <AccountantSidebar />,  // Use an accountant-specific sidebar
+    element: <AccountantSidebar />,  
     children: [
-      // {
-      //   path: '',  
-      //   element: (
-      //     <ProtectRoute>
-      //       <AccountantDashboard />
-      //     </ProtectRoute>
-      //   ),
-      // },
+    
       {
         path: 'purchases',  // This will be /admin/purchases
         element: (
@@ -328,7 +329,7 @@ export const router = createBrowserRouter([
         ),
       },
       {
-        path: 'cases',  // This will be /accountant/cases
+        path: 'cases', 
         element: (
           <ProtectRoute>
             <DashboardCase/>
@@ -367,14 +368,7 @@ export const router = createBrowserRouter([
           </ProtectRoute>
         ),
       },
-      {
-        path: 'pettycash',
-        element: (
-          <ProtectRoute>
-            <PettyCashTransactionsPage />
-          </ProtectRoute>
-        ),
-      },
+   
       {
         path: 'products',  
         element: (
