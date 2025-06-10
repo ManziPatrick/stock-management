@@ -28,6 +28,18 @@ const { RangePicker } = DatePicker;
 const { Panel } = Collapse;
 
 const DailyFinancialReport = () => {
+const authData = localStorage.getItem('persist:auth');
+const parsedAuth = JSON.parse(authData);
+
+  const user = JSON.parse(parsedAuth.user);
+
+ 
+  const role = user.role;
+
+  console.log('User Role:', role); 
+  const userRole = role; // This should come from your auth context/redux store
+  const isSuperAdmin = userRole === 'SUPER_ADMIN';
+  
   const [dateRange, setDateRange] = useState([null, null]);
   const [salesQuery, setSalesQuery] = useState({
     page: 1,
@@ -84,6 +96,10 @@ const DailyFinancialReport = () => {
   });
 
   const formatCurrency = (value) => {
+    // Show stars for non-super admin users
+    if (!isSuperAdmin) {
+      return "******* frw";
+    }
     return `${Number(value).toLocaleString()} frw`;
   };
 
@@ -103,7 +119,7 @@ const DailyFinancialReport = () => {
            date.getFullYear() === today.getFullYear();
   };
 
-  // Process sales data to get today's sales - Fixed to use safe access
+  // Process sales data to get today's sales - Show all data to everyone
   useEffect(() => {
     if (salesData && salesData.data && Array.isArray(salesData.data)) {
       const todaySales = salesData.data.filter(sale => isToday(sale.createdAt));
@@ -116,16 +132,16 @@ const DailyFinancialReport = () => {
         totalAmount: sale.totalAmount,
         payment: sale.paymentMode || 'Cash',
         createdAt: sale.createdAt,
-        profit: dailyNetProfit, // Fixed: Use the safely accessed value
+        profit: dailyNetProfit, // Show profit data to everyone, but hide in UI for non-super admin
         type: 'Sale',
         products: sale.products || []
       }));
       
       setTodaySalesData(processedSales);
     }
-  }, [salesData, dailyNetProfit]); // Added dailyNetProfit to dependencies
+  }, [salesData, dailyNetProfit]);
 
-  // Process purchases data to get today's purchases
+  // Process purchases data to get today's purchases - Show to everyone
   useEffect(() => {
     if (purchasesData && purchasesData.data && Array.isArray(purchasesData.data)) {
       const todayPurchases = purchasesData.data.filter(purchase => isToday(purchase.createdAt));
@@ -146,7 +162,7 @@ const DailyFinancialReport = () => {
     }
   }, [purchasesData]);
 
-  // Process expenses data to get today's expenses
+  // Process expenses data to get today's expenses - Show to everyone
   useEffect(() => {
     // Check for the nested data structure based on the provided response example
     const expensesArray = expensesData?.data;
@@ -173,7 +189,7 @@ const DailyFinancialReport = () => {
   
   console.log("todayExpensesData", todayExpensesData);
 
-  // Calculate summary for today's data
+  // Calculate summary for today's data - Calculate all data but hide profit for non-super admin
   useEffect(() => {
     const totalSales = todaySalesData.reduce((sum, item) => sum + item.totalAmount, 0);
     const totalProfit = todaySalesData.reduce((sum, item) => sum + item.profit, 0);
@@ -194,7 +210,7 @@ const DailyFinancialReport = () => {
     setDateRange(dates);
   };
 
-  // Enhanced export to Excel function to export all data
+  // Enhanced export to Excel function to export all data - Available to everyone but hide amounts for non-super admin
   const exportToExcel = () => {
     try {
       // Create workbook
@@ -213,12 +229,13 @@ const DailyFinancialReport = () => {
               'Time': formatTime(sale.createdAt),
               'Buyer': sale.buyerName || 'Walk-in Customer',
               'Product Name': product.productName,
-              'Product Price': product.productPrice,
-              'Selling Price': product.SellingPrice,
+              'Product Price': isSuperAdmin ? product.productPrice : '*****',
+              'Selling Price': isSuperAdmin ? product.SellingPrice : '*****',
               'Quantity': product.quantity,
-              'Total Amount': sale.totalAmount,
+              'Total Amount': isSuperAdmin ? sale.totalAmount : '*****',
               'Payment Method': sale.paymentMode || 'Cash',
-              'Profit': sale.profit || 0
+              // Only include profit in export for super admin
+              ...(isSuperAdmin && { 'Profit': sale.profit || 0 })
             });
           });
         } else {
@@ -227,12 +244,13 @@ const DailyFinancialReport = () => {
             'Time': formatTime(sale.createdAt),
             'Buyer': sale.buyerName || 'Walk-in Customer',
             'Product Name': 'N/A',
-            'Product Price': 0,
-            'Selling Price': 0,
+            'Product Price': isSuperAdmin ? 0 : '*****',
+            'Selling Price': isSuperAdmin ? 0 : '*****',
             'Quantity': 0,
-            'Total Amount': sale.totalAmount,
+            'Total Amount': isSuperAdmin ? sale.totalAmount : '*****',
             'Payment Method': sale.paymentMode || 'Cash',
-            'Profit': sale.profit || 0
+            // Only include profit in export for super admin
+            ...(isSuperAdmin && { 'Profit': sale.profit || 0 })
           });
         }
       });
@@ -246,9 +264,9 @@ const DailyFinancialReport = () => {
         'Time': formatTime(purchase.createdAt),
         'Seller Name': purchase.sellerName || 'Unknown Seller',
         'Product Name': purchase.productName || 'Unknown Product',
-        'Price (per unit)': purchase.unitPrice || 0,
+        'Price (per unit)': isSuperAdmin ? (purchase.unitPrice || 0) : '*****',
         'Quantity': purchase.quantity || 0,
-        'Total Price': purchase.totalPrice || 0
+        'Total Price': isSuperAdmin ? (purchase.totalPrice || 0) : '*****'
       })));
       
       // Create expenses worksheet with all expenses data
@@ -258,19 +276,19 @@ const DailyFinancialReport = () => {
         'Time': formatTime(expense.date),
         'Title': expense.title || 'Unknown Expense',
         'Description': expense.description || 'No description',
-        'Amount': expense.amount || 0
+        'Amount': isSuperAdmin ? (expense.amount || 0) : '*****'
       })));
       
-      // Create summary worksheet
+      // Create summary worksheet - exclude profit for non-super admin
       const summaryRows = [
         ['Financial Summary Report', new Date().toLocaleDateString()],
         [''],
         ['', 'Amount (frw)'],
-        ['Total Sales', allSalesData.reduce((sum, item) => sum + (item.totalAmount || 0), 0)],
-        
-        ['Total Purchases', allPurchasesData.reduce((sum, item) => sum + (item.totalPrice || 0), 0)],
-        ['Total Expenses', allExpensesData.reduce((sum, item) => sum + (item.amount || 0), 0)],
-       
+        ['Total Sales', isSuperAdmin ? allSalesData.reduce((sum, item) => sum + (item.totalAmount || 0), 0) : '*****'],
+        // Only include profit row for super admin
+        ...(isSuperAdmin ? [['Total Profit', allSalesData.reduce((sum, item) => sum + (item.profit || 0), 0)]] : []),
+        ['Total Purchases', isSuperAdmin ? allPurchasesData.reduce((sum, item) => sum + (item.totalPrice || 0), 0) : '*****'],
+        ['Total Expenses', isSuperAdmin ? allExpensesData.reduce((sum, item) => sum + (item.amount || 0), 0) : '*****'],
       ];
       
       const summaryWs = XLSX.utils.aoa_to_sheet(summaryRows);
@@ -313,14 +331,14 @@ const DailyFinancialReport = () => {
         title: 'Product Price',
         dataIndex: 'productPrice',
         key: 'productPrice',
-        render: (value) => formatCurrency(value),
+        render: (value) => isSuperAdmin ? formatCurrency(value) : "******* frw",
         responsive: ['md']
       },
       {
         title: 'Selling Price',
         dataIndex: 'SellingPrice',
         key: 'sellingPrice',
-        render: (value) => formatCurrency(value)
+        render: (value) => isSuperAdmin ? formatCurrency(value) : "******* frw"
       },
       {
         title: 'Qty',
@@ -330,7 +348,7 @@ const DailyFinancialReport = () => {
       {
         title: 'Subtotal',
         key: 'subtotal',
-        render: (_, record) => formatCurrency(record.SellingPrice * record.quantity)
+        render: (_, record) => isSuperAdmin ? formatCurrency(record.SellingPrice * record.quantity) : "******* frw"
       }
     ];
 
@@ -348,7 +366,7 @@ const DailyFinancialReport = () => {
     );
   };
 
-  // Table columns configuration with responsiveness
+  // Table columns configuration with responsiveness - Hide amounts for non-super admin
   const salesColumns = [
     {
       title: 'Buyer',
@@ -368,7 +386,7 @@ const DailyFinancialReport = () => {
       dataIndex: 'totalAmount',
       key: 'totalAmount',
       render: (value) => formatCurrency(value),
-      sorter: (a, b) => a.totalAmount - b.totalAmount
+      sorter: isSuperAdmin ? (a, b) => a.totalAmount - b.totalAmount : false
     },
     {
       title: 'Payment',
@@ -383,13 +401,14 @@ const DailyFinancialReport = () => {
       render: (value) => formatTime(value),
       responsive: ['lg']
     },
-    {
+    // Only show profit column to SUPER_ADMIN
+    ...(isSuperAdmin ? [{
       title: 'Profit',
       dataIndex: 'profit',
       key: 'profit',
       render: (value) => formatCurrency(value),
       sorter: (a, b) => a.profit - b.profit
-    }
+    }] : [])
   ];
 
   const purchasesColumns = [
@@ -423,7 +442,7 @@ const DailyFinancialReport = () => {
       dataIndex: 'totalPrice',
       key: 'totalPrice',
       render: (value) => formatCurrency(value),
-      sorter: (a, b) => a.totalPrice - b.totalPrice
+      sorter: isSuperAdmin ? (a, b) => a.totalPrice - b.totalPrice : false
     },
     {
       title: 'Time',
@@ -458,7 +477,7 @@ const DailyFinancialReport = () => {
       dataIndex: 'amount',
       key: 'amount',
       render: (value) => formatCurrency(value),
-      sorter: (a, b) => a.amount - b.amount
+      sorter: isSuperAdmin ? (a, b) => a.amount - b.amount : false
     }
   ];
 
@@ -501,11 +520,11 @@ const DailyFinancialReport = () => {
           return formatCurrency(record.amount);
         }
       },
-      sorter: (a, b) => {
+      sorter: isSuperAdmin ? (a, b) => {
         const aAmount = a.type === 'Sale' ? a.totalAmount : (a.type === 'Purchase' ? a.totalPrice : a.amount);
         const bAmount = b.type === 'Sale' ? b.totalAmount : (b.type === 'Purchase' ? b.totalPrice : b.amount);
         return aAmount - bAmount;
-      }
+      } : false
     },
     {
       title: 'Time',
@@ -519,18 +538,19 @@ const DailyFinancialReport = () => {
     }
   ];
 
-  // Combine all today's data for the combined report
+  // Combine all today's data for the combined report - Show all data to everyone
   const combinedData = [
     ...todaySalesData,
     ...todayPurchasesData,
     ...todayExpensesData
   ].sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date));
 
-  // Handle mobile summary display
+  // Handle mobile summary display - Hide amounts for non-super admin
   const renderSummaryCards = () => {
     const cardItems = [
       { title: "Today's Sales", value: summaryData.totalSales, color: '#3f8600' },
-      { title: "Today's Profit", value: summaryData.totalProfit, color: '#3f8600' },
+      // Only show profit to super admin
+      ...(isSuperAdmin ? [{ title: "Today's Profit", value: summaryData.totalProfit, color: '#3f8600' }] : []),
       { title: "Today's Purchases", value: summaryData.totalPurchases, color: '#cf1322' },
       { title: "Today's Expenses", value: summaryData.totalExpenses, color: '#cf1322' },
     ];
@@ -599,7 +619,7 @@ const DailyFinancialReport = () => {
         {renderSummaryCards()}
       </div>
       
-      {/* Tabs for different reports */}
+      {/* Tabs for different reports - Show all tabs to everyone */}
       <Tabs 
         defaultActiveKey="combined" 
         className="mb-4"
@@ -717,12 +737,17 @@ const DailyFinancialReport = () => {
         </TabPane>
       </Tabs>
       
-      {/* Mobile Summary Collapse - shown only on xs screens */}
+      {/* Mobile Summary Collapse - shown to everyone but hide amounts for non-super admin */}
       <div className="block md:hidden mt-4">
         <Collapse>
           <Panel header="View Financial Summary" key="1">
             <Space direction="vertical" className="w-full">
               {Object.entries(summaryData).map(([key, value], index) => {
+                // Skip profit for non-super admin users
+                if (key === 'totalProfit' && !isSuperAdmin) {
+                  return null;
+                }
+                
                 const formattedKey = key
                   .replace(/([A-Z])/g, ' $1')
                   .replace(/^./, str => str.toUpperCase());
@@ -746,6 +771,7 @@ const DailyFinancialReport = () => {
     </div>
   );
 };
+
 
 // Import Statistic component
 const Statistic = ({ title, value, valueStyle, formatter }) => {
