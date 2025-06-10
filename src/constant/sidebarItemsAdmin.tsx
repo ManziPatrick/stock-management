@@ -60,11 +60,7 @@ export const sidebarItems = [
     label: <NavLink to='/admin/sales'>MANAGE SALES</NavLink>,
     icon: <AreaChartOutlined />,
   },
-  {
-    key: 'Manage Seller',
-    label: <NavLink to='/admin/sellers'>MANAGE SUPPIERS</NavLink>,
-    icon: <ApartmentOutlined />,
-  },
+
   {
     key: 'Manage Purchase',
     label: <NavLink to='/admin/purchases'>MANAGE PURCHASES</NavLink>,
