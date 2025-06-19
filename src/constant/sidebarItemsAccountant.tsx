@@ -25,11 +25,6 @@ export const sidebarItems = [
       icon: <MoneyCollectFilled />,
     },
  
-  // {
-  //     key: 'Manage Seller',
-  //     label: <NavLink to='/accountant/sellers'>MANAGE SUPPIERS</NavLink>,
-  //     icon: <ApartmentOutlined />,
-  //   },
   {
     key: 'Manage Sales',
     label: <NavLink to='/accountant/sales'>MANAGE SALES</NavLink>,
