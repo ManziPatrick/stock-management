@@ -25,6 +25,7 @@ import { useCreateCreditMutation } from '../../redux/features/management/creditA
 import { useGetAllBrandsQuery } from '../../redux/features/management/brandApi';
 import { useGetAllCategoriesQuery } from '../../redux/features/management/categoryApi';
 import { useGetAllSellerQuery } from '../../redux/features/management/sellerApi';
+import getUserFromPersistedAuth from '../../utils/GetUserId';
 import { 
   useGetAllMeasurementsQuery,
   useCreateMeasurementMutation,
@@ -36,6 +37,7 @@ import CreateSeller from '../../components/product/CreateSeller';
 import CreateCategory from '../../components/product/CreateCategory';
 import CreateBrand from '../../components/product/CreateBrand';
 import dayjs from 'dayjs';
+import getUserRoleFromPersistedAuth from '../../utils/GetRoles';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -64,7 +66,31 @@ const parsePrice = (value: string | number): number => {
   return parseFloat(numStr) || 0;
 };
 
-const CreateProduct: React.FC = () => {
+// User role type
+type TUserRole = 'ADMIN' | 'SUPER_ADMIN' | 'USER' | 'SELLER';
+
+// Component props interface
+interface CreateProductProps {
+  userRole?: TUserRole;
+}
+
+const CreateProduct: React.FC<CreateProductProps> = ({ userRole: propUserRole }) => {
+  // Get user role from auth utils or use prop as fallback
+  const [currentUserRole, setCurrentUserRole] = useState<TUserRole>('USER');
+
+  // Initialize user role on component mount
+  useEffect(() => {
+    const roleFromAuth = getUserRoleFromPersistedAuth();
+    console.log('User role from auth:', roleFromAuth);
+    
+    // Use the role from auth if available, otherwise use prop or default
+    if (roleFromAuth) {
+      setCurrentUserRole(roleFromAuth as TUserRole);
+    } else if (propUserRole) {
+      setCurrentUserRole(propUserRole);
+    }
+  }, [propUserRole]);
+
   // Redux queries and mutations
   const [createNewProduct] = useCreateNewProductMutation();
   const [createCredit] = useCreateCreditMutation();
@@ -105,6 +131,11 @@ const CreateProduct: React.FC = () => {
   const [measurementMap, setMeasurementMap] = useState<Map<string, IMeasurement>>(new Map());
   const [unitMap, setUnitMap] = useState<Map<string, IUnit>>(new Map());
 
+  // Check if user can set original price
+  const canSetOriginalPrice = (role: TUserRole): boolean => {
+    return role === 'ADMIN' || role === 'SUPER_ADMIN';
+  };
+
   // Update measurement map when measurements data changes
   useEffect(() => {
     if (measurements?.data) {
@@ -130,7 +161,9 @@ const CreateProduct: React.FC = () => {
   const calculateCreditDetails = (totalPrice: number, initial: number, dueDate: any, quantity: number = 1) => {
     if (!dueDate || !initial) return;
 
-    const totalAmount = totalPrice * quantity;
+    // Use default_price for credit calculations instead of price
+    const defaultPrice = form.getFieldValue('default_price') || totalPrice;
+    const totalAmount = defaultPrice * quantity;
     const downPayment = initial;
     const creditAmount = totalAmount - downPayment;
 
@@ -147,10 +180,10 @@ const CreateProduct: React.FC = () => {
       
       // Update credit details if credit is enabled
       if (isCredit) {
-        const price = form.getFieldValue('price');
+        const price = form.getFieldValue('default_price'); // Use default_price for credit
         const initialPayment = form.getFieldValue('initialPayment');
         const dueDate = form.getFieldValue('paymentDueDate');
-        const quantity = form.getFieldValue('quantity') || 1;
+        const quantity = form.getFieldValue('stock') || 1; // Use stock instead of quantity
         
         calculateCreditDetails(price, initialPayment, dueDate, quantity);
       }
@@ -171,14 +204,14 @@ const CreateProduct: React.FC = () => {
 
   useEffect(() => {
     if (isCredit) {
-      const price = form.getFieldValue('price');
+      const price = form.getFieldValue('default_price'); // Use default_price for credit
       const initialPayment = form.getFieldValue('initialPayment');
       const dueDate = form.getFieldValue('paymentDueDate');
-      const quantity = form.getFieldValue('quantity') || 1;
+      const quantity = form.getFieldValue('stock') || 1; // Use stock
       
       calculateCreditDetails(price, initialPayment, dueDate, quantity);
     }
-  }, [form.getFieldValue('quantity')]);
+  }, [form.getFieldValue('stock')]);
 
   // Handle image preview
   const handlePreview = async (file: UploadFile) => {
@@ -293,7 +326,7 @@ const CreateProduct: React.FC = () => {
       const productFormData = new FormData();
 
       // Handle price fields before appending to FormData
-      const priceFields = ['price', 'initialPayment', 'downPayment', 'creditAmount'];
+      const priceFields = ['price', 'default_price', 'initialPayment', 'downPayment', 'creditAmount'];
       const processedValues = { ...values };
       
       priceFields.forEach(field => {
@@ -325,11 +358,11 @@ const CreateProduct: React.FC = () => {
       });
 
       // Handle measurement data - prepare the measurement object as required by the backend
-      if (measurementObj && unitObj && values.quantity) {
+      if (measurementObj && unitObj && values.stock) {
         const measurement = {
-          measurement: measurementObj.name,
+          type: measurementObj.name, // Use 'type' instead of 'measurement'
           unit: unitObj.name,
-          value: Number(values.quantity)
+          value: Number(values.stock) // Use stock value
         };
         productFormData.append('measurement', JSON.stringify(measurement));
       }
@@ -355,8 +388,8 @@ const CreateProduct: React.FC = () => {
           throw new Error('Supplier information not found');
         }
 
-        const quantity = values.quantity || 1;
-        const totalAmount = parsePrice(values.price) * quantity;
+        const quantity = values.stock || 1;
+        const totalAmount = parsePrice(values.default_price) * quantity; // Use default_price
 
         const creditData = {
           productId: productRes.data._id,
@@ -421,6 +454,15 @@ const CreateProduct: React.FC = () => {
             <Title level={2} className="text-center mb-6">
               Add New Product
             </Title>
+            
+            {/* Debug info - Remove in production */}
+            <div className="mb-4 p-2 bg-gray-100 rounded text-sm">
+              Current User Role: <strong>{currentUserRole}</strong>
+              {canSetOriginalPrice(currentUserRole) && (
+                <span className="ml-2 text-green-600">(Can set original price)</span>
+              )}
+            </div>
+            
             <Form
               form={form}
               layout="vertical"
@@ -444,20 +486,73 @@ const CreateProduct: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                <Col xs={24} md={12}>
+                {/* Default Price - Always visible and required */}
+                <Col xs={24} md={canSetOriginalPrice(currentUserRole) ? 12 : 24}>
                   <Form.Item
-                    label="Price"
-                    name="price"
-                    rules={[{ required: true, message: 'Please enter price' }]}
+                    label="Default Price"
+                    name="default_price"
+                    rules={[{ required: true, message: 'Please enter default price' }]}
+                    tooltip="This is the standard selling price for this product"
                   >
                     <InputNumber
                       size="large"
                       className="w-full rounded-md"
                       min={0}
-                      placeholder="Enter price"
+                      placeholder="Enter default price"
                       formatter={formatPrice}
                       parser={parsePrice}
                       onFocus={(e) => e.target.select()}
+                    />
+                  </Form.Item>
+                </Col>
+
+                {/* Original Price - Only visible for ADMIN/SUPER_ADMIN */}
+                {canSetOriginalPrice(currentUserRole) && (
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      label="Original Price (Admin Only)"
+                      name="price"
+                      tooltip="Only administrators can set the original purchase price"
+                    >
+                      <InputNumber
+                        size="large"
+                        className="w-full rounded-md"
+                        min={0}
+                        placeholder="Enter original price"
+                        formatter={formatPrice}
+                        parser={parsePrice}
+                        onFocus={(e) => e.target.select()}
+                      />
+                    </Form.Item>
+                  </Col>
+                )}
+
+                {/* Product Description */}
+                <Col xs={24}>
+                  <Form.Item
+                    label="Description"
+                    name="description"
+                  >
+                    <TextArea
+                      rows={4}
+                      placeholder="Enter product description"
+                      className="rounded-md"
+                    />
+                  </Form.Item>
+                </Col>
+
+                {/* Stock Quantity */}
+                <Col xs={24} md={12}>
+                  <Form.Item
+                    label="Stock Quantity"
+                    name="stock"
+                    rules={[{ required: true, message: 'Please enter stock quantity' }]}
+                  >
+                    <InputNumber 
+                      size="large" 
+                      className="w-full rounded-md" 
+                      min={0} 
+                      placeholder="Enter stock quantity"
                     />
                   </Form.Item>
                 </Col>
@@ -498,170 +593,40 @@ const CreateProduct: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                {/* Quantity and Unit */}
+                {/* Unit Selection */}
                 {selectedMeasurement && (
-                  <>
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Quantity"
-                        name="quantity"
-                        rules={[{ required: true, message: 'Please enter quantity' }]}
-                      >
-                        <InputNumber 
-                          size="large" 
-                          className="w-full rounded-md" 
-                          min={0} 
-                        />
-                      </Form.Item>
-                    </Col>
-
-                    <Col xs={24} md={12}>
-                      <Form.Item
-                        label="Unit"
-                        name="unit"
-                        rules={[{ required: true, message: 'Please select unit' }]}
-                      >
-                        <Select 
-                          size="large" 
-                          placeholder="Select unit"
-                          className="rounded-md"
-                          dropdownRender={(menu) => (
-                            <>
-                              {menu}
-                              <Divider className="my-2" />
-                              <Button 
-                                type="text"
-                                block
-                                onClick={() => setIsUnitModalOpen(true)}
-                                icon={<PlusOutlined />}
-                              >
-                                Create New Unit
-                              </Button>
-                            </>
-                          )}
-                        >
-                          {units?.data.map((unit: IUnit) => (
-                            <Option key={unit._id} value={unit.name}>
-                              {unit.name} ({unit.symbol})
-                            </Option>
-                          ))}
-                        </Select>
-                      </Form.Item>
-                    </Col>
-                  </>
-                )}
-
-                {/* Supplier */}
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Supplier"
-                    name="seller"
-                    rules={[{ required: true, message: 'Please select supplier' }]}
-                  >
-                    <Select
-                      size="large"
-                      placeholder="Select supplier"
-                      className="rounded-md"
-                      onSelect={handleSupplierSelect}
+                  <Col xs={24} md={12}>
+                    <Form.Item
+                      label="Unit"
+                      name="unit"
+                      rules={[{ required: true, message: 'Please select unit' }]}
                     >
-                      {sellers?.data.map((item: ISeller) => (
-                        <Option key={item._id} value={item._id}>
-                          {item.name}
-                        </Option>
-                      ))}
-                    </Select>
-                  </Form.Item>
-                </Col>
-
-                <Col xs={24}>
-                  <Form.Item name="isCredit" valuePropName="checked">
-                    <Checkbox onChange={handleCreditChange}>
-                      Sell on Credit
-                    </Checkbox>
-                  </Form.Item>
-                </Col>
-
-               
-                {isCredit && (
-                  <Col xs={24}>
-                    <Card className="bg-gray-50">
-                      <Title level={4}>Credit Details</Title>
-                      <Row gutter={[16, 16]}>
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Initial Payment"
-                            name="initialPayment"
-                            rules={[{ required: true, message: 'Please enter initial payment' }]}
-                          >
-                            <InputNumber
-                              size="large"
-                              className="w-full rounded-md"
-                              min={0}
-                              placeholder="Enter initial payment"
-                              formatter={formatPrice}
-                              parser={parsePrice}
-                              onChange={(value) => {
-                                setInitialPayment(value || 0);
-                                const quantity = form.getFieldValue('quantity') || 1;
-                                const dueDate = form.getFieldValue('paymentDueDate');
-                                const price = form.getFieldValue('price');
-                                calculateCreditDetails(price, value, dueDate, quantity);
-                              }}
-                            />
-                          </Form.Item>
-                        </Col>
-
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Payment Due Date"
-                            name="paymentDueDate"
-                            rules={[{ required: true, message: 'Please select due date' }]}
-                          >
-                            <DatePicker
-                              size="large"
-                              className="w-full rounded-md"
-                              disabledDate={(current) => current && current < dayjs().endOf('day')}
-                              onChange={(date) => {
-                                const price = form.getFieldValue('price');
-                                const quantity = form.getFieldValue('quantity') || 1;
-                                calculateCreditDetails(price, initialPayment, date, quantity);
-                              }}
-                            />
-                          </Form.Item>
-                        </Col>
-
-                        {/* Read-only calculated fields */}
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Down Payment"
-                            name="downPayment"
-                          >
-                            <InputNumber
-                              size="large"
-                              className="w-full rounded-md"
-                              disabled
-                              formatter={formatPrice}
-                              parser={parsePrice}
-                            />
-                          </Form.Item>
-                        </Col>
-
-                        <Col xs={24} md={12}>
-                          <Form.Item
-                            label="Credit Amount"
-                            name="creditAmount"
-                          >
-                            <InputNumber
-                              size="large"
-                              className="w-full rounded-md"
-                              disabled
-                              formatter={formatPrice}
-                              parser={parsePrice}
-                            />
-                          </Form.Item>
-                        </Col>
-                      </Row>
-                    </Card>
+                      <Select 
+                        size="large" 
+                        placeholder="Select unit"
+                        className="rounded-md"
+                        dropdownRender={(menu) => (
+                          <>
+                            {menu}
+                            <Divider className="my-2" />
+                            <Button 
+                              type="text"
+                              block
+                              onClick={() => setIsUnitModalOpen(true)}
+                              icon={<PlusOutlined />}
+                            >
+                              Create New Unit
+                            </Button>
+                          </>
+                        )}
+                      >
+                        {units?.data.map((unit: IUnit) => (
+                          <Option key={unit._id} value={unit.name}>
+                            {unit.name} ({unit.symbol})
+                          </Option>
+                        ))}
+                      </Select>
+                    </Form.Item>
                   </Col>
                 )}
 
@@ -706,19 +671,119 @@ const CreateProduct: React.FC = () => {
                   </Form.Item>
                 </Col>
 
-                {/* Description */}
-                <Col xs={24}>
+                {/* Supplier */}
+                <Col xs={24} md={12}>
                   <Form.Item
-                    label="Description"
-                    name="description"
+                    label="Supplier"
+                    name="seller"
+                    rules={[{ required: true, message: 'Please select supplier' }]}
                   >
-                    <TextArea
-                      rows={4}
-                      placeholder="Enter product description"
+                    <Select
+                      size="large"
+                      placeholder="Select supplier"
                       className="rounded-md"
-                    />
+                      onSelect={handleSupplierSelect}
+                    >
+                      {sellers?.data.map((item: ISeller) => (
+                        <Option key={item._id} value={item._id}>
+                          {item.name}
+                        </Option>
+                      ))}
+                    </Select>
                   </Form.Item>
                 </Col>
+
+                <Col xs={24}>
+                  <Form.Item name="isCredit" valuePropName="checked">
+                    <Checkbox onChange={handleCreditChange}>
+                      Sell on Credit
+                    </Checkbox>
+                  </Form.Item>
+                </Col>
+
+                {/* Credit Details */}
+                {isCredit && (
+                  <Col xs={24}>
+                    <Card className="bg-gray-50">
+                      <Title level={4}>Credit Details</Title>
+                      <Row gutter={[16, 16]}>
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Initial Payment"
+                            name="initialPayment"
+                            rules={[{ required: true, message: 'Please enter initial payment' }]}
+                          >
+                            <InputNumber
+                              size="large"
+                              className="w-full rounded-md"
+                              min={0}
+                              placeholder="Enter initial payment"
+                              formatter={formatPrice}
+                              parser={parsePrice}
+                              onChange={(value) => {
+                                setInitialPayment(value || 0);
+                                const quantity = form.getFieldValue('stock') || 1;
+                                const dueDate = form.getFieldValue('paymentDueDate');
+                                const price = form.getFieldValue('default_price');
+                                calculateCreditDetails(price, value, dueDate, quantity);
+                              }}
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Payment Due Date"
+                            name="paymentDueDate"
+                            rules={[{ required: true, message: 'Please select due date' }]}
+                          >
+                            <DatePicker
+                              size="large"
+                              className="w-full rounded-md"
+                              disabledDate={(current) => current && current < dayjs().endOf('day')}
+                              onChange={(date) => {
+                                const price = form.getFieldValue('default_price');
+                                const quantity = form.getFieldValue('stock') || 1;
+                                calculateCreditDetails(price, initialPayment, date, quantity);
+                              }}
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        {/* Read-only calculated fields */}
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Down Payment"
+                            name="downPayment"
+                          >
+                            <InputNumber
+                              size="large"
+                              className="w-full rounded-md"
+                              disabled
+                              formatter={formatPrice}
+                              parser={parsePrice}
+                            />
+                          </Form.Item>
+                        </Col>
+
+                        <Col xs={24} md={12}>
+                          <Form.Item
+                            label="Credit Amount"
+                            name="creditAmount"
+                          >
+                            <InputNumber
+                              size="large"
+                              className="w-full rounded-md"
+                              disabled
+                              formatter={formatPrice}
+                              parser={parsePrice}
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
+                    </Card>
+                  </Col>
+                )}
 
                 {/* Product Images */}
                 <Col xs={24}>

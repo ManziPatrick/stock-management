@@ -1,19 +1,19 @@
 // @ts-nocheck
-
-import { DeleteFilled, EditFilled ,PlusOutlined} from '@ant-design/icons';
+import { DeleteFilled, EditFilled, PlusOutlined } from '@ant-design/icons';
 import type { PaginationProps, TableColumnsType } from 'antd';
-import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table,Select,Empty, Tag, Checkbox, Image, Input, Radio, Space } from 'antd';
+import { Button, Col, Flex, Modal, Pagination, Row, Spin, Table, Select, Empty, Tag, Checkbox, Image, Input, Radio, Space } from 'antd';
 import React, { useEffect, useState } from 'react';
 import { FieldValues, useForm } from 'react-hook-form';
-import {useUpdatePurchaseMutation} from '../../redux/features/management/purchaseApi'
+import { useUpdatePurchaseMutation } from '../../redux/features/management/purchaseApi';
 import { useGetAllDebitsQuery, useCreateDebitMutation } from '../../redux/features/management/debitApi';
 import {
   useAddStockMutation,
   useDeleteProductMutation,
   useGetAllProductsQuery,
   useUpdateProductMutation,
+  useUpdateProductPriceMutation,
 } from '../../redux/features/management/productApi';
-import { 
+import {
   useGetAllMeasurementsQuery,
   useCreateMeasurementMutation,
   useCreateUnitMutation,
@@ -39,7 +39,8 @@ interface SaleDataType {
   quantity: number;
   buyerName: string;
   date: string;
-  originalPrice: number;
+  default_price:number,
+  Price: number;
   paymentMode: string;
   profitLoss: {
     perUnit: number;
@@ -72,13 +73,14 @@ const ProductManagePage = () => {
   };
   const totaltotalValue = products?.meta?.summary?.totalValue || 0;
 
-  const tableData = products?.data?.map((product: IProduct,index: number) => ({
+  const tableData = products?.data?.map((product: IProduct, index: number) => ({
     key: product._id,
     serialNumber: (query.page - 1) * query.limit + index + 1,
     name: product.name,
     category: product.category,
     categoryName: product.category.name,
     price: product.price,
+    default_price:product.default_price,
     stock: product.stock,
     seller: product?.seller,
     sellerName: product?.seller?.name || 'DELETED SELLER',
@@ -91,13 +93,13 @@ const ProductManagePage = () => {
   }));
 
   const columns: TableColumnsType<IProduct> = [
-     {
-    title: '#',
-    key: 'serialNumber',
-    dataIndex: 'serialNumber',
-    align: 'center',
-    width: '50px',
-  },
+    {
+      title: '#',
+      key: 'serialNumber',
+      dataIndex: 'serialNumber',
+      align: 'center',
+      width: '50px',
+    },
     {
       title: 'Image',
       key: 'image',
@@ -108,7 +110,7 @@ const ProductManagePage = () => {
         <Image
           src={images[0] || '/placeholder-image.png'}
           alt="Product"
-          style={{ width: 50, height: 50, objectFit: 'contain'}}
+          style={{ width: 50, height: 50, objectFit: 'contain' }}
           fallback="/placeholder-image.png"
           preview={images.length > 0}
         />
@@ -125,10 +127,16 @@ const ProductManagePage = () => {
       dataIndex: 'categoryName',
       align: 'center',
     },
+    // {
+    //   title: 'Origin price',
+    //   key: 'price',
+    //   dataIndex: 'price',
+    //   align: 'center',
+    // },
     {
-      title: 'price',
-      key: 'price',
-      dataIndex: 'price',
+      title: 'Market Price',
+      key: 'default_price',
+      dataIndex: 'default_price',
       align: 'center',
     },
     {
@@ -137,12 +145,7 @@ const ProductManagePage = () => {
       dataIndex: 'stock',
       align: 'center',
     },
-    {
-      title: 'total Value',
-      key: 'totalValue',
-      dataIndex: 'totalValue',
-      align: 'center',
-    },
+   
     {
       title: 'unit',
       key: 'unit',
@@ -167,7 +170,6 @@ const ProductManagePage = () => {
         return (
           <div style={{ display: 'flex', gap: '5px', justifyContent: 'center' }}>
             <SellProductModal product={item} />
-            {/* <AddStockModal product={item} /> */}
             <UpdateProductModal product={item} />
             <DeleteProductModal id={item.key} />
           </div>
@@ -191,21 +193,21 @@ const ProductManagePage = () => {
         scroll={{ x: true }}
       />
       <Flex justify='center' style={{ marginTop: '1rem' }}>
-      <Pagination
-  current={current}
-  pageSize={pageSize}
-  onChange={handlePageChange}
-  onShowSizeChange={handlePageChange}
-  total={products?.meta?.total}
-  showSizeChanger
-  showQuickJumper
-  showTotal={(total) => `Total ${total} items`}
-/>
+        <Pagination
+          current={current}
+          pageSize={pageSize}
+          onChange={handlePageChange}
+          onShowSizeChange={handlePageChange}
+          total={products?.meta?.total}
+          showSizeChanger
+          showQuickJumper
+          showTotal={(total) => `Total ${total} items`}
+        />
       </Flex>
-     
     </div>
   );
 };
+
 
 const SellProductModal = ({ product }: { product: IProduct & { key: string } }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -290,7 +292,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
         {
           ...product,
           selectedQuantity: 1,
-          sellingPrice: product.price
+          sellingPrice: product.default_price
         }
       ]);
     }
@@ -430,7 +432,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           products: saleResponse.data.transaction.products.map((product: any) => ({
             _id: product._id,
             productName: product.productName,
-            productPrice: product.productPrice,
+            productPrice: product.default_price,
             SellingPrice: product.SellingPrice,
             quantity: product.quantity,
             profitLoss: {
@@ -601,10 +603,10 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     )}
                   />
                   <Table.Column 
-                    title="Original Price" 
-                    dataIndex="price" 
-                    key="price"
-                    render={(price) => `${price} frw`}
+                    title="market price" 
+                    dataIndex="default_price" 
+                    key="default_price"
+                    render={(default_price) => `${default_price} frw`}
                   />
                   <Table.Column 
                     title="Selling Price" 
@@ -1083,6 +1085,7 @@ const AddStockModal = ({ product }) => {
 
 const UpdateProductModal = ({ product }) => {
   const [updateProduct] = useUpdateProductMutation();
+  const [updateProductPrice] = useUpdateProductPriceMutation();
   const [updatePurchase] = useUpdatePurchaseMutation();
   const { data: categories } = useGetAllCategoriesQuery(undefined);
   const { data: sellers, isLoading: isSellerLoading } = useGetAllSellerQuery(undefined);
@@ -1096,6 +1099,7 @@ const UpdateProductModal = ({ product }) => {
   const [shouldUpdatePurchases, setShouldUpdatePurchases] = useState(true);
   const [selectedMeasurement, setSelectedMeasurement] = useState(null);
   const [selectedMeasurementId, setSelectedMeasurementId] = useState(null);
+  const [isPriceUpdateOnly, setIsPriceUpdateOnly] = useState(false);
   
   // Modal states for creating new measurements and units
   const [isMeasurementModalOpen, setIsMeasurementModalOpen] = useState(false);
@@ -1146,7 +1150,8 @@ const UpdateProductModal = ({ product }) => {
   } = useForm({
     defaultValues: React.useMemo(() => ({
       name: product.name,
-      unitPrice: product.price,
+      price: product.price,
+      default_price: product.default_price || product.price,
       seller: product?.seller?._id,
       category: product.category._id,
       brand: product.brand?._id,
@@ -1268,53 +1273,70 @@ const UpdateProductModal = ({ product }) => {
     try {
       setIsSubmitting(true);
 
-      // Step 1: Prepare product update payload
-      const productPayload = {
-        name: data.name,
-        price: Number(data.unitPrice),
-        seller: data.seller,
-        category: data.category,
-        brand: data.brand,
-        description: data.description,
-        measurement: data.unitType ? {
-          type: data.unitType,
-          unit: data.unit,
-          value: Number(data.quantity)
-        } : undefined,
-        stock: Number(data.quantity)
-      };
+      if (isPriceUpdateOnly) {
+        // Price-only update payload
+        const pricePayload = {
+          price: Number(data.price),
+          default_price: Number(data.default_price),
+        };
 
-      // Step 2: Update product first
-      const productRes = await updateProduct({
-        id: product.key,
-        payload: productPayload
-      }).unwrap();
+        // Use the dedicated price update endpoint
+        await updateProductPrice({
+          id: product.key,
+          payload: pricePayload
+        }).unwrap();
 
-      // Step 3: If shouldUpdatePurchases is true and product update was successful,
-      // update the associated purchase
-      if (shouldUpdatePurchases && productRes.statusCode === 200) {
-        const purchasePayload = {
-          unitPrice: Number(data.unitPrice),
-          quantity: Number(data.quantity),
+        toastMessage({
+          icon: 'success',
+          text: 'Product prices updated successfully'
+        });
+      } else {
+        // Full product update payload
+        const productPayload = {
+          name: data.name,
+          price: Number(data.price),
+          seller: data.seller,
+          category: data.category,
+          brand: data.brand,
+          description: data.description,
           measurement: data.unitType ? {
             type: data.unitType,
             unit: data.unit,
             value: Number(data.quantity)
-          } : undefined
+          } : undefined,
+          stock: Number(data.quantity)
         };
-        await updatePurchase({
-          id: product.key,
-          payload: purchasePayload
-        }).unwrap();
-      
-      }
 
-      toastMessage({
-        icon: 'success',
-        text: shouldUpdatePurchases 
-          ? 'Product and associated purchase updated successfully'
-          : 'Product updated successfully'
-      });
+        // Update product first
+        await updateProduct({
+          id: product.key,
+          payload: productPayload
+        }).unwrap();
+
+        // Optionally update associated purchases
+        if (shouldUpdatePurchases) {
+          const purchasePayload = {
+            unitPrice: Number(data.price),
+            quantity: Number(data.quantity),
+            measurement: data.unitType ? {
+              type: data.unitType,
+              unit: data.unit,
+              value: Number(data.quantity)
+            } : undefined
+          };
+          await updatePurchase({
+            id: product.key,
+            payload: purchasePayload
+          }).unwrap();
+        }
+
+        toastMessage({
+          icon: 'success',
+          text: shouldUpdatePurchases 
+            ? 'Product and associated purchase updated successfully'
+            : 'Product updated successfully'
+        });
+      }
       
       handleCancel();
     } catch (error) {
@@ -1341,7 +1363,8 @@ const UpdateProductModal = ({ product }) => {
   const showModal = () => {
     reset({
       name: product.name,
-      unitPrice: product.price,
+      price: product.price,
+      default_price: product.default_price || product.price,
       seller: product?.seller?._id,
       category: product.category._id,
       brand: product.brand?._id,
@@ -1360,6 +1383,8 @@ const UpdateProductModal = ({ product }) => {
       }
     }
     
+    // Reset to full update mode when opening modal
+    setIsPriceUpdateOnly(false);
     setIsModalOpen(true);
   };
 
@@ -1380,195 +1405,238 @@ const UpdateProductModal = ({ product }) => {
       </Button>
 
       <Modal
-        title="Update Product Info"
+        title={isPriceUpdateOnly ? "Update Product Prices" : "Update Product Info"}
         open={isModalOpen}
         onCancel={handleCancel}
         footer={null}
         closable={!isSubmitting}
         maskClosable={!isSubmitting}
+        width={isPriceUpdateOnly ? 600 : undefined}
       >
         <form onSubmit={handleSubmit(onSubmit)}>
           <Row className="mt-4">
             <Col xs={{ span: 23 }} lg={{ span: 24 }}>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={shouldUpdatePurchases}
-                  onChange={(e) => setShouldUpdatePurchases(e.target.checked)}
-                  className="mr-2"
-                />
-                <span>Update associated purchase records with new price/measurement</span>
-              </label>
+              <Button
+                type="link"
+                onClick={() => setIsPriceUpdateOnly(!isPriceUpdateOnly)}
+                style={{ padding: 0, marginBottom: '1rem' }}
+              >
+                {isPriceUpdateOnly ? 'Show Full Update Form' : 'Only Update Prices'}
+              </Button>
             </Col>
           </Row>
 
-          <CustomInput
-            name="name"
-            errors={errors}
-            label="Name"
-            register={register}
-            required={true}
-            disabled={isSubmitting}
-          />
-
-          <CustomInput
-            errors={errors}
-            label="Unit Price"
-            type="number"
-            name="unitPrice"
-            register={register}
-            required={true}
-            disabled={isSubmitting}
-          />
-
-          <Row>
-            <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor="unitType" className="text-sm">
-                Measurement Type
-              </label>
-            </Col>
-            <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <div className="flex gap-2">
-                <select
-                  {...register('unitType')}
-                  className="p-2.5 bg-transparent flex-1"
-                  required={true}
-                  disabled={isSubmitting}
-                  onChange={(e) => handleMeasurementSelect(e.target.value)}
-                >
-                  <option value="">Select Measurement Type</option>
-                  {measurements?.data?.map((measurement) => (
-                    <option key={measurement._id} value={measurement.name}>
-                      {measurement.name}
-                    </option>
-                  ))}
-                </select>
-                <Button
-                  type="default"
-                  onClick={() => setIsMeasurementModalOpen(true)}
-                  disabled={isSubmitting}
-                >
-                  <PlusOutlined /> New
-                </Button>
-              </div>
-            </Col>
-          </Row>
-
-          <Row className="mt-4">
-            <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor="quantity" className="label">
-                Quantity
-              </label>
-            </Col>
-            <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <div className="flex gap-4">
-                <div className="flex-1">
-                  <CustomInput
-                    errors={errors}
-                    type="number"
-                    label=""
-                    name="quantity"
-                    register={register}
-                    required={true}
-                    disabled={isSubmitting}
+          {!isPriceUpdateOnly && (
+            <Row className="mt-4">
+              <Col xs={{ span: 23 }} lg={{ span: 24 }}>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={shouldUpdatePurchases}
+                    onChange={(e) => setShouldUpdatePurchases(e.target.checked)}
+                    className="mr-2"
                   />
-                </div>
-                {watch('unitType') && (
-                  <div className="flex gap-2 flex-1">
+                  <span>Update associated purchase records with new price/measurement</span>
+                </label>
+              </Col>
+            </Row>
+          )}
+
+          {isPriceUpdateOnly ? (
+            <>
+              {/* Price Update Only Form */}
+              <CustomInput
+                errors={errors}
+                label="Current Price"
+                type="number"
+                name="price"
+                register={register}
+                required={true}
+                disabled={isSubmitting}
+              />
+              
+              <CustomInput
+                errors={errors}
+                label="Default Price"
+                type="number"
+                name="default_price"
+                register={register}
+                required={true}
+                disabled={isSubmitting}
+              />
+            </>
+          ) : (
+            <>
+              {/* Full Update Form */}
+              <CustomInput
+                name="name"
+                errors={errors}
+                label="Name"
+                register={register}
+                required={true}
+                disabled={isSubmitting}
+              />
+
+              <CustomInput
+                errors={errors}
+                label="Price"
+                type="number"
+                name="price"
+                register={register}
+                required={true}
+                disabled={isSubmitting}
+              />
+
+              <Row>
+                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+                  <label htmlFor="unitType" className="text-sm">
+                    Measurement Type
+                  </label>
+                </Col>
+                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+                  <div className="flex gap-2">
                     <select
-                      {...register('unit')}
+                      {...register('unitType')}
                       className="p-2.5 bg-transparent flex-1"
                       required={true}
-                      disabled={isSubmitting || !selectedMeasurementId}
+                      disabled={isSubmitting}
+                      onChange={(e) => handleMeasurementSelect(e.target.value)}
                     >
-                      <option value="">Select Unit</option>
-                      {renderUnitOptions()}
+                      <option value="">Select Measurement Type</option>
+                      {measurements?.data?.map((measurement) => (
+                        <option key={measurement._id} value={measurement.name}>
+                          {measurement.name}
+                        </option>
+                      ))}
                     </select>
                     <Button
                       type="default"
-                      onClick={() => setIsUnitModalOpen(true)}
-                      disabled={isSubmitting || !selectedMeasurementId}
+                      onClick={() => setIsMeasurementModalOpen(true)}
+                      disabled={isSubmitting}
                     >
                       <PlusOutlined /> New
                     </Button>
                   </div>
-                )}
-              </div>
-            </Col>
-          </Row>
+                </Col>
+              </Row>
 
-          <Row className="mt-4">
-            <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor="seller" className="label">
-                Suppliers
-              </label>
-            </Col>
-            <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <select
-                disabled={isSellerLoading || isSubmitting}
-                {...register('seller', { required: true })}
-                className={`w-full p-2.5 ${errors['seller'] ? 'border-red-500' : ''}`}
-              >
-                <option value="">Select supplier</option>
-                {sellers?.data.map((item) => (
-                  <option value={item._id} key={item._id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </Col>
-          </Row>
+              <Row className="mt-4">
+                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+                  <label htmlFor="quantity" className="label">
+                    Quantity
+                  </label>
+                </Col>
+                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+                  <div className="flex gap-4">
+                    <div className="flex-1">
+                      <CustomInput
+                        errors={errors}
+                        type="number"
+                        label=""
+                        name="quantity"
+                        register={register}
+                        required={true}
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    {watch('unitType') && (
+                      <div className="flex gap-2 flex-1">
+                        <select
+                          {...register('unit')}
+                          className="p-2.5 bg-transparent flex-1"
+                          required={true}
+                          disabled={isSubmitting || !selectedMeasurementId}
+                        >
+                          <option value="">Select Unit</option>
+                          {renderUnitOptions()}
+                        </select>
+                        <Button
+                          type="default"
+                          onClick={() => setIsUnitModalOpen(true)}
+                          disabled={isSubmitting || !selectedMeasurementId}
+                        >
+                          <PlusOutlined /> New
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </Col>
+              </Row>
 
-          <Row className="mt-4">
-            <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor="category" className="label">
-                Category
-              </label>
-            </Col>
-            <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <select
-                {...register('category', { required: true })}
-                className={`w-full p-2.5 ${errors['category'] ? 'border-red-500' : ''}`}
+              <Row className="mt-4">
+                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+                  <label htmlFor="seller" className="label">
+                    Suppliers
+                  </label>
+                </Col>
+                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+                  <select
+                    disabled={isSellerLoading || isSubmitting}
+                    {...register('seller', { required: true })}
+                    className={`w-full p-2.5 ${errors['seller'] ? 'border-red-500' : ''}`}
+                  >
+                    <option value="">Select supplier</option>
+                    {sellers?.data.map((item) => (
+                      <option value={item._id} key={item._id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </Col>
+              </Row>
+
+              <Row className="mt-4">
+                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+                  <label htmlFor="category" className="label">
+                    Category
+                  </label>
+                </Col>
+                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+                  <select
+                    {...register('category', { required: true })}
+                    className={`w-full p-2.5 ${errors['category'] ? 'border-red-500' : ''}`}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select Category*</option>
+                    {categories?.data.map((item) => (
+                      <option value={item._id} key={item._id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </Col>
+              </Row>
+
+              <Row className="mt-4">
+                <Col xs={{ span: 23 }} lg={{ span: 6 }}>
+                  <label htmlFor="brand" className="label">
+                    Brand
+                  </label>
+                </Col>
+                <Col xs={{ span: 23 }} lg={{ span: 18 }}>
+                  <select
+                    {...register('brand')}
+                    className={`w-full p-2.5 ${errors['brand'] ? 'border-red-500' : ''}`}
+                    disabled={isSubmitting}
+                  >
+                    <option value="">Select brand</option>
+                    {brands?.data.map((item) => (
+                      <option value={item._id} key={item._id}>
+                        {item.name}
+                      </option>
+                    ))}
+                  </select>
+                </Col>
+              </Row>
+
+              <CustomInput
+                label="Description"
+                name="description"
+                register={register}
                 disabled={isSubmitting}
-              >
-                <option value="">Select Category*</option>
-                {categories?.data.map((item) => (
-                  <option value={item._id} key={item._id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </Col>
-          </Row>
-
-          <Row className="mt-4">
-            <Col xs={{ span: 23 }} lg={{ span: 6 }}>
-              <label htmlFor="brand" className="label">
-                Brand
-              </label>
-            </Col>
-            <Col xs={{ span: 23 }} lg={{ span: 18 }}>
-              <select
-                {...register('brand')}
-                className={`w-full p-2.5 ${errors['brand'] ? 'border-red-500' : ''}`}
-                disabled={isSubmitting}
-              >
-                <option value="">Select brand</option>
-                {brands?.data.map((item) => (
-                  <option value={item._id} key={item._id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </Col>
-          </Row>
-
-          <CustomInput
-            label="Description"
-            name="description"
-            register={register}
-            disabled={isSubmitting}
-          />
+              />
+            </>
+          )}
 
           <Flex justify="center" className="mt-6">
             <Button
@@ -1582,8 +1650,10 @@ const UpdateProductModal = ({ product }) => {
                   <Spin size="small" className="mr-2" />
                   Updating...
                 </>
+              ) : isPriceUpdateOnly ? (
+                'Update Prices'
               ) : (
-                'Update'
+                'Update Product'
               )}
             </Button>
           </Flex>
@@ -1648,6 +1718,7 @@ const UpdateProductModal = ({ product }) => {
     </>
   );
 };
+
 /**
  * Delete Product Modal
  */

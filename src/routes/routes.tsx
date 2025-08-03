@@ -4,6 +4,7 @@ import Sidebar from '../components/layout/Sidebar';
 import CreateProduct from '../pages/all/CreateProduct';
 import Dashboard from '../pages/admin/Dashboard';
 // import  from '../pages/accountant/AccDashboard';
+import SaleManagementPageUser from '../pages/managements/SaleManagementPageusers';
 import NotFound from '../pages/NotFound';
 import ProfilePage from '../pages/all/ProfilePage';
 import SaleHistoryPage from '../pages/all/SaleHistoryPage';
@@ -60,7 +61,7 @@ export const router = createBrowserRouter([
         path: 'sales',
         element: (
           <ProtectRoute>
-            <SaleManagementPage />
+            <SaleManagementPageUser />
           </ProtectRoute>
         ),
       },

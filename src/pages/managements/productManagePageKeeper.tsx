@@ -108,12 +108,7 @@ const ProductManagePageKeeper= () => {
       dataIndex: 'categoryName',
       align: 'center',
     },
-    {
-      title: 'price',
-      key: 'price',
-      dataIndex: 'price',
-      align: 'center',
-    },
+   
     {
       title: 'stock',
       key: 'stock',

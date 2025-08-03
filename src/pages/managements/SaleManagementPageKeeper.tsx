@@ -167,60 +167,47 @@ const SaleManagementPage = () => {
   });
 
   // FIXED: Calculate summary statistics with fallback for missing API stats
-  const apiStats = data?.meta?.totalSales?.stats;
-  
-  let summaryStats;
-  if (apiStats) {
-    // Use API-provided stats if available
-    summaryStats = {
-      totalItems: apiStats.totalCount || 0,
-      outAndDelivered: 0,
-      inAndReserved: 0,
-      pending: 0,
-      reserved: 0
-    };
-  } else {
-    // FIXED: Fallback calculation when API doesn't provide stats
-    summaryStats = tableData.reduce(
-      (acc, sale) => {
-        acc.totalItems += sale.totalQuantity;
-        
-        if (sale.inventoryStatus === 'deducted' && sale.isProductsCollected) {
-          acc.outAndDelivered += sale.totalQuantity;
-        }
-        if (sale.inventoryStatus === 'deducted' && !sale.isProductsCollected) {
-          acc.inAndReserved += sale.totalQuantity;
-        }
-        if (sale.status === 'pending') {
-          acc.pending += sale.totalQuantity;
-        }
-        if (sale.inventoryStatus === 'reserved') {
-          acc.reserved += sale.totalQuantity;
-        }
-        
-        return acc;
-      },
-      { totalItems: 0, outAndDelivered: 0, inAndReserved: 0, pending: 0, reserved: 0 }
-    );
-  }
+// FIXED: Calculate summary statistics with fallback for missing API stats
+const apiStats = data?.meta?.totalSales?.stats;
 
-  // FIXED: Additional calculation for status-based counts when API stats not available
-  if (!apiStats) {
-    tableData.forEach(sale => {
+let summaryStats;
+if (apiStats) {
+  // Use API-provided stats if available
+  summaryStats = {
+    totalItems: apiStats.totalCount || 0,
+    outAndDelivered: apiStats.outAndDelivered || 0,
+    inAndReserved: apiStats.inAndReserved || 0,
+    pending: apiStats.pending || 0,
+    reserved: apiStats.reserved || 0
+  };
+} else {
+  // FIXED: Single calculation when API doesn't provide stats
+  summaryStats = tableData.reduce(
+    (acc, sale) => {
+      acc.totalItems += sale.totalQuantity;
+      
       if (sale.inventoryStatus === 'deducted' && sale.isProductsCollected) {
-        summaryStats.outAndDelivered += sale.totalQuantity;
+        acc.outAndDelivered += sale.totalQuantity;
       }
       if (sale.inventoryStatus === 'deducted' && !sale.isProductsCollected) {
-        summaryStats.inAndReserved += sale.totalQuantity;
+        acc.inAndReserved += sale.totalQuantity;
       }
       if (sale.status === 'pending') {
-        summaryStats.pending += sale.totalQuantity;
+        acc.pending += sale.totalQuantity;
       }
       if (sale.inventoryStatus === 'reserved') {
-        summaryStats.reserved += sale.totalQuantity;
+        acc.reserved += sale.totalQuantity;
       }
-    });
-  }
+      
+      return acc;
+    },
+    { totalItems: 0, outAndDelivered: 0, inAndReserved: 0, pending: 0, reserved: 0 }
+  );
+}
+
+// REMOVED: The duplicate forEach loop that was causing double counting
+
+  
 
   const expandedRowRender = (record: ITableSaleData) => {
     const columns = [
@@ -318,7 +305,7 @@ const SaleManagementPage = () => {
             </>
           )}
           
-          {record.status === 'approved' && record.inventoryStatus === 'deducted' && (
+          {(record.status === 'approved' || record.status === 'credit') && record.inventoryStatus === 'deducted' && (
             <Popconfirm
               title={`Mark as ${record.isProductsCollected ? 'not delivered' : 'delivered'}?`}
               onConfirm={() => handleCollectionToggle(record._id, !record.isProductsCollected)}

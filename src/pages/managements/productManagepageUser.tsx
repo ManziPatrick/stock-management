@@ -34,6 +34,7 @@ interface SaleDataType {
   buyerName: string;
   date: string;
   originalPrice: number;
+  default_price:number;
   paymentMode: string;
   profitLoss: {
     perUnit: number;
@@ -76,6 +77,7 @@ const ProductManagePageuser = () => {
     price: product.price,
     stock: product.stock,
     seller: product?.seller,
+    default_price: product?.default_price,
     sellerName: product?.seller?.name || 'DELETED SELLER',
     brand: product.brand,
     size: product.measurement?.value || product.size || '',
@@ -121,9 +123,9 @@ const ProductManagePageuser = () => {
       align: 'center',
     },
     {
-      title: 'price',
-      key: 'price',
-      dataIndex: 'price',
+      title: 'market price',
+      key: 'default_price',
+      dataIndex: 'default_price',
       align: 'center',
     },
     {
@@ -132,12 +134,7 @@ const ProductManagePageuser = () => {
       dataIndex: 'stock',
       align: 'center',
     },
-    {
-      title: 'total Value',
-      key: 'totalValue',
-      dataIndex: 'totalValue',
-      align: 'center',
-    },
+  
     {
       title: 'unit',
       key: 'unit',
@@ -362,6 +359,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
           productPrice: prod.price,
           quantity: prod.selectedQuantity,
           originalPrice: prod.price,
+          default_price: prod.default_price,
           profitLoss: {
             perUnit: Math.abs(profitPerUnit),
             total: Math.abs(totalProductProfit),
@@ -425,6 +423,7 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
             _id: product._id,
             productName: product.productName,
             productPrice: product.productPrice,
+            default_price: product.default_price,
             SellingPrice: product.SellingPrice,
             quantity: product.quantity,
             profitLoss: {
@@ -595,10 +594,10 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                     )}
                   />
                   <Table.Column 
-                    title="Original Price" 
-                    dataIndex="price" 
-                    key="price"
-                    render={(price) => `${price} frw`}
+                    title="market Price" 
+                    dataIndex="default_price" 
+                    key="default_price"
+                    render={(default_price) => `${default_price} frw`}
                   />
                   <Table.Column 
                     title="Selling Price" 
@@ -662,9 +661,9 @@ const SellProductModal = ({ product }: { product: IProduct & { key: string } }) 
                   <br />
                   <Typography.Text 
                     className="text-md"
-                    type={totalProfitLoss.isProfit ? "success" : "danger"}
+                    
                   >
-                    {totalProfitLoss.isProfit ? "Profit" : "Loss"}: {totalProfitLoss.amount.toFixed(2)} frw
+                    {/* {totalProfitLoss.isProfit ? "Profit" : "Loss"}: {totalProfitLoss.amount.toFixed(2)} frw */}
                   </Typography.Text>
                 </div>
               )}

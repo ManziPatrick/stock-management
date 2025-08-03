@@ -14,6 +14,7 @@ import toastMessage from '../../lib/toastMessage';
 import SearchInput from '../../components/SearchInput';
 import Typography from 'antd/es/typography/Typography';
 import UpdatedProductsTable from './updatedProduct';
+import getRole from '../../utils/GetRoles';
 
 const PurchaseManagementPage = () => {
   const [query, setQuery] = useState({
@@ -24,15 +25,22 @@ const PurchaseManagementPage = () => {
 
   const { data: purchaseResponse, isFetching } = useGetAllPurchasesQuery(query);
   
+  const role = getRole();
+  console.log('Role:', role);
+  
+  const isAdminOrSuperAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  
   const totalPurchasedAmount = purchaseResponse?.meta?.totalPurchasedAmount?.stats?.totalPurchasedAmount || 0;
 
   const onChange: PaginationProps['onChange'] = (page) => {
     setQuery((prev) => ({ ...prev, page: page }));
   };
+  
   const [isListView, setIsListView] = useState(false);
   const toggleView = () => {
     setIsListView(!isListView);
   };
+  
   const tableData = purchaseResponse?.data?.map((purchase: IPurchase) => ({
     key: purchase._id,
     //@ts-ignore
@@ -42,9 +50,12 @@ const PurchaseManagementPage = () => {
     quantity: purchase.quantity,
     totalPrice: purchase.totalPrice,
     date: formatDate(purchase.createdAt),
+    // Add flag for zero price to use in row styling
+    hasZeroPrice: purchase.unitPrice === 0 || purchase.unitPrice === null || purchase.unitPrice === undefined,
   }));
 
-  const columns: TableColumnsType<any> = [
+  // Base columns that are always visible
+  const baseColumns: TableColumnsType<any> = [
     {
       title: 'Seller Name',
       key: 'sellerName',
@@ -55,24 +66,56 @@ const PurchaseManagementPage = () => {
       key: 'productName',
       dataIndex: 'productName',
     },
+  ];
+
+  // Admin-only columns
+  const adminColumns: TableColumnsType<any> = [
     {
       title: 'Price(per unit)',
       key: 'price',
       dataIndex: 'price',
       align: 'center',
+      render: (price: number) => (
+        <span style={{ 
+          color: price === 0 || price === null || price === undefined ? 'red' : 'inherit',
+          fontWeight: price === 0 || price === null || price === undefined ? 'bold' : 'normal'
+        }}>
+          {price === 0 || price === null || price === undefined ? '⚠️ Update Price' : price}
+        </span>
+      ),
     },
+  ];
+
+  // Common columns that come after price columns
+  const commonColumns: TableColumnsType<any> = [
     {
       title: 'Quantity',
       key: 'quantity',
       dataIndex: 'quantity',
       align: 'center',
     },
+  ];
+
+  // Total price column (admin only)
+  const totalPriceColumn: TableColumnsType<any> = [
     {
       title: 'Total Price',
       key: 'totalPrice',
       dataIndex: 'totalPrice',
       align: 'center',
+      render: (totalPrice: number, record: any) => (
+        <span style={{ 
+          color: record.hasZeroPrice ? 'red' : 'inherit',
+          fontWeight: record.hasZeroPrice ? 'bold' : 'normal'
+        }}>
+          {record.hasZeroPrice ? '⚠️ Update Price' : totalPrice}
+        </span>
+      ),
     },
+  ];
+
+  // Date column (always visible)
+  const dateColumn: TableColumnsType<any> = [
     {
       title: 'Date',
       key: 'date',
@@ -81,43 +124,53 @@ const PurchaseManagementPage = () => {
     },
   ];
 
+  // Construct columns based on role
+  const columns: TableColumnsType<any> = [
+    ...baseColumns,
+    ...(isAdminOrSuperAdmin ? adminColumns : []),
+    ...commonColumns,
+    ...(isAdminOrSuperAdmin ? totalPriceColumn : []),
+    ...dateColumn,
+  ];
+
   return (
-    
     <div className='p-6 bg-white rounded-lg shadow-md h-[90vh]'>
       {/* <Button 
             onClick={toggleView} 
             type="primary" 
-            icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined  />}
+            icon={isListView ? <FileAddOutlined /> : <UnorderedListOutlined  />}
           >
             {isListView ? 'Purchase table':'Updated purchase '}
           </Button> */}
-          {isListView ? (
-          <UpdatedProductsTable/>
-        ) : (
-        
-      <div>
-      <Flex justify='end' style={{ margin: '5px' }}>
-        <SearchInput setQuery={setQuery} placeholder='Search Purchase...' />
-      </Flex>
-      <Table
-        size='small'
-        loading={isFetching}
-        columns={columns}
-        className='rounded-lg border'
-        dataSource={tableData}
-        pagination={false}
-      />
+      {isListView ? (
+        <UpdatedProductsTable/>
+      ) : (
+        <div>
+          <Flex justify='end' style={{ margin: '5px' }}>
+            <SearchInput setQuery={setQuery} placeholder='Search Purchase...' />
+          </Flex>
+          <Table
+            size='small'
+            loading={isFetching}
+            columns={columns}
+            className='rounded-lg border'
+            dataSource={tableData}
+            pagination={false}
+            rowClassName={(record) => {
+              // Apply red background only for admin/superAdmin users with zero price
+              return isAdminOrSuperAdmin && record.hasZeroPrice ? 'zero-price-row' : '';
+            }}
+          />
 
-      <Flex justify='center' style={{ marginTop: '1rem' }}>
-        <Pagination
-          current={query.page}
-          onChange={onChange}
-          defaultPageSize={query.limit}
-          total={purchaseResponse?.meta?.total || 0}
-        />
-      </Flex>
-    
-    </div>
+          <Flex justify='center' style={{ marginTop: '1rem' }}>
+            <Pagination
+              current={query.page}
+              onChange={onChange}
+              defaultPageSize={query.limit}
+              total={purchaseResponse?.meta?.total || 0}
+            />
+          </Flex>
+        </div>
       )}
     </div>
   );

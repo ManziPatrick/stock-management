@@ -25,7 +25,6 @@ const productApi = baseApi.injectEndpoints({
       }),
       providesTags: ['product']
     }),
-    // New endpoint for getting updated products
     getUpdatedProducts: builder.query({
       query: (query) => ({
         url: '/products/updated',
@@ -62,7 +61,16 @@ const productApi = baseApi.injectEndpoints({
         url: `/products/${id}`,
         method: 'PATCH',
         body: payload,
-        params, // Ensure params are correctly passed
+        params,
+      }),
+      invalidatesTags: ['product']
+    }),
+    // New mutation for updating product price (admin only)
+    updateProductPrice: builder.mutation({
+      query: ({ id, payload }) => ({
+        url: `/products/${id}/price`,
+        method: 'PATCH',
+        body: payload,
       }),
       invalidatesTags: ['product']
     }),
@@ -85,8 +93,8 @@ export const {
   useDeleteProductMutation,
   useGetSingleProductQuery,
   useUpdateProductMutation,
+  useUpdateProductPriceMutation, // Export the new mutation hook
   useBulkDeleteMutation,
-  // Export the new query hook
   useGetUpdatedProductsQuery
 } = productApi
 
